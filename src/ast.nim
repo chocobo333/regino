@@ -1,12 +1,12 @@
 
 import strformat
 
-import lineInfos
-
 import coloredString
 
-import parserCombinator/utils
+import eat/spanned
+import eat/utils
 
+import lineInfos
 
 type
     AstKind* = enum

@@ -2,21 +2,13 @@
 import strformat
 
 import filenames
+import eat/spanned
 
 
 type
-    Position* = object
-        line*: int
-        col*: int
     LineInfo* = object
         fileId*: FileId         ## indicates identifier for `FileInfo` which is consisted of file name and so on.
         span*: Slice[Position]  ## `span.b` is exclusive while `span.a` is inclusive.
-
-proc newPosition*(line: int = 1, col : int = 1): Position =
-    Position(line: line, col: col)
-
-proc `$`*(self: Position): string =
-    fmt"({self.line}, {self.col})"
 
 proc newLineInfo*(fileid: FileId , pos, endpos: Position): LineInfo =
     LineInfo(fileId: fileid, span: pos..endpos)
@@ -27,3 +19,8 @@ proc `$`*(self: LineInfo): string =
     else:
         self.fileId.getFileInfo.filename
     fmt"{filename}{self.span.a}"
+
+proc toLineInfo*(self: Spanned, fileid: FileId): LineInfo =
+    newLineInfo(fileid, self.pos, self.endpos)
+proc newLineInfo*(fileid: FileId, a, b: Spanned): LineInfo =
+    newLineInfo(fileid, a.pos, b.endpos)

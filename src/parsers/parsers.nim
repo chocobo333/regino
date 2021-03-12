@@ -3,11 +3,12 @@ import strutils
 import options
 import sugar
 
-import ../parserCombinator except s, p, Parser
+import eat except Parser
+import eat/dsl
+
 import ../ast
 import ../lineInfos
 
-import ../parserCombinator/dsl
 
 
 proc first[T](a: seq[T]): T = a[0]
@@ -16,7 +17,7 @@ proc newTreeNode(kind: range[akFailed..akCall]): proc(a: seq[AstNode]): AstNode 
     result = proc(a: seq[AstNode]): AstNode =
         kind.newTreeNode(a)
 
-ParserDef Parser[Spanned](fileid: FileId, indent: seq[int]):
+ParserDef Parser(fileid: FileId, indent: seq[int]):
     fileid = -1
     indent = @[0]
 
@@ -32,24 +33,24 @@ ParserDef Parser[Spanned](fileid: FileId, indent: seq[int]):
     KeyWords = p"let|var|const"
 
     NewLine = - +(sp(0) > p"\n" @ first) > sp(0)        @ first @ (it => it.fragment.len)
-    Indent = NewLine                                    @@ proc(it: Result[Spanned, int, string]): Result[Spanned, int, string] =
+    Indent = NewLine                                    @@ proc(it: PResult[int]): PResult[int] =
                                                             if it.isErr:
                                                                 it
                                                             else:
-                                                                if indent[^1] < it.get[1]:
-                                                                    indent.add it.get[1]
+                                                                if indent[^1] < it.get:
+                                                                    indent.add it.get
                                                                     it
                                                                 else:
-                                                                    err "invalid indentation"
+                                                                    err it.getSrc, "invalid indentation"
     Dedent = alt(
-        &Newline                                        @@ proc(it: Result[Spanned, int, string]): Result[Spanned, int, string] =
+        &Newline                                        @@ proc(it: PResult[int]): PResult[int] =
                                                             if it.isErr:
                                                                 it
                                                             else:
-                                                                let n = it.get[1]
+                                                                let n = it.get
                                                                 if n in indent:
                                                                     if n == indent[^1]:
-                                                                        err "invalid indentation"
+                                                                        err(it.getSrc, "invalid indentation")
                                                                     # TODO: merge 2 branches
                                                                     elif n == indent[^2]:
                                                                         discard indent.pop
@@ -59,19 +60,18 @@ ParserDef Parser[Spanned](fileid: FileId, indent: seq[int]):
                                                                         discard indent.pop
                                                                         it
                                                                 else:
-                                                                    err "invalid indentation"
-        ,
-        Eof                                            @ (it => indent.pop)
+                                                                    err(it.getSrc, "invalid indentation"),
+        Eof                                             @ (it => indent.pop)
     )
-    Nodent = Newline                                    @@ proc(it: Result[Spanned, int, string]): Result[Spanned, int, string] =
+    Nodent = Newline                                    @@ proc(it: PResult[int]): PResult[int] =
                                                             if it.isErr:
                                                                 it
                                                             else:
-                                                                let n = it.get[1]
+                                                                let n = it.get
                                                                 if n == indent[^1]:
                                                                     it
                                                                 else:
-                                                                    err "invalid indentation"
+                                                                    err it.getSrc, "invalid indentation"
 
     Program: AstNode = Statement ^* Nodent              @ akStmtList.newTreeNode
     #                  TODO: consider about the term:
