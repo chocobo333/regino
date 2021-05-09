@@ -154,6 +154,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         LetSection,
         VarSection,
         ConstSection,
+        AliasSection,
         FuncDef,
         Asign,
         Expr
@@ -193,6 +194,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     LetSection = s"let" + Section                       @ (it => akLetSection.newTreeNode(it[1]).seta(it[0].pos))
     VarSection = s"var" + Section                       @ (it => akVarSection.newTreeNode(it[1]).seta(it[0].pos))
     ConstSection = s"const" + Section                   @ (it => akConstSection.newTreeNode(it[1]).seta(it[0].pos))
+    AliasSection = s"alias" + Section                   @ (it => akAliasSection.newTreeNode(it[1]).seta(it[0].pos))
     ParamList: seq[AstNode] = separated0(
         Id,
         comma
@@ -431,7 +433,9 @@ var
 
 
     e = 4.005
-
+alias
+    a = 3
+    `∆` = 2
 
 var å = 3
 var
@@ -464,7 +468,7 @@ for e in a:
     #     echo res
     #     echo res.src
     let c = "_, a, 3"
-    var pat = parser.Patterns(c)
+    var pat = parser.Program(a)
     if pat.isOk:
         echo pat.get
     else:
