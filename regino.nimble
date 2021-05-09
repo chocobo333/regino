@@ -11,5 +11,6 @@ bin           = @["regino"]
 # Dependencies
 
 requires "nim >= 1.4.2"
+requires "https://github.com/chocobo333/eat-nim"
 requires "https://github.com/chocobo333/llvm-nim"
 requires "https://github.com/chocobo333/nim-coloredString"
