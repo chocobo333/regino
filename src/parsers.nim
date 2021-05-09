@@ -291,7 +291,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     Trailer: (AstKind, seq[AstNode]) = alt(
         delimited(!sp1, Operators, !(Atom ^ sp0))       @ (it => (akPostfix, @[it])),
         preceded(dot ^ sp0, Atom)                       @ (it => (akDot, @[it])),
-        preceded(sp1 + !Operators, ArgList1)             @ (it => (akCommand, it)),
+        preceded(sp1 + !Operators, ArgList1)            @ (it => (akCommand, it)),
         delimited(lpar, ArgList, rpar)                  @ (it => (akCall, it)),
     )
     TrailerNotCommand: (AstKind, seq[AstNode]) = alt(
