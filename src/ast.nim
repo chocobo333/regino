@@ -21,6 +21,7 @@ type
         akLetSection
         akVarSection
         akConstSection
+        akAliasSection
         # akDefinition
         akFuncDef
         akTempDef
@@ -345,11 +346,13 @@ proc repr*(self: AstNode, ind: uint = 2): string =
     of akStmtList:
         self.children.map(repr2).join("\n")
     of akLetSection:
-        ""
+        "let\n" & self.children.map(repr2).join("\n").indent(ind)
     of akVarSection:
-        &"var\n" & self.children.map(repr2).join("\n").indent(ind)
+        "var\n" & self.children.map(repr2).join("\n").indent(ind)
     of akConstSection:
-        ""
+        "const\n" & self.children.map(repr2).join("\n").indent(ind)
+    of akAliasSection:
+        "alias\n" & self.children.map(repr2).join("\n").indent(ind)
     # of akDefinition:
     #     ""
     of akFuncDef:
