@@ -29,6 +29,7 @@ type
         akIterDef
         akIdentDef
         akAsign
+        akMetadata
         akBlockExpr
         akIfExpr
         akWhenExpr
@@ -156,6 +157,8 @@ proc repr*(self: AstNode, ind: uint = 2): string =
             default = if self.children[2].isEmpty: "" else: &" = {self.children[2].repr}"
         &"{self.children[0].repr}{typ}{default}"
     of akAsign:
+        ""
+    of akMetadata:
         ""
     of akBlockExpr:
         ""

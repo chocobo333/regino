@@ -38,11 +38,16 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     KeyWords = p"let|var|const|if|elif|func|else|for|in|while|when"
     lpar    = s"(" ^ sp(0)
     rpar    = s")" ^ sp(0)
+    lcur    = s"{" ^ sp(0)
+    rcur    = s"}" ^ sp(0)
+    lbra    = s"[" ^ sp(0)
+    rbra    = s"]" ^ sp(0)
     colon   = s":" ^ sp(0)
     eq      = s"=" ^ sp(0)
     dot     = s"." ^ sp(0)
     comma   = s"," ^ sp(0)
     us      = s"_" ^ sp(0)
+    bikkuri = s"!" ^ sp(0)
 
     arrowop = p"[\p{Sm}*/\\?!%&$^@-]*"              @@ proc(it: PResult[Spanned]): PResult[AstNode] =
                                                         if it.isErr:
@@ -157,7 +162,8 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         AliasSection,
         FuncDef,
         Asign,
-        Expr
+        Expr,
+        Metadata
     )
     IdentDef: AstNode = Patterns + alt(
         ?preceded(colon ^ sp0, Expr) +
@@ -392,6 +398,10 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         IdPattern,
         LiteralPattern
     ) ^+ comma                                          @ (it => akPatterns.newTreeNode(it))
+    Metadata = preceded(
+        bikkuri,
+        delimited(lbra, Id, rbra)                       @ (it => akMetadata.newTreeNode(@[it]))
+    )
 
 export newParser, `$`
 proc parse*(self: Parser, filename: string): AstNode =
