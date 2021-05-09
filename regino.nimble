@@ -11,3 +11,4 @@ bin           = @["regino"]
 # Dependencies
 
 requires "nim >= 1.4.2"
+requires "https://github.com/chocobo333/llvm-nim"
