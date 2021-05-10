@@ -48,6 +48,7 @@ type
         akChar
         akInt
         akFloat
+        akBool
         akString
         akId
     # DefKind = enum
@@ -71,6 +72,8 @@ type
             intVal*: BiggestInt
         of akFloat:
             floatVal*: BiggestFloat
+        of akBool:
+            boolVal*: bool
         of akString..akId:
             strVal*: string
         else:
@@ -83,6 +86,8 @@ proc `$`*(self: AstNode): string =
         genGraph(k, self.intVal)
     of akFloat:
         genGraph(k, self.floatVal)
+    of akBool:
+        genGraph(k, self.boolVal)
     of akString..akId:
         genGraph(k, &"\"{self.strVal}\"")
     else:
@@ -93,6 +98,9 @@ proc newIntNode*(val: BiggestInt, info: LineInfo = newLineInfo(-1, newPosition()
 
 proc newFloatNode*(val: BiggestFloat, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
     AstNode(kind: akFloat, floatVal: val, lineInfo: info)
+
+proc newBoolNode*(val: bool, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
+    AstNode(kind: akBool, boolVal: val, lineInfo: info)
 
 proc newStrNode*(val: string, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
     AstNode(kind: akString, strVal: val, lineInfo: info)
@@ -199,6 +207,8 @@ proc repr*(self: AstNode, ind: uint = 2): string =
         $self.intVal
     of akFloat:
         $self.floatVal
+    of akBool:
+        $self.boolVal
     of akString:
         # "\"" & self.strVal & "\""
         self.strVal.repr

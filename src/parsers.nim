@@ -35,6 +35,8 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     intt    = s"in"
     whilet  = s"while"
     loop    = s"loop"
+    falset  = s"false"
+    truet   = s"true"
     KeyWords = p"let|var|const|if|elif|func|else|for|in|while|when"
     lpar    = s"(" ^ sp(0)
     rpar    = s")" ^ sp(0)
@@ -377,10 +379,15 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         Int0 > dot > !Id0                               @ (it => newFloatNode(parseFloat(it[0].fragment), newLineInfo(fileid, it[0], it[1]))),
         dot > Int0                                      @ (it => newFloatNode(parseFloat("." & it[1].fragment), newLineInfo(fileid, it[0], it[1])))
     )
+    Boolean = alt(
+        falset          @ (it => newBoolNode(false, newLineInfo(fileid, it, it))),
+        truet           @ (it => newBoolNode(true, newLineInfo(fileid, it, it)))
+    )
     # String = s("\"") > s("\"")                          @ (it => newStrNode())
     Literal = alt(
         Float,
         Int,
+        Boolean
     )
     DiscardPattern = us                                 @ (it => akDiscardPattern.newNode())
     IdPattern = Id                                      @ (it => akIdPattern.newTreeNode(@[it]))
@@ -449,6 +456,7 @@ a = 3
 
 # func fact(a):
 #     a * fact(a-1)
+false
 """
     let b = """
 
