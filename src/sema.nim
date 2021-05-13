@@ -8,6 +8,8 @@ import strformat
 import ast
 import lineInfos
 
+import sema/types
+
 
 type
     Program* = ref object
@@ -19,6 +21,7 @@ type
         stkVarDecl
         stkLetDecl
         stkConstDecl
+        stkAliasDecl
         stkFuncDef
         stkTempDef
         stkMacroDef
@@ -30,19 +33,21 @@ type
         case kind*: StatementKind
         of stkComment:
             comment: string
-        of stkVarDecl, stkLetDecl, stkConstDecl:
+        of stkVarDecl, stkLetDecl, stkConstDecl, stkAliasDecl:
             iddefs*: seq[IdentDef]
         of stkFuncDef, stkTempDef, stkMacroDef, stkIterDef:
-            name*: string
-            rety*: Type
-            paramty*: seq[Type]
-            params*: seq[IdentDef]
-            body*: Expr
+            fn*: Function
         of stkExprStmt:
             exp*: Expr
         of stkAsign:
             lhs*: Pattern
             rhs*: Expr
+    Function* = ref object
+        name*: string
+        rety*: Type
+        paramty*: seq[Type]
+        params*: seq[IdentDef]
+        body*: Expr
     IdentDef* = ref object
         id*: Pattern
         typ*: Expr
@@ -62,11 +67,6 @@ type
             lit*: Expr
         of pkPatterns:
             pats*: seq[Pattern]
-    Id* = ref object
-        lineInfo: LineInfo
-        name*: string
-        sym*: Symbol
-        # TODO: other infos
     ExprKind* = enum
         ekCall
         ekBinOp
@@ -77,7 +77,8 @@ type
         ekInt
         ekFloat
         ekString
-        ekSym
+        ekBool
+        ekId
     Expr* = ref object
         lineInfo: LineInfo
         case kind*: ExprKind
@@ -103,74 +104,32 @@ type
             floatsize*: int
         of ekString:
             strval*: string
-        of ekSym:
+        of ekBool:
+            boolval*: bool
+        of ekId:
             name*: string
-            sym*: Symbol
+            id*: Id
     ElifBranch* = ref object
         cond*: Expr
         branch*: StmtList
-    TypeKind* = enum
-        tkNone
-        # tkUnit
-        tkCon
-        tkApp
-        tkFunc
-        tkGen
-        tkVar
-        tkAll
-    Type* = ref object
-        sym*: Symbol
-        case kind*: TypeKind
-        of tkNone:
-            nil
-        of tkCon:
-            name*: string
-        of tkApp:
-            base*: Type
-            types*: seq[Type]
-        of tkFunc:
-            rety*: Type
-            paramty*: seq[Type]
-        of tkGen:
-            tgid*: TypeGenId
-        of tkVar:
-            v*: TypeVar
-        of tkAll:
-            typ*: Type
-            tsid*: TypeSchemeId
-    SymbolKind* = enum
-        skChoice
-        skFunc
-        skType
-        skVar
-        skLet
-        skConst
-    Symbol* = ref object
-        case kind*: SymbolKind
-        of skChoice:
-            syms*: seq[Symbol]
-        else:
-            typ*: Type
-    TypeVarId* = int
-    TypeSchemeId* = int
-
-    SymEnv = ref object
-        parent*: SymEnv
-        env*: Table[string, Symbol]
-    TypeEnv* = ref object
-        typevarid: TypeVarId
-        typeschemeid: TypeSchemeId
-        symenv: SymEnv
-        # typesubstituions
-        tvenv: Table[TypeVar, Type] # seq[(TypeVar, Type)], Table[TypeVar, seq[Type]]
 
 # Type
 proc `$`*(self: Type): string =
     case self.kind
     of tkNone:
         "none"
-    of tkCon:
-        self.name
+    of tkUnit:
+        "Unit"
+    of tkChar:
+        "char"
+    of tkInt:
+        "int"
+    of tkFloat:
+        "float"
+    of tkString:
+        "string"
+    of tkBool:
+        "bool"
     of tkApp:
         let tmp = self.types.join(", ")
         fmt"{self.base}[{tmp}]"
@@ -215,26 +174,6 @@ proc `$`*(self: Symbol): string =
 proc hash*(self: Id): Hash =
     self.name.hash
 
-# SymEnv
-proc newSymEnv*(): SymEnv =
-    SymEnv(env: initTable[string, Symbol]())
-# TypeEnv
-proc newTypeEnv*(): TypeEnv =
-    TypeEnv(
-        typevarid: 0,
-        typeschemeid: 0,
-        symenv: newSymEnv(),
-        tvenv: initTable[TypeVar, Type]()
-    )
-
-proc newTypeVarId(self: TypeEnv): TypeVarId =
-    result = self.typevarid
-    inc self.typevarid
-
-proc newTypeSchemeId(self: TypeEnv): TypeSchemeId =
-    result = self.typeschemeid
-    inc self.typeschemeid
-
 proc `$`*(self: Expr): string
 proc `$`*(self: Statement): string
 proc `$`*(self: Id): string =
@@ -265,7 +204,9 @@ proc `$`*(self: Expr): string =
         $self.floatval
     of ekString:
         self.strval.repr
-    of ekSym:
+    of ekBool:
+        self.boolval.repr
+    of ekId:
         self.name
 proc `$`*(self: Pattern): string =
     case self.kind
@@ -292,6 +233,8 @@ proc `$`*(self: Statement): string =
     of stkLetDecl:
         ""
     of stkConstDecl:
+        ""
+    of stkAliasDecl:
         ""
     of stkFuncDef:
         ""
@@ -321,14 +264,16 @@ proc typeInduction(self: Expr, env: TypeEnv): Type =
     of ekBlockExpr:
         nil
     of ekChar:
-        Type(kind: tkCon, name: "char")
+        Type(kind: tkChar)
     of ekInt:
-        Type(kind: tkCon, name: "int")
+        Type(kind: tkInt)
     of ekFloat:
-        Type(kind: tkCon, name: "float")
+        Type(kind: tkFloat)
     of ekString:
-        Type(kind: tkCon, name: "string")
-    of ekSym:
+        Type(kind: tkString)
+    of ekBool:
+        Type(kind: tkBool)
+    of ekId:
         let sym = env.symenv.env[self.name]
         # TODO: choice
         if sym.kind == skChoice:
@@ -376,6 +321,8 @@ proc typeInduction(self: Statement, env: TypeEnv): Type =
     of stkLetDecl:
         nil
     of stkConstDecl:
+        nil
+    of stkAliasDecl:
         nil
     of stkFuncDef:
         nil
@@ -451,7 +398,7 @@ proc toExpr(self: AstNode): Expr =
     of akString:
         Expr(lineInfo: self.lineInfo, kind: ekString, strval: self.strVal)
     of akId:
-        Expr(lineInfo: self.lineInfo, kind: ekSym, name: self.strVal, sym: self.toSymbol())
+        Expr(lineInfo: self.lineInfo, kind: ekId, name: self.strVal)
     of akPat:
         nil
 proc toPattern(self: AstNode): Pattern =
@@ -497,6 +444,8 @@ proc toStatement(self: AstNode): Statement =
         Statement(lineInfo: self.lineInfo, kind: stkVarDecl, iddefs: self.children.map(toIdentDef))
     of akConstSection:
         Statement(lineInfo: self.lineInfo, kind: stkConstDecl, iddefs: self.children.map(toIdentDef))
+    of akAliasSection:
+        Statement(lineInfo: self.lineInfo, kind: stkAliasDecl, iddefs: self.children.map(toIdentDef))
     of akFuncDef:
         nil
     of akTempDef:
@@ -542,7 +491,7 @@ proc toProgram(self: AstNode): Program =
         nil
 
 
-proc sema*(node: AstNode, env: Environment): Program =
+proc sema*(node: AstNode): Program =
     # registerSymbol(node, env)
     # simpleTyping(node, env)
     # resolveTyping(node, env)

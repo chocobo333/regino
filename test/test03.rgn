@@ -1,0 +1,9 @@
+func a(n: int) -> int:
+    n + 3
+func a(n: int) -> float:
+    n + 3.5
+func b(n: int) -> int:
+    n * 2
+let
+    a: float = a(3)
+    b = b(a(1))

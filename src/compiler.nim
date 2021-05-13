@@ -7,9 +7,8 @@ import codegen
 proc compile(filename: string): string =
     var
         parser = newParser()
-        env = newEnvironment()
         tmp =  parser.parse(filename)
-    parser.parse(filename).sema(env).codegen()
+    parser.parse(filename).sema().codegen()
 
 when isMainModule:
     echo compile("test/test01.rgn")
