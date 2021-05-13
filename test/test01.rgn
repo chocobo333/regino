@@ -1,12 +1,7 @@
-var
-    a = 3
-    b = 1.1
-let
-# echo a
-#var a = if a:
-#    3
-#elif b:
-#    4
-#    5
-#else:
-#    5
+
+func echo(s: string) ![importll]
+
+func f(a: int):
+    a
+
+echo "Hello world!"

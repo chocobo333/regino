@@ -85,9 +85,6 @@ type
         apply(TypeSubstitution, T)
         t.typevars() is seq[TypeVar]
 
-# TypeVar
-proc hash*(self: TypeVar): Hash = hash self.id
-
 # SymEnv
 proc newSymEnv*(): SymEnv =
     SymEnv(env: initTable[string, Symbol]())
@@ -100,85 +97,4 @@ proc newTypeEnv*(): TypeEnv =
         symenv: newSymEnv(),
         tvenv: initTable[TypeVar, Type]()
     )
-
-proc newTypeVarId(self: TypeEnv): TypeVarId =
-    result = self.typevarid
-    inc self.typevarid
-proc newTypeVar(self: TypeEnv): TypeVar =
-    let id = self.newTypeVarId()
-    TypeVar(id: id)
-
-proc newTypeSchemeId(self: TypeEnv): TypeSchemeId =
-    result = self.typeschemeid
-    inc self.typeschemeid
-
-# TypeSubstition
-let nullSubst = initTable[TypeVar, Type]()
-proc lookup(self: TypeSubstitution, t: TypeVar): Type =
-    if t in self:
-        self[t]
-    else:
-        Type(kind: tkVar, v: t)
-
-proc apply(self: TypeSubstitution, t: Type): Type =
-    case t.kind
-    of tkNone..tkBool:
-        t
-    of tkApp:
-        Type(kind: tkApp, base: self.apply(t.base), types: t.types.mapIt(self.apply(it)))
-    of tkFunc:
-        Type(kind: tkFunc, rety: self.apply(t.rety), paramty: t.paramty.mapIt(self.apply(it)))
-    of tkGen:
-        t
-    of tkVar:
-        let u = self.lookup(t.v)
-        if t == u:
-            return t
-        else:
-            self.apply(u)
-proc apply*(self: TypeSubstitution, t: TypeScheme): TypeScheme =
-    result = t
-    t.typ = self.apply(t.typ)
-proc apply*(self: TypeSubstitution, t: TypeAssumption): TypeAssumption =
-    result = t
-    t.types = t.types.mapIt(self.apply(it))
-proc apply*[T: Types](self: TypeSubstitution, t: seq[T]): seq[T] =
-    t.mapIt(self.apply(it))
-proc extend(self: var TypeSubstitution, tv: TypeVar, t: Type) =
-    if tv in self:
-        assert false
-    else:
-        self[tv] = t
-
-proc typevars*[T: Types](self: seq[T]): seq[TypeVar]
-proc typevars*(self: Type): seq[TypeVar] =
-    case self.kind
-    of tkNone..tkBool:
-        @[]
-    of tkApp:
-        (self.base.typevars() & self.types.map(typevars)).concat.deduplicate()
-    of tkFunc:
-        (self.rety.typevars() & self.paramty.map(typevars)).concat.deduplicate()
-    of tkGen:
-        @[]
-    of tkVar:
-        @[self.v]
-proc typevars*(self: TypeScheme): seq[TypeVar] =
-    case self.kind
-    of tskAll:
-        self.typ.typevars()
-proc typevars*(self: TypeAssumption): seq[TypeVar] {.error.} =
-    self.types.typevars()
-proc typevars*[T: Types](self: seq[T]): seq[TypeVar] =
-    self.map(typevars).concat.deduplicate()
-
-proc gen*(asumps: seq[TypeAssumption], t: Type): TypeScheme =
-    let gs = typevars
-
-
-assert Type is Types
-assert TypeScheme is Types
-assert TypeAssumption is Types
-assert seq[Type] is Types
-assert seq[TypeScheme] is Types
-assert seq[TypeAssumption] is Types
+        

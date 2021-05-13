@@ -204,20 +204,24 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     ConstSection = s"const" + Section                   @ (it => akConstSection.newTreeNode(it[1]).seta(it[0].pos))
     AliasSection = s"alias" + Section                   @ (it => akAliasSection.newTreeNode(it[1]).seta(it[0].pos))
     ParamList: seq[AstNode] = separated0(
-        Id,
+        IdentDef,
         comma
     )
     FuncDef: AstNode = preceded(
         fun > sp1,
-        terminated(
-            Id,
-            delimited(
-                lpar ^ sp0,
-                ParamList,
-                rpar ^ sp0
-            )
+        Id >
+        delimited(
+            lpar ^ sp0,
+            ParamList,
+            rpar ^ sp0
         )
-    ) > delimited(colon + Indent, StmtList, Dedent)     @ akFuncDef.newTreeNode
+    ) + (?Metadata > ?delimited(colon + Indent, StmtList, Dedent)) @ proc(it: auto): AstNode =
+                                                                    let
+                                                                        id = it[0][0]
+                                                                        params = akParams.newTreeNode(it[0][1..^1])
+                                                                        meta = if it[1][0].isSome: it[1][0].get else: newEmptyNode()
+                                                                        body = if it[1][1].isSome: it[1][1].get else: newEmptyNode()
+                                                                    akFuncDef.newTreeNode(@[id, params, meta, body])
 
     # epression
     asop = p"[\p{Sm}*/\\?!%&$^@-]*="                    @ (it => newIdNode(it.fragment))

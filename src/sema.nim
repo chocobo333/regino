@@ -140,8 +140,7 @@ proc `$`*(self: Type): string =
         fmt"TypeGen(id: {self.tgid}"
     of tkVar:
         fmt"TypeVar(id: {self.v.id})"
-    of tkAll:
-        fmt"ForAll"
+
 proc hash*(self: Type): Hash =
     result = 0
     result = !$ result
@@ -358,7 +357,7 @@ proc toElseBranch(self: AstNode): StmtList =
     self.children[0].toStmtList()
 proc toExpr(self: AstNode): Expr =
     case self.kind
-    of akFailed, akEmpty, akComment, akStmtList, akStatement:
+    of akFailed, akEmpty, akComment, akStmtList, akStatement, akParams:
         assert false
         nil
     of akBlockExpr:
@@ -401,9 +400,11 @@ proc toExpr(self: AstNode): Expr =
         Expr(lineInfo: self.lineInfo, kind: ekId, name: self.strVal)
     of akPat:
         nil
+    of akMetadata:
+        nil
 proc toPattern(self: AstNode): Pattern =
     case self.kind:
-    of akFailed, akEmpty, akComment, akStmtList, akStatement, akExpr:
+    of akFailed, akEmpty, akComment, akStmtList, akStatement, akExpr, akParams:
         assert false
         nil
     of akDiscardPattern:
@@ -417,6 +418,8 @@ proc toPattern(self: AstNode): Pattern =
             self.children[0].toPattern()
         else:
             Pattern(kind: pkPatterns, pats: self.children.map(toPattern))
+    of akMetadata:
+        nil
 proc toIdentDef(self: AstNode): IdentDef =
     assert self.kind == akIdentDef
     assert self.children.len == 3
@@ -458,9 +461,13 @@ proc toStatement(self: AstNode): Statement =
         nil
     of akAsign:
         nil
+    of akParams:
+        nil
     of akExpr:
         Statement(lineInfo: self.lineInfo, kind: stkExprStmt, exp: self.toExpr())
     of akPat:
+        nil
+    of akMetadata:
         nil
 proc toStmtList(self: AstNode): StmtList =
     case self.kind
