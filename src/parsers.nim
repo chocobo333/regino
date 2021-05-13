@@ -48,6 +48,8 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     comma   = s"," ^ sp(0)
     us      = s"_" ^ sp(0)
     bikkuri = s"!" ^ sp(0)
+    dq      = s("\"")
+    strlit  = p("\"(([^\"]|(\\.))*)\"")
 
     arrowop = p"[\p{Sm}*/\\?!%&$^@-]*"              @@ proc(it: PResult[Spanned]): PResult[AstNode] =
                                                         if it.isErr:
@@ -383,10 +385,11 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         Int0 > dot > !Id0                               @ (it => newFloatNode(parseFloat(it[0].fragment), newLineInfo(fileid, it[0], it[1]))),
         dot > Int0                                      @ (it => newFloatNode(parseFloat("." & it[1].fragment), newLineInfo(fileid, it[0], it[1])))
     )
-    # String = s("\"") > s("\"")                          @ (it => newStrNode())
+    String = strlit                                     @ (it => newStrNode(it.fragment[1..^2], it.toLineInfo(fileid)))
     Literal = alt(
         Float,
         Int,
+        String
     )
     DiscardPattern = us                                 @ (it => akDiscardPattern.newNode())
     IdPattern = Id                                      @ (it => akIdPattern.newTreeNode(@[it]))
@@ -400,7 +403,11 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     ) ^+ comma                                          @ (it => akPatterns.newTreeNode(it))
     Metadata = preceded(
         bikkuri,
-        delimited(lbra, Id, rbra)                       @ (it => akMetadata.newTreeNode(@[it]))
+        delimited(
+            lbra,
+            Id + ?preceded(colon, Literal),
+            rbra
+        )                                               @ (it => (if it[1].isSome: akMetadata.newTreeNode(@[it[0], it[1].get]) else: akMetadata.newTreeNode(@[it[0]])))
     )
 
 export newParser, `$`
@@ -417,7 +424,7 @@ proc parse*(self: Parser, filename: string): AstNode =
 when isMainModule:
     var
         parser = newParser()
-    let a = """
+    let a = r"""
 let
     a: int = 3
     b: int = 3
@@ -456,7 +463,9 @@ var
 3-> 3 * 3 - 3
 
 a = 3
-
+![a]
+![a: 3]
+![a: "arith.ll"]
 # func fact(a):
 #     a * fact(a-1)
 """
