@@ -2,17 +2,18 @@
 import ast
 import parsers
 import sema
-# import codegen
+import codegen
 
 proc compile(filename: string): string =
     var
+        module = newModule()
         parser = newParser()
         tmp =  parser.parse(filename)
         parsed_string = parser.parse(filename)
     
     echo parsed_string
 
-    echo sema(parsed_string)
+    echo sema(parsed_string, module)
 
 when isMainModule:
     echo compile("test/test01.rgn")

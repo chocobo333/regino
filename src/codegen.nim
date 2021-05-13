@@ -1,36 +1,42 @@
 
 import tables
 
-import sema
+import sema/types
+import sema/ir
 
 import llvm
 
 
 type
-    Module = ref object
+    Module* = ref object
         module: llvm.Module
         cxt: Context
         curFun: Value
         curBuilder: Builder
-        type2llvmType: Table[sema.Type, llvm.Type]
+        type2llvmType: Table[types.Type, llvm.Type]
 
-proc newModule(name: string, cxt: Context): Module =
+proc newModule*(name: string = "main"): Module =
+    let
+        cxt = newContext()
     Module(
         module: llvm.newModule(name, cxt),
         cxt: cxt,
         curBuilder: newBuilder(cxt),
-        type2llvmType: initTable[sema.Type, llvm.Type]()
+        type2llvmType: initTable[types.Type, llvm.Type]()
     )
 
-proc convertType(self: Module, typ: sema.Type): llvm.Type =
-    if typ.kind == tkCon:
-        case typ.name
-        of "int":
-            intType(self.cxt, 32)
-        of "float":
-            floatType(self.cxt)
-        else:
-            nil
+proc convertType*(self: Module, typ: types.Type): llvm.Type =
+    case typ.kind
+    of tkNone:
+        assert false
+        nil
+    of tkUnit:
+        assert false
+        nil
+    of tkInt:
+        intType(self.cxt, 32)
+    of tkFloat:
+        floatType(self.cxt)
     else:
         assert false
         nil
@@ -56,7 +62,9 @@ proc codegen(self: Expr, module: Module): Value =
         return typ.constReal(cdouble self.floatval)
     of ekString:
         discard
-    of ekSym:
+    of ekBool:
+        discard
+    of ekId:
         discard
 proc vardeclare(self: IdentDef, module: Module) =
     let
@@ -83,6 +91,8 @@ proc codegen(self: Statement, module: Module) =
         discard
     of stkConstDecl:
         discard
+    of stkAliasDecl:
+        discard
     of stkFuncDef:
         discard
     of stkTempDef:
@@ -98,7 +108,7 @@ proc codegen(self: Statement, module: Module) =
 proc codegen*(self: Program): string =
     var
         cxt = newContext()
-        module = newModule("main", cxt)
+        module = newModule()
         i32 = intType(module.cxt, 32)
         mainty = functionType(i32, @[])
         main = module.module.addFunction("main", mainty)
