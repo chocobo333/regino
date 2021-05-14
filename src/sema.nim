@@ -227,6 +227,8 @@ proc toExpr(self: AstNode): Expr =
         Expr(lineInfo: self.lineInfo, kind: ekFloat, floatval: self.floatVal)
     of akString:
         Expr(lineInfo: self.lineInfo, kind: ekString, strval: self.strVal)
+    of akBool:
+        Expr(lineInfo: self.lineInfo, kind: ekBool, boolval: self.boolVal)
     of akId:
         Expr(lineInfo: self.lineInfo, kind: ekId, name: self.strVal)
     of akPat:
