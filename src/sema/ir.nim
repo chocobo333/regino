@@ -24,6 +24,7 @@ type
         stkIterDef
         stkExprStmt
         stkAsign
+        stkMetadata
     Statement* = ref object
         lineInfo*: LineInfo
         case kind*: StatementKind
@@ -38,6 +39,8 @@ type
         of stkAsign:
             lhs*: Pattern
             rhs*: Expr
+        of stkMetadata:
+            metadata*: Metadata
     Function* = ref object
         name*: string
         rety*: Type
@@ -48,6 +51,9 @@ type
         id*: Pattern
         typ*: Expr
         default*: Expr
+    Metadata* = ref object
+        name*: string
+        param*: Expr
     PatternKind* = enum
         pkDiscard
         pkId
@@ -139,7 +145,7 @@ proc `$`*(self: Expr): string =
     of ekFloat:
         $self.floatval
     of ekString:
-        self.strval.repr
+        self.strval.escape
     of ekBool:
         self.boolval.repr
     of ekId:
@@ -159,6 +165,9 @@ proc `$`*(self: IdentDef): string =
         typ = if self.typ.isNil: "" else: fmt": {self.typ}"
         default = if self.default.isNil: "" else: fmt" = {self.default}"
     fmt"{self.id}{typ}{default}"
+proc `$`*(self: Metadata): string =
+    let tmp = if self.param.isNil: "" else: fmt": {self.param}"
+    fmt"![{self.name}{tmp}]"
 proc `$`*(self: Statement): string =
     case self.kind
     of stkComment:
@@ -184,5 +193,7 @@ proc `$`*(self: Statement): string =
         $self.exp
     of stkAsign:
         fmt"{self.lhs} = {self.rhs}"
+    of stkMetadata:
+        $self.metadata
 proc `$`*(self: Program): string =
     self.stmts.map(`$`).join("\n")

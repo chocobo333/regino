@@ -4,6 +4,8 @@ import hashes
 import sequtils
 import strutils
 import strformat
+from os import `/`, splitPath, absolutePath
+import options
 
 import ast
 import lineInfos
@@ -12,6 +14,8 @@ import sema/types
 import sema/ir
 
 import codegen
+
+import llvm except Type, Module
 
 export `$`
 
@@ -173,6 +177,8 @@ proc typeInduction(self: Statement, env: TypeEnv): Type =
         self.exp.typeInduction(env)
     of stkAsign:
         nil
+    of stkMetadata:
+        nil
 
 proc typeInduction(self: Program, env: TypeEnv)=
     echo "in typeinduction for program"
@@ -313,7 +319,8 @@ proc toStatement(self: AstNode): Statement =
     of akPat:
         nil
     of akMetadata:
-        nil
+        let metadata = Metadata(name: self.children[0].toExpr.name, param: self.children[1].toExpr)
+        Statement(lineInfo: self.lineInfo, kind: stkMetadata, metadata: metadata)
 proc toStmtList(self: AstNode): StmtList =
     case self.kind
     of akStmtList:
@@ -342,6 +349,37 @@ proc toProgram(self: AstNode): Program =
     else:
         nil
 
+proc link(self: Metadata, module: Module) =
+    let param = self.param
+    assert param.kind == ekString
+    let
+        path = param.lineInfo.fileId.getFileInfo.filename.splitPath.head.absolutePath / param.strval
+        f = open(path)
+        s = f.readAll()
+        module2 = llvm.parseIr(module.cxt, path)
+    if module2.isSome:
+        let m = module2.get
+        module.linkModules.add m
+        for fn in m.funcs:
+            module.linkFuncs.add fn
+            echo fn.name
+            echo fn.typ
+    else:
+        # TODO: err msg
+        assert false
+    f.close()
+proc globalMetada(self: Program, module: Module) =
+    for e in self.stmts:
+        # TODO: remove it
+        if e.isNil:
+            continue
+        if e.kind == stkMetadata:
+            let metadata = e.metadata
+            case metadata.name
+            of "link":
+                metadata.link(module)
+            else:
+                assert false
 
 proc sema*(node: AstNode, module: Module): Program =
     # registerSymbol(node, env)
@@ -350,5 +388,6 @@ proc sema*(node: AstNode, module: Module): Program =
     let
         tenv = newTypeEnv()
         program = node.toProgram
+    program.globalMetada(module)
     program.typeInduction(tenv)
     program

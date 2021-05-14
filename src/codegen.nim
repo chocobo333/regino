@@ -9,11 +9,13 @@ import llvm
 
 type
     Module* = ref object
-        module: llvm.Module
-        cxt: Context
-        curFun: Value
-        curBuilder: Builder
-        type2llvmType: Table[types.Type, llvm.Type]
+        module*: llvm.Module
+        cxt*: Context
+        curFun*: Value
+        curBuilder*: Builder
+        type2llvmType*: Table[types.Type, llvm.Type]
+        linkModules*: seq[llvm.Module]
+        linkFuncs*: seq[llvm.Value]
 
 proc newModule*(name: string = "main"): Module =
     let
@@ -104,6 +106,8 @@ proc codegen(self: Statement, module: Module) =
     of stkExprStmt:
         discard
     of stkAsign:
+        discard
+    of stkMetadata:
         discard
 proc codegen*(self: Program): string =
     var
