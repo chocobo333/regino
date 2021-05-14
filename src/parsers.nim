@@ -52,6 +52,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     bikkuri = s"!" ^ sp(0)
     dq      = s("\"")
     strlit  = p("\"(([^\"]|(\\.))*)\"")
+    arr     = s"->" ^ sp(0)
 
     arrowop = p"[\p{Sm}*/\\?!%&$^@-]*"              @@ proc(it: PResult[Spanned]): PResult[AstNode] =
                                                         if it.isErr:
@@ -209,18 +210,29 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         IdentDef,
         comma
     )
-    FuncDef: AstNode = preceded(
-        fun > sp1,
-        Id >
-        delimited(
+    Params: AstNode = delimited(
             lpar ^ sp0,
             ParamList,
             rpar ^ sp0
+        ) + ?(preceded(arr, Expr))                      @ proc(it: (seq[AstNode], Option[AstNode])): AstNode =
+                                                            let
+                                                                rety = if it[1].isSome: it[1].get else: newEmptyNode()
+                                                                paramty = it[0]
+                                                            akParams.newTreeNode(@[rety] & paramty)
+    Suite = preceded(
+        colon,
+        alt(
+            delimited(Indent, StmtList, Dedent),
+            Statement @ (it => akStmtList.newTreeNode(@[it]))
         )
-    ) + (?Metadata > ?delimited(colon + Indent, StmtList, Dedent)) @ proc(it: auto): AstNode =
+    )
+    FuncDef: AstNode = preceded(
+        fun > sp1,
+        Id > Params
+    ) + (?Metadata > ?Suite) @ proc(it: auto): AstNode =
                                                                     let
                                                                         id = it[0][0]
-                                                                        params = akParams.newTreeNode(it[0][1..^1])
+                                                                        params = it[0][1]
                                                                         meta = if it[1][0].isSome: it[1][0].get else: newEmptyNode()
                                                                         body = if it[1][1].isSome: it[1][1].get else: newEmptyNode()
                                                                     akFuncDef.newTreeNode(@[id, params, meta, body])
@@ -235,26 +247,9 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         # ForExpr,
         SimplExpr
     )
-    CondBranch = terminated(Expr, colon) > alt(
-        delimited(
-            Indent,
-            StmtList,
-            Dedent
-        ),
-        Statement @ (it => akStmtList.newTreeNode(@[it]))
-    )
+    CondBranch = Expr > Suite
     ElifBranch = preceded(elift > sp1, CondBranch)      @ (it => akElifBranch.newTreeNode(it))
-    ElseBranch = preceded(
-        elset > colon ^ sp0,
-        alt(
-            delimited(
-                Indent,
-                StmtList,
-                Dedent
-            ),
-            Statement  @ (it => akStmtList.newTreeNode(@[it]))
-        )
-    )                                                   @ (it => akElseBranch.newTreeNode(@[it]))
+    ElseBranch = preceded(elset, Suite)                 @ (it => akElseBranch.newTreeNode(@[it]))
 
     IfExpr = (preceded(
         ift > sp1,
