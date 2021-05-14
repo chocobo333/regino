@@ -342,8 +342,6 @@ proc link(self: Metadata, module: Module) =
         module.linkModules.add m
         for fn in m.funcs:
             module.linkFuncs.add fn
-            echo fn.name
-            echo fn.typ
     else:
         # TODO: err msg
         assert false
