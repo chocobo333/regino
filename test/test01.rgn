@@ -1,7 +1,6 @@
-
 func echo(s: string) ![importll]
 
-func f(a: int):
-    a
+func f(a: int, b: int):
+    a + b
 
 echo "Hello world!"

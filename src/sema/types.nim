@@ -71,12 +71,12 @@ type
     SymEnv* = ref object
         parent*: SymEnv
         env*: Table[string, Symbol]
-    TypeEnv* = ref object
-        typevarid*: TypeVarId
-        typeschemeid*: TypeSchemeId
-        symenv*: SymEnv
-        # typesubstituions
-        tvenv*: Table[TypeVar, Type] # seq[(TypeVar, Type)], Table[TypeVar, seq[Type]]
+    # TypeEnv* = ref object
+    #     typevarid*: TypeVarId
+    #     typeschemeid*: TypeSchemeId
+    #     symenv*: SymEnv
+    #     # typesubstituions
+    #     tvenv*: Table[TypeVar, Type] # seq[(TypeVar, Type)], Table[TypeVar, seq[Type]]
     TypeSubstitution = Table[TypeVar, Type]
     TypeAssumption = ref object
         id: Id
@@ -85,6 +85,12 @@ type
         apply(TypeSubstitution, T)
         t.typevars() is seq[TypeVar]
 
+    SymTable = Table[string, Type]
+
+    TypeEnv* = ref object
+        parent*: TypeEnv
+        table*: SymTable
+
 # SymEnv
 proc newSymEnv*(): SymEnv =
     SymEnv(env: initTable[string, Symbol]())
@@ -92,9 +98,23 @@ proc newSymEnv*(): SymEnv =
 # TypeEnv
 proc newTypeEnv*(): TypeEnv =
     TypeEnv(
-        typevarid: 0,
-        typeschemeid: 0,
-        symenv: newSymEnv(),
-        tvenv: initTable[TypeVar, Type]()
+        parent: nil,
+        table: initTable[string, Type]()
     )
         
+proc extend*(typeEenv: TypeEnv, name: string, typ: Type) = 
+    typeEenv.table[name] = typ
+
+proc lookup*(typeEnv: TypeEnv, name: string): Type =
+    if name in typeEnv.table:
+        return typeEnv.table[name]
+    elif typeEnv.parent.isNil:
+        # TODO: raise error
+        return Type(kind: tkNone)
+    else:
+        return lookup(typeEnv.parent, name)
+
+proc addScope*(typeEnv: TypeEnv): TypeEnv = 
+    var ret = newTypeEnv()
+    ret.parent = typeEnv
+    ret

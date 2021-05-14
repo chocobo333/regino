@@ -13,6 +13,8 @@ import sema/ir
 
 import codegen
 
+export `$`
+
 # Type
 proc `$`*(self: Type): string =
     case self.kind
@@ -96,49 +98,51 @@ proc typeInduction(self: Expr, env: TypeEnv): Type =
     of ekBool:
         Type(kind: tkBool)
     of ekId:
-        let sym = env.symenv.env[self.name]
-        # TODO: choice
-        if sym.kind == skChoice:
-            assert false
-            nil
-        else:
-            sym.typ
+        nil
+        # let sym = env.symenv.env[self.name]
+        # # TODO: choice
+        # if sym.kind == skChoice:
+        #     assert false
+        #     nil
+        # else:
+        #     sym.typ
 
-proc registerId(self: IdentDef, kind: range[skFunc..skConst], env: TypeEnv) =
-    var
-        id = self.id
-        typ = self.typ
-        default = self.default
-        sym = kind.newSymbol()
-    if typ.isNil and default.isNil:
-        assert false
-    if not default.isNil:
-        let rty = default.typeInduction(env)
-        if typ.isNil:
-            sym.typ = rty
-        else:
-            # TODO: cast
-            let lty = typ.typeInduction(env)
-            if lty == rty:
-                sym.typ = lty
-            else:
-                assert false
-    case id.kind
-    of pkId:
-        id.id.sym = sym
-        # TODO: search in parent
-        env.symenv.env[id.id.name] = sym
-    else:
-        # TODO: more patterns
-        discard
+# proc registerId(self: IdentDef, kind: range[skFunc..skConst], env: TypeEnv) =
+#     var
+#         id = self.id
+#         typ = self.typ
+#         default = self.default
+#         sym = kind.newSymbol()
+#     if typ.isNil and default.isNil:
+#         assert false
+#     if not default.isNil:
+#         let rty = default.typeInduction(env)
+#         if typ.isNil:
+#             sym.typ = rty
+#         else:
+#             # TODO: cast
+#             let lty = typ.typeInduction(env)
+#             if lty == rty:
+#                 sym.typ = lty
+#             else:
+#                 assert false
+#     case id.kind
+#     of pkId:
+#         id.id.sym = sym
+#         # TODO: search in parent
+#         env.symenv.env[id.id.name] = sym
+#     else:
+#         # TODO: more patterns
+#         discard
 
 proc typeInduction(self: Statement, env: TypeEnv): Type =
+    echo "in typeInduction for statement"
     case self.kind
     of stkComment:
         newNoneType()
     of stkVarDecl:
-        for d in self.iddefs:
-            d.registerId(skVar, env)
+        # for d in self.iddefs:
+        #     d.registerId(skVar, env)
         nil
     of stkLetDecl:
         nil
@@ -147,7 +151,18 @@ proc typeInduction(self: Statement, env: TypeEnv): Type =
     of stkAliasDecl:
         nil
     of stkFuncDef:
-        nil
+        echo "in function def"
+        var 
+            fn = self.fn
+            fnType = Type(kind: tkFunc, rety: fn.rety, paramty: fn.paramty)
+        extend(env, fn.name, fnType)
+        var localEnv = addScope(env)
+        if fn.rety != typeInduction(fn.body, localEnv):
+            # TODO: raise ERROR 
+            # return type dosent match body type
+            return newNoneType()
+        echo "out function def"
+        return fnType
     of stkTempDef:
         nil
     of stkMacroDef:
@@ -160,6 +175,8 @@ proc typeInduction(self: Statement, env: TypeEnv): Type =
         nil
 
 proc typeInduction(self: Program, env: TypeEnv)=
+    echo "in typeinduction for program"
+    echo self.stmts
     for e in self.stmts:
         discard e.typeInduction(env)
 
@@ -252,6 +269,7 @@ proc toIdentDef(self: AstNode): IdentDef =
         default = self.children[2]
     IdentDef(id: pat.toPattern(), default: default.toExpr())
 proc toStatement(self: AstNode): Statement =
+    echo "in toStatement"
     case self.kind
     of akFailed:
         assert false
@@ -274,6 +292,10 @@ proc toStatement(self: AstNode): Statement =
         Statement(lineInfo: self.lineInfo, kind: stkAliasDecl, iddefs: self.children.map(toIdentDef))
     of akFuncDef:
         nil
+        # var
+            # function = Function(name: self.children[0].strVal, rety: newNoneType(), paramty: nil, params: self.children[1].children.map(toIdentDef),)
+        # var identDef = self.child
+        # Statement(lineInfo: self.lineInfo, kind: stkFuncDef, fn: )
     of akTempDef:
         nil
     of akMacroDef:
