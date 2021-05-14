@@ -46,7 +46,7 @@ type
         rety*: Type
         paramty*: seq[Type]
         params*: seq[IdentDef]
-        body*: Expr
+        body*: StmtList
     IdentDef* = ref object
         id*: Pattern
         typ*: Expr
