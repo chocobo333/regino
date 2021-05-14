@@ -40,11 +40,18 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     KeyWords = p"let|var|const|if|elif|func|else|for|in|while|when"
     lpar    = s"(" ^ sp(0)
     rpar    = s")" ^ sp(0)
+    lcur    = s"{" ^ sp(0)
+    rcur    = s"}" ^ sp(0)
+    lbra    = s"[" ^ sp(0)
+    rbra    = s"]" ^ sp(0)
     colon   = s":" ^ sp(0)
     eq      = s"=" ^ sp(0)
     dot     = s"." ^ sp(0)
     comma   = s"," ^ sp(0)
     us      = s"_" ^ sp(0)
+    bikkuri = s"!" ^ sp(0)
+    dq      = s("\"")
+    strlit  = p("\"(([^\"]|(\\.))*)\"")
 
     arrowop = p"[\p{Sm}*/\\?!%&$^@-]*"              @@ proc(it: PResult[Spanned]): PResult[AstNode] =
                                                         if it.isErr:
@@ -159,7 +166,8 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         AliasSection,
         FuncDef,
         Asign,
-        Expr
+        Expr,
+        Metadata
     )
     IdentDef: AstNode = Patterns + alt(
         ?preceded(colon ^ sp0, Expr) +
@@ -198,20 +206,24 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     ConstSection = s"const" + Section                   @ (it => akConstSection.newTreeNode(it[1]).seta(it[0].pos))
     AliasSection = s"alias" + Section                   @ (it => akAliasSection.newTreeNode(it[1]).seta(it[0].pos))
     ParamList: seq[AstNode] = separated0(
-        Id,
+        IdentDef,
         comma
     )
     FuncDef: AstNode = preceded(
         fun > sp1,
-        terminated(
-            Id,
-            delimited(
-                lpar ^ sp0,
-                ParamList,
-                rpar ^ sp0
-            )
+        Id >
+        delimited(
+            lpar ^ sp0,
+            ParamList,
+            rpar ^ sp0
         )
-    ) > delimited(colon + Indent, StmtList, Dedent)     @ akFuncDef.newTreeNode
+    ) + (?Metadata > ?delimited(colon + Indent, StmtList, Dedent)) @ proc(it: auto): AstNode =
+                                                                    let
+                                                                        id = it[0][0]
+                                                                        params = akParams.newTreeNode(it[0][1..^1])
+                                                                        meta = if it[1][0].isSome: it[1][0].get else: newEmptyNode()
+                                                                        body = if it[1][1].isSome: it[1][1].get else: newEmptyNode()
+                                                                    akFuncDef.newTreeNode(@[id, params, meta, body])
 
     # epression
     asop = p"[\p{Sm}*/\\?!%&$^@-]*="                    @ (it => newIdNode(it.fragment))
@@ -383,11 +395,12 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         falset          @ (it => newBoolNode(false, newLineInfo(fileid, it, it))),
         truet           @ (it => newBoolNode(true, newLineInfo(fileid, it, it)))
     )
-    # String = s("\"") > s("\"")                          @ (it => newStrNode())
+    String = strlit                                     @ (it => newStrNode(it.fragment[1..^2], it.toLineInfo(fileid)))
     Literal = alt(
         Float,
         Int,
-        Boolean
+        Boolean,
+        String
     )
     DiscardPattern = us                                 @ (it => akDiscardPattern.newNode())
     IdPattern = Id                                      @ (it => akIdPattern.newTreeNode(@[it]))
@@ -399,6 +412,14 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         IdPattern,
         LiteralPattern
     ) ^+ comma                                          @ (it => akPatterns.newTreeNode(it))
+    Metadata = preceded(
+        bikkuri,
+        delimited(
+            lbra,
+            Id + ?preceded(colon, Literal),
+            rbra
+        )                                               @ (it => (if it[1].isSome: akMetadata.newTreeNode(@[it[0], it[1].get]) else: akMetadata.newTreeNode(@[it[0]])))
+    )
 
 export newParser, `$`
 proc parse*(self: Parser, filename: string): AstNode =
@@ -414,7 +435,7 @@ proc parse*(self: Parser, filename: string): AstNode =
 when isMainModule:
     var
         parser = newParser()
-    let a = """
+    let a = r"""
 let
     a: int = 3
     b: int = 3
@@ -453,7 +474,9 @@ var
 3-> 3 * 3 - 3
 
 a = 3
-
+![a]
+![a: 3]
+![a: "arith.ll"]
 # func fact(a):
 #     a * fact(a-1)
 false

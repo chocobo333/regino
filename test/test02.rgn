@@ -1,0 +1,22 @@
+
+![link: "./arith.ll"]
+
+alias
+    int32 = typeof(0)
+#    int32 = typeof(0'i32)
+#    int64 = typeof(0'i64)
+#    uint64 = typeof(0'u64)
+
+func `add@int32/int32int32`(a: int32, b: int32) -> int32 ![importll]
+func `sub@int32/int32int32`(a: int32, b: int32) -> int32 ![importll]
+
+func `+`(a: int32, b: int32) -> int32:
+    `add@int32/int32int32`(a, b)
+func `-`(a: int32, b: int32) -> int32:
+    `sub@int32/int32int32`(a, b)
+
+func fib(n: int32) -> int32:
+    if n < 2:
+        1
+    else:
+        fib(n-1) + fib(n-2)

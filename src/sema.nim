@@ -4,173 +4,38 @@ import hashes
 import sequtils
 import strutils
 import strformat
+from os import `/`, splitPath, absolutePath
+import options
 
 import ast
 import lineInfos
 
+import sema/types
+import sema/ir
 
-type
-    Program* = ref object
-        stmts*: StmtList
+import codegen
 
-    StmtList* = seq[Statement]
-    StatementKind* = enum
-        stkComment
-        stkVarDecl
-        stkLetDecl
-        stkConstDecl
-        stkFuncDef
-        stkTempDef
-        stkMacroDef
-        stkIterDef
-        stkExprStmt
-        stkAsign
-    Statement* = ref object
-        lineInfo: LineInfo
-        case kind*: StatementKind
-        of stkComment:
-            comment: string
-        of stkVarDecl, stkLetDecl, stkConstDecl:
-            iddefs*: seq[IdentDef]
-        of stkFuncDef, stkTempDef, stkMacroDef, stkIterDef:
-            name*: string
-            rety*: Type
-            paramty*: seq[Type]
-            params*: seq[IdentDef]
-            body*: Expr
-        of stkExprStmt:
-            exp*: Expr
-        of stkAsign:
-            lhs*: Pattern
-            rhs*: Expr
-    IdentDef* = ref object
-        id*: Pattern
-        typ*: Expr
-        default*: Expr
-    PatternKind* = enum
-        pkDiscard
-        pkId
-        pkLiteral
-        pkPatterns
-    Pattern* = ref object
-        case kind*: PatternKind
-        of pkDiscard:
-            nil
-        of pkId:
-            id*: Id
-        of pkLiteral:
-            lit*: Expr
-        of pkPatterns:
-            pats*: seq[Pattern]
-    Id* = ref object
-        lineInfo: LineInfo
-        name*: string
-        sym*: Symbol
-        # TODO: other infos
-    ExprKind* = enum
-        ekCall
-        ekBinOp
-        ekIfExpr
-        ekLoopExpr
-        ekBlockExpr
-        ekChar
-        ekInt
-        ekFloat
-        ekString
-        ekSym
-    Expr* = ref object
-        lineInfo: LineInfo
-        case kind*: ExprKind
-        of ekCall:
-            callee*: Expr
-            params*: seq[Expr]
-        of ekBinOp:
-            op*: Expr
-            lhs*: Expr
-            rhs*: Expr
-        of ekIfExpr:
-            elifbranches*: seq[ElifBranch]
-            elsebranch*: StmtList
-        of ekLoopExpr, ekBlockExpr:
-            body*: StmtList
-        of ekChar:
-            charval*: char
-        of ekInt:
-            intval*: BiggestInt
-            intsize*: int
-        of ekFloat:
-            floatval*: BiggestFloat
-            floatsize*: int
-        of ekString:
-            strval*: string
-        of ekSym:
-            name*: string
-            sym*: Symbol
-    ElifBranch* = ref object
-        cond*: Expr
-        branch*: StmtList
-    TypeKind* = enum
-        tkNone
-        # tkUnit
-        tkCon
-        tkApp
-        tkFunc
-        tkGen
-        tkVar
-        tkAll
-    Type* = ref object
-        sym*: Symbol
-        case kind*: TypeKind
-        of tkNone:
-            nil
-        of tkCon:
-            name*: string
-        of tkApp:
-            base*: Type
-            types*: seq[Type]
-        of tkFunc:
-            rety*: Type
-            paramty*: seq[Type]
-        of tkGen:
-            tgid*: TypeGenId
-        of tkVar:
-            v*: TypeVar
-        of tkAll:
-            typ*: Type
-            tsid*: TypeSchemeId
-    SymbolKind* = enum
-        skChoice
-        skFunc
-        skType
-        skVar
-        skLet
-        skConst
-    Symbol* = ref object
-        case kind*: SymbolKind
-        of skChoice:
-            syms*: seq[Symbol]
-        else:
-            typ*: Type
-    TypeVarId* = int
-    TypeSchemeId* = int
+import llvm except Type, Module
 
-    SymEnv = ref object
-        parent*: SymEnv
-        env*: Table[string, Symbol]
-    TypeEnv* = ref object
-        typevarid: TypeVarId
-        typeschemeid: TypeSchemeId
-        symenv: SymEnv
-        # typesubstituions
-        tvenv: Table[TypeVar, Type] # seq[(TypeVar, Type)], Table[TypeVar, seq[Type]]
+export `$`
 
 # Type
 proc `$`*(self: Type): string =
     case self.kind
     of tkNone:
         "none"
-    of tkCon:
-        self.name
+    of tkUnit:
+        "Unit"
+    of tkChar:
+        "char"
+    of tkInt:
+        "int"
+    of tkFloat:
+        "float"
+    of tkString:
+        "string"
+    of tkBool:
+        "bool"
     of tkApp:
         let tmp = self.types.join(", ")
         fmt"{self.base}[{tmp}]"
@@ -181,8 +46,7 @@ proc `$`*(self: Type): string =
         fmt"TypeGen(id: {self.tgid}"
     of tkVar:
         fmt"TypeVar(id: {self.v.id})"
-    of tkAll:
-        fmt"ForAll"
+
 proc hash*(self: Type): Hash =
     result = 0
     result = !$ result
@@ -215,99 +79,6 @@ proc `$`*(self: Symbol): string =
 proc hash*(self: Id): Hash =
     self.name.hash
 
-# SymEnv
-proc newSymEnv*(): SymEnv =
-    SymEnv(env: initTable[string, Symbol]())
-# TypeEnv
-proc newTypeEnv*(): TypeEnv =
-    TypeEnv(
-        typevarid: 0,
-        typeschemeid: 0,
-        symenv: newSymEnv(),
-        tvenv: initTable[TypeVar, Type]()
-    )
-
-proc newTypeVarId(self: TypeEnv): TypeVarId =
-    result = self.typevarid
-    inc self.typevarid
-
-proc newTypeSchemeId(self: TypeEnv): TypeSchemeId =
-    result = self.typeschemeid
-    inc self.typeschemeid
-
-proc `$`*(self: Expr): string
-proc `$`*(self: Statement): string
-proc `$`*(self: Id): string =
-    self.name
-proc `$`*(self: ElifBranch): string =
-    let tmp = (self.branch.map(`$`).join("\n")).indent(2)
-    &"{self.cond}:\n{tmp}"
-proc `$`*(self: Expr): string =
-    case self.kind
-    of ekCall:
-        let tmp = self.params.join(", ")
-        fmt"{self.callee}({tmp})"
-    of ekBinOp:
-        fmt"{self.lhs} {self.op} {self.rhs}"
-    of ekIfExpr:
-        "if " & self.elifbranches.map(`$`).join("\nelif ") & (if self.elsebranch.len == 0: "" else: "\nelse:\n" & self.elsebranch.map(`$`).join("\n").indent(2))
-    of ekLoopExpr:
-        let a = ($self.body).indent(2)
-        &"loop:\n{a}"
-    of ekBlockExpr:
-        let a = ($self.body).indent(2)
-        &"block:\n{a}"
-    of ekChar:
-        self.charval.repr
-    of ekInt:
-        $self.intval
-    of ekFloat:
-        $self.floatval
-    of ekString:
-        self.strval.repr
-    of ekSym:
-        self.name
-proc `$`*(self: Pattern): string =
-    case self.kind
-    of pkDiscard:
-        "_"
-    of pkId:
-        self.id.name
-    of pkLiteral:
-        $self.lit
-    of pkPatterns:
-        self.pats.join(", ")
-proc `$`*(self: IdentDef): string =
-    let
-        typ = if self.typ.isNil: "" else: fmt": {self.typ}"
-        default = if self.default.isNil: "" else: fmt" = {self.default}"
-    fmt"{self.id}{typ}{default}"
-proc `$`*(self: Statement): string =
-    case self.kind
-    of stkComment:
-        fmt"# {self.comment}"
-    of stkVarDecl:
-        let tmp = self.iddefs.map(`$`).join("\n").indent(2)
-        &"var\n{tmp}"
-    of stkLetDecl:
-        ""
-    of stkConstDecl:
-        ""
-    of stkFuncDef:
-        ""
-    of stkTempDef:
-        ""
-    of stkMacroDef:
-        ""
-    of stkIterDef:
-        ""
-    of stkExprStmt:
-        $self.exp
-    of stkAsign:
-        fmt"{self.lhs} = {self.rhs}"
-proc `$`*(self: Program): string =
-    self.stmts.map(`$`).join("\n")
-
 proc typeInduction(self: Expr, env: TypeEnv): Type =
     case self.kind
     of ekCall:
@@ -321,14 +92,16 @@ proc typeInduction(self: Expr, env: TypeEnv): Type =
     of ekBlockExpr:
         nil
     of ekChar:
-        Type(kind: tkCon, name: "char")
+        Type(kind: tkChar)
     of ekInt:
-        Type(kind: tkCon, name: "int")
+        Type(kind: tkInt)
     of ekFloat:
-        Type(kind: tkCon, name: "float")
+        Type(kind: tkFloat)
     of ekString:
-        Type(kind: tkCon, name: "string")
-    of ekSym:
+        Type(kind: tkString)
+    of ekBool:
+        Type(kind: tkBool)
+    of ekId:
         let sym = env.symenv.env[self.name]
         # TODO: choice
         if sym.kind == skChoice:
@@ -377,6 +150,8 @@ proc typeInduction(self: Statement, env: TypeEnv): Type =
         nil
     of stkConstDecl:
         nil
+    of stkAliasDecl:
+        nil
     of stkFuncDef:
         nil
     of stkTempDef:
@@ -388,6 +163,8 @@ proc typeInduction(self: Statement, env: TypeEnv): Type =
     of stkExprStmt:
         self.exp.typeInduction(env)
     of stkAsign:
+        nil
+    of stkMetadata:
         nil
 
 proc typeInduction(self: Program, env: TypeEnv)=
@@ -411,7 +188,7 @@ proc toElseBranch(self: AstNode): StmtList =
     self.children[0].toStmtList()
 proc toExpr(self: AstNode): Expr =
     case self.kind
-    of akFailed, akEmpty, akComment, akStmtList, akStatement:
+    of akFailed, akEmpty, akComment, akStmtList, akStatement, akParams:
         assert false
         nil
     of akBlockExpr:
@@ -451,12 +228,14 @@ proc toExpr(self: AstNode): Expr =
     of akString:
         Expr(lineInfo: self.lineInfo, kind: ekString, strval: self.strVal)
     of akId:
-        Expr(lineInfo: self.lineInfo, kind: ekSym, name: self.strVal, sym: self.toSymbol())
+        Expr(lineInfo: self.lineInfo, kind: ekId, name: self.strVal)
     of akPat:
+        nil
+    of akMetadata:
         nil
 proc toPattern(self: AstNode): Pattern =
     case self.kind:
-    of akFailed, akEmpty, akComment, akStmtList, akStatement, akExpr:
+    of akFailed, akEmpty, akComment, akStmtList, akStatement, akExpr, akParams:
         assert false
         nil
     of akDiscardPattern:
@@ -470,6 +249,8 @@ proc toPattern(self: AstNode): Pattern =
             self.children[0].toPattern()
         else:
             Pattern(kind: pkPatterns, pats: self.children.map(toPattern))
+    of akMetadata:
+        nil
 proc toIdentDef(self: AstNode): IdentDef =
     assert self.kind == akIdentDef
     assert self.children.len == 3
@@ -497,6 +278,8 @@ proc toStatement(self: AstNode): Statement =
         Statement(lineInfo: self.lineInfo, kind: stkVarDecl, iddefs: self.children.map(toIdentDef))
     of akConstSection:
         Statement(lineInfo: self.lineInfo, kind: stkConstDecl, iddefs: self.children.map(toIdentDef))
+    of akAliasSection:
+        Statement(lineInfo: self.lineInfo, kind: stkAliasDecl, iddefs: self.children.map(toIdentDef))
     of akFuncDef:
         nil
     of akTempDef:
@@ -509,10 +292,15 @@ proc toStatement(self: AstNode): Statement =
         nil
     of akAsign:
         nil
+    of akParams:
+        nil
     of akExpr:
         Statement(lineInfo: self.lineInfo, kind: stkExprStmt, exp: self.toExpr())
     of akPat:
         nil
+    of akMetadata:
+        let metadata = Metadata(name: self.children[0].toExpr.name, param: self.children[1].toExpr)
+        Statement(lineInfo: self.lineInfo, kind: stkMetadata, metadata: metadata)
 proc toStmtList(self: AstNode): StmtList =
     case self.kind
     of akStmtList:
@@ -541,13 +329,43 @@ proc toProgram(self: AstNode): Program =
     else:
         nil
 
+proc link(self: Metadata, module: Module) =
+    let param = self.param
+    assert param.kind == ekString
+    let
+        path = param.lineInfo.fileId.getFileInfo.filename.splitPath.head.absolutePath / param.strval
+        f = open(path)
+        s = f.readAll()
+        module2 = llvm.parseIr(module.cxt, path)
+    if module2.isSome:
+        let m = module2.get
+        module.linkModules.add m
+        for fn in m.funcs:
+            module.linkFuncs.add fn
+    else:
+        # TODO: err msg
+        assert false
+    f.close()
+proc globalMetada(self: Program, module: Module) =
+    for e in self.stmts:
+        # TODO: remove it
+        if e.isNil:
+            continue
+        if e.kind == stkMetadata:
+            let metadata = e.metadata
+            case metadata.name
+            of "link":
+                metadata.link(module)
+            else:
+                assert false
 
-proc sema*(node: AstNode, env: Environment): Program =
+proc sema*(node: AstNode, module: Module): Program =
     # registerSymbol(node, env)
     # simpleTyping(node, env)
     # resolveTyping(node, env)
     let
         tenv = newTypeEnv()
         program = node.toProgram
+    program.globalMetada(module)
     program.typeInduction(tenv)
     program

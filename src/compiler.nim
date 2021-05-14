@@ -6,10 +6,14 @@ import codegen
 
 proc compile(filename: string): string =
     var
+        module = newModule()
         parser = newParser()
-        env = newEnvironment()
         tmp =  parser.parse(filename)
-    parser.parse(filename).sema(env).codegen()
+        parsed_string = parser.parse(filename)
+    
+    echo parsed_string
+
+    echo sema(parsed_string, module)
 
 when isMainModule:
     echo compile("test/test01.rgn")
