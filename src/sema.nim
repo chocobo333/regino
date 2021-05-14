@@ -139,6 +139,11 @@ proc typeInduction(self: Expr, env: TypeEnv): Type =
 #         # TODO: more patterns
 #         discard
 
+
+proc typeInduction(self: Statement, env: TypeEnv): Type
+proc typeInduction(self: StmtList, env: TypeEnv): Type =
+    for e in self:
+        result = e.typeInduction(env)
 proc typeInduction(self: Statement, env: TypeEnv): Type =
     echo "in typeInduction for statement"
     case self.kind
@@ -276,6 +281,10 @@ proc toIdentDef(self: AstNode): IdentDef =
         typ = self.children[1]
         default = self.children[2]
     IdentDef(id: pat.toPattern(), default: default.toExpr())
+proc toMetadata(self: AstNode): Metadata =
+    assert self.kind == akMetadata
+    assert self.children[0].kind == akId
+    Metadata(name: self.children[0].strVal, param: self.children[1].toExpr())
 proc toStatement(self: AstNode): Statement =
     echo "in toStatement"
     case self.kind
@@ -299,7 +308,13 @@ proc toStatement(self: AstNode): Statement =
     of akAliasSection:
         Statement(lineInfo: self.lineInfo, kind: stkAliasDecl, iddefs: self.children.map(toIdentDef))
     of akFuncDef:
-        nil
+        assert self.children[0].kind == akId
+        let
+            name = self.children[0].strVal
+            funty = self.children[1]
+            metadata = self.children[2].toMetadata()
+            body = self.children[3].toStmtList()
+            function = Function(name: name, rety: self.funty[0].toExpr(), params: self.funty[1].map(toIdentDef), metadata: metadata, body: body)
         # var
             # function = Function(name: self.children[0].strVal, rety: newNoneType(), paramty: nil, params: self.children[1].children.map(toIdentDef),)
         # var identDef = self.child
