@@ -102,8 +102,11 @@ proc newTypeEnv*(): TypeEnv =
         table: initTable[string, Type]()
     )
         
-proc extend*(typeEenv: TypeEnv, name: string, typ: Type) = 
-    typeEenv.table[name] = typ
+proc extend*(typeEnv: TypeEnv, name: string, typ: Type) = 
+    typeEnv.table[name] = typ
+
+proc `[]=`*(self: TypeEnv, name: string, typ: Type) =
+    self.extend(name, typ)
 
 proc lookup*(typeEnv: TypeEnv, name: string): Type =
     if name in typeEnv.table:
@@ -113,6 +116,9 @@ proc lookup*(typeEnv: TypeEnv, name: string): Type =
         return Type(kind: tkNone)
     else:
         return lookup(typeEnv.parent, name)
+
+proc `[]`*(self: TypeEnv, name: string): Type =
+    self.lookup(name)
 
 proc addScope*(typeEnv: TypeEnv): TypeEnv = 
     var ret = newTypeEnv()
