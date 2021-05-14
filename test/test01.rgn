@@ -1,7 +1,7 @@
 
-func echo(s: string) ![importll]
+![link: "arith.ll"]
 
-func f(a: int):
-    a
+
+func echo(s: string) ![importll]
 
 echo "Hello world!"
