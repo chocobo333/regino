@@ -43,9 +43,9 @@ type
             metadata*: Metadata
     Function* = ref object
         name*: string
-        rety*: Type
-        paramty*: seq[Type]
+        rety*: Expr
         params*: seq[IdentDef]
+        metadata*: Metadata
         body*: StmtList
     IdentDef* = ref object
         id*: Pattern
