@@ -160,18 +160,19 @@ proc typeInduction(self: Statement, env: TypeEnv): Type =
     of stkAliasDecl:
         nil
     of stkFuncDef:
-        echo "in function def"
-        var 
-            fn = self.fn
-            fnType = Type(kind: tkFunc, rety: fn.rety, paramty: fn.paramty)
-        extend(env, fn.name, fnType)
-        var localEnv = addScope(env)
-        if fn.rety != typeInduction(fn.body, localEnv):
-            # TODO: raise ERROR 
-            # return type dosent match body type
-            return newNoneType()
-        echo "out function def"
-        return fnType
+        nil
+        # echo "in function def"
+        # var 
+        #     fn = self.fn
+        #     fnType = Type(kind: tkFunc, rety: fn.rety, paramty: fn.paramty)
+        # extend(env, fn.name, fnType)
+        # var localEnv = addScope(env)
+        # if fn.rety != typeInduction(fn.body, localEnv):
+        #     # TODO: raise ERROR 
+        #     # return type dosent match body type
+        #     return newNoneType()
+        # echo "out function def"
+        # return fnType
     of stkTempDef:
         nil
     of stkMacroDef:
@@ -284,7 +285,12 @@ proc toIdentDef(self: AstNode): IdentDef =
 proc toMetadata(self: AstNode): Metadata =
     assert self.kind == akMetadata
     assert self.children[0].kind == akId
-    Metadata(name: self.children[0].strVal, param: self.children[1].toExpr())
+    var param = 
+        if len(self.children) == 1:
+            nil
+        else:
+            self.children[1].toExpr()
+    Metadata(name: self.children[0].strVal, param: param)
 proc toStatement(self: AstNode): Statement =
     echo "in toStatement"
     case self.kind
@@ -314,7 +320,8 @@ proc toStatement(self: AstNode): Statement =
             funty = self.children[1]
             metadata = self.children[2].toMetadata()
             body = self.children[3].toStmtList()
-            function = Function(name: name, rety: self.funty[0].toExpr(), params: self.funty[1].map(toIdentDef), metadata: metadata, body: body)
+            function = Function(name: name, rety: toExpr(funty.children[0]), params: funty.children[1].children.map(toIdentDef), metadata: metadata, body: body)
+        Statement(lineInfo: self.lineInfo, kind: stkFuncDef, fn: function)
         # var
             # function = Function(name: self.children[0].strVal, rety: newNoneType(), paramty: nil, params: self.children[1].children.map(toIdentDef),)
         # var identDef = self.child

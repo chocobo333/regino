@@ -2,6 +2,6 @@
 ![link: "arith.ll"]
 
 
-func echo(s: string) ![importll]
+func echo(s: string) -> string ![importll]
 
 echo "Hello world!"
