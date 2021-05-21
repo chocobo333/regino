@@ -1,3 +1,7 @@
+
+func f(a: int) -> int:
+    a
+
 let
     a = 3
     b = 4
