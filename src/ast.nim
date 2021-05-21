@@ -2,7 +2,6 @@
 import strformat
 import strutils
 import sequtils
-import tables
 
 import coloredString
 

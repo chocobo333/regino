@@ -1,7 +1,12 @@
 
 ![link: "arith.ll"]
 
+alias
+    string = typeof("")
+func echo(s: string) ![importll]
 
-func echo(s: string) -> string ![importll]
-
-echo "Hello world!"
+let
+    a = "Hello world!"
+    b = 3
+echo a
+echo b

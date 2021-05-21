@@ -170,7 +170,8 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         Expr,
         Metadata
     )
-    IdentDef: AstNode = Patterns + alt(
+    # IdentDef: AstNode = Patterns + alt(
+    IdentDef: AstNode = Id + alt(
         ?preceded(colon ^ sp0, Expr) +
         preceded(eq ^ sp0, Expr)            @ ((it: (Option[AstNode], AstNode)) =>
                                                     (

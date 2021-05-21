@@ -1,120 +1,73 @@
 
-import tables
+import sets
 import hashes
-import sequtils
-
-import ../lineInfos
+import strformat
 
 
 type
-    TypeKind* = enum
-        tkNone
-        tkUnit
-        tkChar
-        tkInt
-        tkFloat
-        tkString
-        tkBool
-        tkApp
-        tkFunc
-        tkGen
-        tkVar
+    TypeKind* {.pure.} = enum
+        Unit
+        Bool
+        Int
+        Arr
+        Var
     Type* = ref object
-        sym*: Symbol
         case kind*: TypeKind
-        of tkNone, tkUnit:
+        of TypeKind.Unit:
             nil
-        of tkChar..tkBool:
+        of TypeKind.Bool:
             nil
-        of tkApp:
-            base*: Type
-            types*: seq[Type]
-        of tkFunc:
+        of TypeKind.Int:
+            nil
+        of TypeKind.Arr:
+            paramty*: Type
             rety*: Type
-            paramty*: seq[Type]
-        of tkGen:
-            tgid*: TypeGenId
-        of tkVar:
+        of TypeKind.Var:
             v*: TypeVar
-    TypeVar* = ref object
-        id*: TypeVarId
-    TypeSchemeKind* = enum
-        tskAll
-    TypeScheme* = ref object
-        ngen*: int
-        typ*: Type
-        kind*: TypeSchemeKind
-        tsid*: TypeSchemeId
-    SymbolKind* = enum
-        skChoice
-        skFunc
-        skType
-        skVar
-        skLet
-        skConst
-    Symbol* = ref object
-        case kind*: SymbolKind
-        of skChoice:
-            syms*: seq[Symbol]
-        else:
-            id*: Id
+
+    PolyTypeKind* {.pure.} = enum
+        ForAll
+    PolyType* = ref object
+        case kind*: PolyTypeKind
+        of ForAll:
+            gen*: HashSet[TypeVar]
             typ*: Type
-    Id* = ref object
-        lineInfo*: LineInfo
-        name*: string
-        sym*: Symbol
-        # TODO: other infos
-    TypeGenId* = int
-    TypeVarId* = int
-    TypeSchemeId* = int
 
-    SymEnv* = ref object
-        parent*: SymEnv
-        env*: Table[string, Symbol]
-    # TypeEnv* = ref object
-    #     typevarid*: TypeVarId
-    #     typeschemeid*: TypeSchemeId
-    #     symenv*: SymEnv
-    #     # typesubstituions
-    #     tvenv*: Table[TypeVar, Type] # seq[(TypeVar, Type)], Table[TypeVar, seq[Type]]
-    TypeSubstitution = Table[TypeVar, Type]
-    TypeAssumption = ref object
-        id: Id
-        types: seq[TypeScheme]
-    Types = concept T, var t
-        apply(TypeSubstitution, T)
-        t.typevars() is seq[TypeVar]
+    TypeVar* = ref object
+        id*: int
 
-    SymTable = Table[string, Type]
+proc Unit*(typ: typedesc[Type]): Type =
+    Type(kind: TypeKind.Unit)
+proc Bool*(typ: typedesc[Type]): Type =
+    Type(kind: TypeKind.Bool)
+proc Int*(typ: typedesc[Type]): Type =
+    Type(kind: TypeKind.Int)
+proc Arr*(typ: typedesc[Type], paramty, rety: Type): Type =
+    Type(kind: TypeKind.Arr, paramty: paramty, rety: rety)
+proc Var*(typ: typedesc[Type], v: TypeVar): Type =
+    Type(kind: TypeKind.Var, v: v)
 
-    TypeEnv* = ref object
-        parent*: TypeEnv
-        table*: SymTable
+proc ForAll*(ty: typedesc[PolyType], gen: HashSet[TypeVar], typ: Type): PolyType =
+    PolyType(kind: PolyTypeKind.ForAll, gen: gen, typ: typ)
 
-# SymEnv
-proc newSymEnv*(): SymEnv =
-    SymEnv(env: initTable[string, Symbol]())
+proc hash*(self: TypeVar): Hash =
+    Hash self.id
+proc `$`*(self: TypeVar): string =
+    fmt"{self.id}'"
+proc `$`*(self: Type): string =
+    case self.kind
+    of TypeKind.Unit:
+        "unit"
+    of TypeKind.Bool:
+        "bool"
+    of TypeKind.Int:
+        "int"
+    of TypeKind.Arr:
+        fmt"{self.paramty} -> {self.rety}"
+    of TypeKind.Var:
+        $self.v
 
-# TypeEnv
-proc newTypeEnv*(): TypeEnv =
-    TypeEnv(
-        parent: nil,
-        table: initTable[string, Type]()
-    )
-        
-proc extend*(typeEenv: TypeEnv, name: string, typ: Type) = 
-    typeEenv.table[name] = typ
-
-proc lookup*(typeEnv: TypeEnv, name: string): Type =
-    if name in typeEnv.table:
-        return typeEnv.table[name]
-    elif typeEnv.parent.isNil:
-        # TODO: raise error
-        return Type(kind: tkNone)
-    else:
-        return lookup(typeEnv.parent, name)
-
-proc addScope*(typeEnv: TypeEnv): TypeEnv = 
-    var ret = newTypeEnv()
-    ret.parent = typeEnv
-    ret
+proc `$`(self: PolyType): string =
+    case self.kind
+    of PolyTypeKind.ForAll:
+        $self.typ
