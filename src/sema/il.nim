@@ -19,6 +19,7 @@ type
         App
         If
         Seq
+        TypeOf
     Term* = ref object
         typ*: Type
         case kind*: TermKind
@@ -51,9 +52,12 @@ type
             elset*: Term
         of TermKind.Seq:
             ts*: seq[Term]
+        of TermKind.TypeOf:
+            typeof*: Term
 
     Metadata* = ref object
         name*: string
+        param*: Term
 
 
 proc Unit*(typ: typedesc[Term]): Term =
@@ -67,7 +71,7 @@ proc Id*(typ: typedesc[Term], name: string): Term =
 proc Let*(typ: typedesc[Term], id: string, default: Term): Term =
     Term(kind: TermKind.Let, id: id, default: default)
 proc FuncDef*(typ: typedesc[Term], fname: string, paramname: string, paramty: Term, rety: Term, fbody: Term): Term =
-    Term(kind: TermKind.Let, fname: fname, paramname: paramname, paramty: paramty, rety: rety, fbody: fbody)
+    Term(kind: TermKind.FuncDef, fname: fname, paramname: paramname, paramty: paramty, rety: rety, fbody: fbody)
 proc Lam*(typ: typedesc[Term], param: string, body: Term): Term =
     Term(kind: TermKind.Lam, param: param, body: body)
 proc App*(typ: typedesc[Term], callee: Term, arg: Term): Term =
@@ -76,6 +80,8 @@ proc If*(typ: typedesc[Term], cond: Term, thent: Term, elset: Term): Term =
     Term(kind: TermKind.If, cond: cond, thent: thent, elset: elset)
 proc Seq*(typ: typedesc[Term], ts: seq[Term]): Term =
     Term(kind: TermKind.Seq, ts: ts)
+proc TypeOf*(typ: typedesc[Term], t: Term): Term =
+    Term(kind: TermKind.TypeOf, typeof: t)
 
 proc `$`*(self: Term): string =
     case self.kind
@@ -91,7 +97,7 @@ proc `$`*(self: Term): string =
         fmt"let {self.id} = {self.default}"
     of TermKind.FuncDef:
         let rety = if self.rety.isNil: "" else: fmt" -> {self.rety}"
-        &"func {self.fname}({self.paramname}: {self.paramty}){rety}:\n{self.fbody}"
+        fmt"func {self.fname}({self.paramname}: {self.paramty}){rety}:" & ("\n" & $self.fbody).indent(2)
     of TermKind.Lam:
         fmt"λ{self.param}.{self.body}" 
     of TermKind.App:
@@ -99,4 +105,6 @@ proc `$`*(self: Term): string =
     of TermKind.If:
         fmt"if {self.cond} then {self.thent} else {self.elset}"
     of TermKind.Seq:
-        self.ts.join(";\n")
+        self.ts.join("\n")
+    of TermKind.TypeOf:
+        fmt"typeof({self.typeof})"

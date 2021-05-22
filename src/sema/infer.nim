@@ -42,6 +42,9 @@ type
 proc newScope*(): Scope =
     Scope(vars: initTable[string, PolyType]())
 
+proc `$`*(self: Scope): string =
+    $self.vars
+
 # TypeEnv
 proc newTypeEnv*(): TypeEnv =
     TypeEnv(
@@ -65,6 +68,8 @@ proc apply(self: Substitution, t: Type): Type =
             self[t.v]
         else:
             t
+    of TypeKind.TypeDesc:
+        Type.TypeDesc(self.apply(t.typ))
 proc ftv(self: Type): HashSet[TypeVar] =
     case self.kind
     of TypeKind.Unit..TypeKind.Int:
@@ -73,6 +78,8 @@ proc ftv(self: Type): HashSet[TypeVar] =
         self.paramty.ftv + self.rety.ftv
     of TypeKind.Var:
         @[self.v].toHashSet()
+    of TypeKind.TypeDesc:
+        self.typ.ftv
 proc apply(self: Substitution, t: PolyType): PolyType =
     case t.kind
     of PolyTypeKind.ForAll:
@@ -179,6 +186,8 @@ proc unify(env: TypeEnv, t1, t2: Type): Substitution =
                 bindt(t2.v, t1)
             else:
                 bindt(t1.v, t2)
+        of TypeKind.TypeDesc:
+            env.unify(t1.typ, t2.typ)
     elif t1.kind == TypeKind.Var:
         bindt t1.v, t2
     elif t2.kind == TypeKind.Var:
@@ -207,6 +216,19 @@ proc lookup(self: TypeEnv, name: string): PolyType =
         scope = scope.parent
     assert false, fmt"{name} was not declared"
 
+# proc asType(self: Term): Type =
+#     result = if self.kind == TermKind.Id:
+#         case self.name
+#         of "int":
+#             Type.Int
+#         else:
+#             assert false, ""
+#             nil
+#     else:
+#         assert false, ""
+#         nil
+#     self.typ = result
+
 proc infer*(self: Term, env: TypeEnv): Type =
     result = case self.kind
     of TermKind.Unit:
@@ -220,10 +242,22 @@ proc infer*(self: Term, env: TypeEnv): Type =
     of TermKind.Let:
         let
             t1 = self.default.infer(env)
-        env.extend(self.id, t1.gen(env))
+        env.extend(self.id, PolyType.ForAll(nullFtv, t1))
         Type.Unit
     of TermKind.FuncDef:
-
+        let
+            paramty = self.paramty.infer(env)
+            rety = self.rety.infer(env)
+            tv1 = Type.newVar()
+            tv2 = Type.newVar()
+        env.extend(self.fname, PolyType.ForAll(nullFtv, Type.Arr(tv1, tv2)))
+        env.uni(Type.TypeDesc(tv1), paramty)
+        env.uni(Type.TypeDesc(tv2), rety)
+        env.pushScope
+        env.extend(self.paramname, PolyType.ForAll(nullFtv, tv1))
+        let rety2 = self.fbody.infer(env)
+        env.uni(tv2, rety2)
+        env.popScope
         Type.Unit
     of TermKind.Lam:
         let
@@ -256,6 +290,9 @@ proc infer*(self: Term, env: TypeEnv): Type =
         for e in ts[0..^2]:
             env.uni(e, Type.Unit)
         ts[^1]
+    of TermKind.TypeOf:
+        let t = self.typeof.infer(env)
+        Type.TypeDesc(t)
     self.typ = result
 
 proc solve*(env: TypeEnv, s: Substitution = nullSubst, cs: seq[Constraint] = env.cons): Substitution =
@@ -291,6 +328,8 @@ proc apply(s: Substitution, t: Term) =
     of TermKind.Seq:
         for e in t.ts:
             s.apply(e)
+    of TermKind.TypeOf:
+        s.apply(t.typeof)
 proc typeInfer*(self: Term, env: var TypeEnv): Type =
     result = self.infer(env)
     let

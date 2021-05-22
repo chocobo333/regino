@@ -1,8 +1,13 @@
 
+![link: "arith.ll"]
+
+
+alias
+    int = typeof(0)
 func f(a: int) -> int:
     a
 
 let
     a = 3
-    b = 4
-a
+    b = f(a)
+b

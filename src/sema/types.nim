@@ -11,6 +11,7 @@ type
         Int
         Arr
         Var
+        TypeDesc
     Type* = ref object
         case kind*: TypeKind
         of TypeKind.Unit:
@@ -24,6 +25,8 @@ type
             rety*: Type
         of TypeKind.Var:
             v*: TypeVar
+        of TypeKind.TypeDesc:
+            typ*: Type
 
     PolyTypeKind* {.pure.} = enum
         ForAll
@@ -46,6 +49,8 @@ proc Arr*(typ: typedesc[Type], paramty, rety: Type): Type =
     Type(kind: TypeKind.Arr, paramty: paramty, rety: rety)
 proc Var*(typ: typedesc[Type], v: TypeVar): Type =
     Type(kind: TypeKind.Var, v: v)
+proc TypeDesc*(typ: typedesc[Type], t: Type): Type =
+    Type(kind: TypeKind.TypeDesc, typ: t)
 
 proc ForAll*(ty: typedesc[PolyType], gen: HashSet[TypeVar], typ: Type): PolyType =
     PolyType(kind: PolyTypeKind.ForAll, gen: gen, typ: typ)
@@ -66,8 +71,10 @@ proc `$`*(self: Type): string =
         fmt"{self.paramty} -> {self.rety}"
     of TypeKind.Var:
         $self.v
+    of TypeKind.TypeDesc:
+        fmt"typedesc[{self.typ}]"
 
-proc `$`(self: PolyType): string =
+proc `$`*(self: PolyType): string =
     case self.kind
     of PolyTypeKind.ForAll:
         $self.typ
