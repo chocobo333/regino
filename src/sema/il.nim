@@ -6,6 +6,8 @@ import strutils
 
 import types
 
+import ../lineinfos
+
 
 type
     TermKind* {.pure.} = enum
@@ -23,6 +25,7 @@ type
         TypeOf
         Metadata
     Term* = ref object
+        lineInfo*: LineInfo
         typ*: Type
         case kind*: TermKind
         of TermKind.Unit:
@@ -90,8 +93,9 @@ proc Seq*(typ: typedesc[Term], ts: seq[Term]): Term =
     Term(kind: TermKind.Seq, ts: ts)
 proc TypeOf*(typ: typedesc[Term], t: Term): Term =
     Term(kind: TermKind.TypeOf, typeof: t)
-proc metadata*(typ: typedesc[Term], metadata: Metadata): Term =
-    Term(kind: TermKind.Metadata, metadata: metadata)
+proc Metadat*(typ: typedesc[Term], name: string, param: Term): Term =
+    Term(kind: TermKind.Metadata, metadata: Metadata(name: name, param: param))
+
 
 proc `$`*(self: Term): string
 proc `$`*(self: Metadata): string =

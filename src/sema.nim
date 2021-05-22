@@ -21,7 +21,7 @@ proc link(self: Metadata, module: Module) =
     let param = self.param
     assert param.kind == TermKind.String
     let
-        path = param.lineInfo.fileId.getFileInfo.filename.splitPath.head.absolutePath / param.strval
+        path = param.lineInfo.fileId.getFileInfo.filename.splitPath.head.absolutePath / param.s
         f = open(path)
         s = f.readAll()
         module2 = llvm.parseIr(module.cxt, path)

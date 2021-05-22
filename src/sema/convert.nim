@@ -11,7 +11,7 @@ proc newMetadata*(n: AstNode): Metadata =
     echo n
     
 proc newTerm*(n: AstNode): Term =
-    case n.kind
+    result = case n.kind
     of akStmtList:
         Term.Seq(n.children.map(newTerm))
     of akLetSection:
@@ -59,6 +59,12 @@ proc newTerm*(n: AstNode): Term =
         assert metadata.isEmpty
         assert not body.isEmpty
         Term.FuncDef(fname.strVal, paramty.children[0].strVal, newTerm(paramty.children[1]), newTerm(rety), newTerm(body))
+    of akMetadata:
+        let
+            name = n.children[0]
+            param = if n.children.len == 1: nil else: newTerm(n.children[1])
+        assert name.kind == akId
+        Term.Metadat(name.strVal, param)
     of akCall:
         let
             callee = n.children[0]
@@ -72,6 +78,8 @@ proc newTerm*(n: AstNode): Term =
         Term.App(newTerm(callee), newTerm(args[0]))
     of akInt:
         Term.Int(n.intVal)
+    of akString:
+        Term.String(n.strVal)
     of akBool:
         Term.Bool(n.boolval)
     of akId:
@@ -81,3 +89,4 @@ proc newTerm*(n: AstNode): Term =
         echo n
         assert false, "notimplemented"
         nil
+    result.lineInfo = n.lineInfo
