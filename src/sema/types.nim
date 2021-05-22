@@ -9,6 +9,7 @@ type
         Unit
         Bool
         Int
+        String
         Arr
         Var
         TypeDesc
@@ -19,6 +20,8 @@ type
         of TypeKind.Bool:
             nil
         of TypeKind.Int:
+            nil
+        of TypeKind.String:
             nil
         of TypeKind.Arr:
             paramty*: Type
@@ -45,6 +48,8 @@ proc Bool*(typ: typedesc[Type]): Type =
     Type(kind: TypeKind.Bool)
 proc Int*(typ: typedesc[Type]): Type =
     Type(kind: TypeKind.Int)
+proc String*(typ: typedesc[Type]): Type =
+    Type(kind: TypeKind.String)
 proc Arr*(typ: typedesc[Type], paramty, rety: Type): Type =
     Type(kind: TypeKind.Arr, paramty: paramty, rety: rety)
 proc Var*(typ: typedesc[Type], v: TypeVar): Type =
@@ -67,6 +72,8 @@ proc `$`*(self: Type): string =
         "bool"
     of TypeKind.Int:
         "int"
+    of TypeKind.String:
+        "string"
     of TypeKind.Arr:
         fmt"{self.paramty} -> {self.rety}"
     of TypeKind.Var:

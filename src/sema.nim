@@ -19,7 +19,7 @@ import llvm except Type, Module
 
 proc link(self: Metadata, module: Module) =
     let param = self.param
-    assert param.kind == ekString
+    assert param.kind == TermKind.String
     let
         path = param.lineInfo.fileId.getFileInfo.filename.splitPath.head.absolutePath / param.strval
         f = open(path)

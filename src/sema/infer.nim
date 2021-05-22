@@ -59,7 +59,7 @@ let
 
 proc apply(self: Substitution, t: Type): Type =
     case t.kind
-    of TypeKind.Unit..TypeKind.Int:
+    of TypeKind.Unit..TypeKind.String:
         t
     of TypeKind.Arr:
         Type.Arr(self.apply(t.paramty), self.apply(t.rety))
@@ -72,7 +72,7 @@ proc apply(self: Substitution, t: Type): Type =
         Type.TypeDesc(self.apply(t.typ))
 proc ftv(self: Type): HashSet[TypeVar] =
     case self.kind
-    of TypeKind.Unit..TypeKind.Int:
+    of TypeKind.Unit..TypeKind.String:
         initHashSet[TypeVar]()
     of TypeKind.Arr:
         self.paramty.ftv + self.rety.ftv
@@ -175,7 +175,7 @@ proc unify(env: TypeEnv, t1, t2: Type): Substitution =
         return nullSubst
     if t1.kind == t2.kind:
         case t1.kind
-        of TypeKind.Unit..TypeKind.Int:
+        of TypeKind.Unit..TypeKind.String:
             nullSubst
         of TypeKind.Arr:
             env.unifyMany(@[(t1.paramty, t2.paramty), (t1.rety, t2.rety)])
@@ -237,6 +237,8 @@ proc infer*(self: Term, env: TypeEnv): Type =
         Type.Bool
     of TermKind.Int:
         Type.Int
+    of TermKind.String:
+        Type.String
     of TermKind.Id:
         env.lookup(self.name).inst
     of TermKind.Let:
@@ -293,6 +295,10 @@ proc infer*(self: Term, env: TypeEnv): Type =
     of TermKind.TypeOf:
         let t = self.typeof.infer(env)
         Type.TypeDesc(t)
+    of TermKind.Metadata:
+        if not self.metadata.param.isNil:
+            discard self.metadata.param.infer(env)
+        Type.Unit
     self.typ = result
 
 proc solve*(env: TypeEnv, s: Substitution = nullSubst, cs: seq[Constraint] = env.cons): Substitution =
@@ -330,6 +336,8 @@ proc apply(s: Substitution, t: Term) =
             s.apply(e)
     of TermKind.TypeOf:
         s.apply(t.typeof)
+    of TermKind.Metadata:
+        s.apply(t.metadata.param)
 proc typeInfer*(self: Term, env: var TypeEnv): Type =
     result = self.infer(env)
     let

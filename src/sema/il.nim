@@ -12,6 +12,7 @@ type
         Unit
         Bool
         Int
+        String
         Id
         Let
         FuncDef
@@ -20,6 +21,7 @@ type
         If
         Seq
         TypeOf
+        Metadata
     Term* = ref object
         typ*: Type
         case kind*: TermKind
@@ -29,6 +31,8 @@ type
             b*: bool
         of TermKind.Int:
             i*: BiggestInt
+        of TermKind.String:
+            s*: string
         of TermKind.Id:
             name*: string
         of TermKind.Let:
@@ -54,6 +58,8 @@ type
             ts*: seq[Term]
         of TermKind.TypeOf:
             typeof*: Term
+        of TermKind.Metadata:
+            metadata*: Metadata
 
     Metadata* = ref object
         name*: string
@@ -66,6 +72,8 @@ proc Bool*(typ: typedesc[Term], b: bool): Term =
     Term(kind: TermKind.Bool, b: b)
 proc Int*(typ: typedesc[Term], i: BiggestInt): Term =
     Term(kind: TermKind.Int, i: i)
+proc String*(typ: typedesc[Term], s: string): Term =
+    Term(kind: TermKind.String, s: s)
 proc Id*(typ: typedesc[Term], name: string): Term =
     Term(kind: TermKind.Id, name: name)
 proc Let*(typ: typedesc[Term], id: string, default: Term): Term =
@@ -82,7 +90,13 @@ proc Seq*(typ: typedesc[Term], ts: seq[Term]): Term =
     Term(kind: TermKind.Seq, ts: ts)
 proc TypeOf*(typ: typedesc[Term], t: Term): Term =
     Term(kind: TermKind.TypeOf, typeof: t)
+proc metadata*(typ: typedesc[Term], metadata: Metadata): Term =
+    Term(kind: TermKind.Metadata, metadata: metadata)
 
+proc `$`*(self: Term): string
+proc `$`*(self: Metadata): string =
+    let tmp = if self.param.isNil: "" else: fmt": {self.param}"
+    fmt"![{self.name}{tmp}]"
 proc `$`*(self: Term): string =
     case self.kind
     of TermKind.Unit:
@@ -91,6 +105,8 @@ proc `$`*(self: Term): string =
         $self.b
     of TermKind.Int:
         $self.i
+    of TermKind.String:
+        "\"" & self.s & "\""
     of TermKind.Id:
         self.name
     of TermKind.Let:
@@ -108,3 +124,5 @@ proc `$`*(self: Term): string =
         self.ts.join("\n")
     of TermKind.TypeOf:
         fmt"typeof({self.typeof})"
+    of TermKind.Metadata:
+        $self.metadata
