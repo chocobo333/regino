@@ -96,7 +96,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
 
     Id0 = alt(
         p"[_\p{L}\p{Nl}ー][_\p{L}\p{N}ー]*",
-        s"`" > p"[_\p{L}\p{Sm}\p{Nl}ー][_\p{L}\p{Sm}\p{N}ー]*" > s"`" @ second
+        s"`" > p"[_\p{L}\p{Sm}\p{Nl}ー\p{Sm}*/\\?!%&$^@-][_\p{L}\p{Sm}\p{N}ー\p{Sm}*/\\?!%&$^@-]*" > s"`" @ second
     )                                                   #@@ proc(it: PResult[Spanned]): PResult[Spanned] =
                                                         #    if it.isErr:
                                                         #        it

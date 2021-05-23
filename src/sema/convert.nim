@@ -5,13 +5,11 @@ import sequtils
 import ../ast
 import il
 
-
-proc newMetadata*(n: AstNode): Metadata =
-    assert n.kind == akMetadata
-    echo n
     
 proc newTerm*(n: AstNode): Term =
     result = case n.kind
+    of akEmpty:
+        Term.Unit
     of akStmtList:
         Term.Seq(n.children.map(newTerm))
     of akLetSection:
@@ -41,7 +39,7 @@ proc newTerm*(n: AstNode): Term =
                 assert id.kind == akId, ""
                 assert typ.isEmpty(), "notimplemented type annotation"
                 assert not default.isNil, "alias section needs initialization"
-                Term.Let(id.strVal, newTerm(default))
+                Term.TypeDef(id.strVal, newTerm(default))
         )
         Term.Seq(ts)
     of akFuncDef:
@@ -49,33 +47,46 @@ proc newTerm*(n: AstNode): Term =
             fname = n.children[0]
             funty = n.children[1]
             rety = funty.children[0]
-            paramty = funty.children[1]
+            paramty = funty.children[1..^1]
             metadata = n.children[2]
             body = n.children[3]
         assert fname.kind == akId
         assert rety.kind == akId
-        assert funty.children.len == 2
-        assert paramty.children[2].isEmpty
-        assert metadata.isEmpty
-        assert not body.isEmpty
-        Term.FuncDef(fname.strVal, paramty.children[0].strVal, newTerm(paramty.children[1]), newTerm(rety), newTerm(body))
+        for e in paramty:
+            assert e.children[0].kind == akId
+            assert e.children[2].isEmpty, "default value is not supported"
+        let
+            meta = if metadata.isEmpty: nil else: newTerm(metadata).metadata
+            params = paramty.mapIt(ParamDef(name: it.children[0].strVal, typ: newTerm(it.children[1])))
+        if not meta.isNil and meta.kind == MetadataKind.ImportLL:
+            assert body.isEmpty
+        else:
+            assert not body.isEmpty
+        let fn = newFunction(fname.strVal, params, newTerm(rety), newTerm(body), meta)
+        Term.FuncDef(fn)
     of akMetadata:
         let
             name = n.children[0]
             param = if n.children.len == 1: nil else: newTerm(n.children[1])
         assert name.kind == akId
-        Term.Metadat(name.strVal, param)
+        let metadata = case name.strVal
+        of "link":
+            Metadata.Link(param)
+        of "importll":
+            Metadata.ImportLL(param)
+        else:
+            Metadata.UserDef(name.strVal, param)
+        Term.Metadat(metadata)
     of akCall:
         let
             callee = n.children[0]
             args = n.children[1..^1]
-        assert args.len == 1
         if callee.kind == akId:
             case callee.strVal
             of "typeof":
                 assert args.len == 1
                 return Term.TypeOf(newTerm(args[0]))
-        Term.App(newTerm(callee), newTerm(args[0]))
+        Term.App(newTerm(callee), args.mapIt(newTerm(it)))
     of akInt:
         Term.Int(n.intVal)
     of akString:

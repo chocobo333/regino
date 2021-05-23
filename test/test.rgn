@@ -4,10 +4,16 @@
 
 alias
     int = typeof(0)
+let
+    a = 2
 func f(a: int) -> int:
     a
+func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `+`(a: int, b: int) -> int:
+    `add@int32/int32int32`(a, b)
 
 let
     a = 3
     b = f(a)
-b
+    c = `+`(a, b)
+c

@@ -7,6 +7,7 @@ import sequtils
 
 import il
 import types
+import symbols
 
 
 var
@@ -26,7 +27,7 @@ proc newVar(typ: typedesc[Type]): Type =
 type
     Scope* = ref object
         parent*: Scope
-        vars*: Table[string, PolyType]
+        vars*: Table[string, Symbol]
     TypeEnv* = ref object
         scope*: Scope
         cons*: seq[Constraint]
@@ -40,7 +41,7 @@ type
 
 # Scope
 proc newScope*(): Scope =
-    Scope(vars: initTable[string, PolyType]())
+    Scope(vars: initTable[string, Symbol]())
 
 proc `$`*(self: Scope): string =
     $self.vars
@@ -62,7 +63,7 @@ proc apply(self: Substitution, t: Type): Type =
     of TypeKind.Unit..TypeKind.String:
         t
     of TypeKind.Arr:
-        Type.Arr(self.apply(t.paramty), self.apply(t.rety))
+        Type.Arr(t.paramty.mapIt(self.apply(it)), self.apply(t.rety))
     of TypeKind.Var:
         if t.v in self:
             self[t.v]
@@ -75,7 +76,7 @@ proc ftv(self: Type): HashSet[TypeVar] =
     of TypeKind.Unit..TypeKind.String:
         initHashSet[TypeVar]()
     of TypeKind.Arr:
-        self.paramty.ftv + self.rety.ftv
+        self.paramty.map(ftv).foldl(a+b, initHashSet[TypeVar]()) + self.rety.ftv
     of TypeKind.Var:
         @[self.v].toHashSet()
     of TypeKind.TypeDesc:
@@ -91,17 +92,30 @@ proc ftv(self: PolyType): HashSet[TypeVar] =
     case self.kind
     of PolyTypeKind.ForAll:
         self.typ.ftv - self.gen
+proc apply(self: Substitution, t: Symbol): Symbol =
+    case t.kind
+    of SymbolKind.Var..SymbolKind.Type:
+        let kind: range[SymbolKind.Var..SymbolKind.Type] = t.kind
+        Symbol(kind: kind, typ: self.apply(t.typ), val: t.val)
+    of SymbolKind.Choice:
+        Symbol.Choice(self.apply(t.typ), t.syms.mapIt(self.apply(it)))
+proc ftv(self: Symbol): HashSet[TypeVar] =
+    case self.kind
+    of SymbolKind.Var..SymbolKind.Type:
+        self.typ.ftv
+    of SymbolKind.Choice:
+        self.typ.ftv + self.syms.map(ftv).foldl(a+b, initHashSet[TypeVar]())
 
 proc apply[T: Substituable](self: Substitution, t: seq[T]): seq[T] =
     t.mapIt(self.apply(it))
 proc ftv[T: Substituable](self: seq[T]): HashSet[TypeVar] =
     let tmp = self.map(ftv).foldl(a+b, initHashSet[TypeVar]())
 
-proc apply(self: Substitution, t: Table[system.string, types.PolyType]): Table[system.string, types.PolyType] =
+proc apply(self: Substitution, t: Table[string, Symbol]): Table[string, Symbol] =
     result = t
     for key, value in result.pairs:
         result[key] = self.apply(value)
-proc ftv(self: Table[system.string, types.PolyType]): HashSet[TypeVar] =
+proc ftv(self: Table[string, Symbol]): HashSet[TypeVar] =
     toSeq(self.values).ftv
 
 proc apply(self: Substitution, t: Scope): Scope =
@@ -178,7 +192,8 @@ proc unify(env: TypeEnv, t1, t2: Type): Substitution =
         of TypeKind.Unit..TypeKind.String:
             nullSubst
         of TypeKind.Arr:
-            env.unifyMany(@[(t1.paramty, t2.paramty), (t1.rety, t2.rety)])
+            
+            env.unifyMany(t1.paramty.zip(t2.paramty) & (t1.rety, t2.rety))
         of TypeKind.Var:
             if t1.v.id == t2.v.id:
                 nullSubst
@@ -206,9 +221,9 @@ proc pushScope(self: TypeEnv) =
 proc popScope(self: TypeEnv) =
     let tmp = self.scope.parent
     self.scope = tmp
-proc extend(self: TypeEnv, name: string, typ: PolyType) =
-    self.scope.vars[name] = typ
-proc lookup(self: TypeEnv, name: string): PolyType =
+proc extend(self: TypeEnv, name: string, sym: Symbol) =
+    self.scope.vars[name] = sym
+proc lookup(self: TypeEnv, name: string): Symbol =
     var scope = self.scope
     while not scope.isNil:
         if name in scope.vars:
@@ -240,25 +255,45 @@ proc infer*(self: Term, env: TypeEnv): Type =
     of TermKind.String:
         Type.String
     of TermKind.Id:
-        env.lookup(self.name).inst
+        self.id.symbol = env.lookup(self.id.name)
+        self.id.symbol.typ.inst
     of TermKind.Let:
         let
             t1 = self.default.infer(env)
-        env.extend(self.id, PolyType.ForAll(nullFtv, t1))
+            sym = Symbol.Let(PolyType.ForAll(nullFtv, t1))
+        self.name.symbol = sym
+        env.extend(self.name.name, sym)
+        Type.Unit
+    of TermKind.TypeDef:
+        let
+            t1 = self.default.infer(env)
+            sym = Symbol.Typ(PolyType.ForAll(nullFtv, t1))
+        self.name.symbol = sym
+        env.extend(self.name.name, sym)
         Type.Unit
     of TermKind.FuncDef:
         let
-            paramty = self.paramty.infer(env)
-            rety = self.rety.infer(env)
-            tv1 = Type.newVar()
-            tv2 = Type.newVar()
-        env.extend(self.fname, PolyType.ForAll(nullFtv, Type.Arr(tv1, tv2)))
-        env.uni(Type.TypeDesc(tv1), paramty)
-        env.uni(Type.TypeDesc(tv2), rety)
+            fn = self.fn
+            paramname = fn.params.mapit(it.name)
+            paramty = fn.params.mapIt(it.typ.infer(env))
+            rety = fn.rety.infer(env)
+            metadata = fn.metadata
+            tvs = paramty.mapIt(Type.newVar())
+            tv = Type.newVar()
+            sym = Symbol.Func(PolyType.ForAll(nullFtv, Type.Arr(tvs, tv)))
+        env.extend(fn.name, sym)
+        for (pt, tv) in paramty.zip(tvs):
+            env.uni(Type.TypeDesc(tv), pt)
+        env.uni(Type.TypeDesc(tv), rety)
         env.pushScope
-        env.extend(self.paramname, PolyType.ForAll(nullFtv, tv1))
-        let rety2 = self.fbody.infer(env)
-        env.uni(tv2, rety2)
+        for (name, tv) in paramname.zip(tvs):
+            let sym = Symbol.Let(PolyType.ForAll(nullFtv, tv))
+            env.extend(name, sym)
+        let rety2 = fn.body.infer(env)
+        if  not metadata.isNil and metadata.kind == MetadataKind.ImportLL:
+            env.uni(Type.Unit, rety2)
+        else:
+            env.uni(tv, rety2)
         env.popScope
         Type.Unit
     of TermKind.Lam:
@@ -266,17 +301,18 @@ proc infer*(self: Term, env: TypeEnv): Type =
             param = self.param
             body = self.body
             tv = Type.newVar()
+            sym = Symbol.Let(PolyType.ForAll(nullFtv, tv))
         env.pushScope
-        env.extend(self.param, PolyType.ForAll(nullFtv, tv))
+        env.extend(self.param, sym)
         let t = body.infer(env)
         env.popScope
-        Type.Arr(tv, t)
+        Type.Arr(@[tv], t)
     of TermKind.App:
         let
             callee = self.callee.infer(env)
-            arg = self.arg.infer(env)
+            args = self.args.mapIt(it.infer(env))
             tv = Type.newVar()
-        env.uni(callee, Type.Arr(arg, tv))
+        env.uni(callee, Type.Arr(args, tv))
         tv
     of TermKind.If:
         let
@@ -316,17 +352,19 @@ proc apply(s: Substitution, t: Term) =
     case t.kind
     of TermKind.Unit..TermKind.Id:
         discard
-    of TermKind.Let:
+    of TermKind.Let..TermKind.TypeDef:
         s.apply(t.default)
     of TermKind.FuncDef:
-        s.apply(t.paramty)
-        s.apply(t.rety)
-        s.apply(t.fbody)
+        for e in t.fn.params:
+            s.apply(e.typ)
+        s.apply(t.fn.rety)
+        s.apply(t.fn.body)
     of TermKind.Lam:
         s.apply(t.body)
     of TermKind.App:
         s.apply(t.callee)
-        s.apply(t.arg)
+        for e in t.args:
+            s.apply(e)
     of TermKind.If:
         s.apply(t.cond)
         s.apply(t.thent)
@@ -360,7 +398,7 @@ when isMainModule:
         id_f = Term.Id(f)
         ift = Term.If(id_x, i1, i0)
         a = Term.Lam(x, ift)
-        b = Term.Seq(@[Term.Let(f, a), Term.App(id_f, Term.Bool(true))])
+        b = Term.Seq(@[Term.Let(f, a), Term.App(id_f, @[Term.Bool(true)])])
     echo b
     let
         rety = b.infer(env)

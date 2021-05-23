@@ -1,22 +1,38 @@
 
+import strformat
+import sequtils
 import tables
 
-import sema/types
-import sema/il
+import sema/[
+    il,
+    types
+]
 
-import llvm
+import llvm except Type, Module
 
 
 type
+    LType* = llvm.Type
+    LModule* = llvm.Module
     Module* = ref object
         module*: llvm.Module
         cxt*: Context
         curFun*: Value
         curBuilder*: Builder
-        type2llvmType*: Table[types.Type, llvm.Type]
-        linkModules*: seq[llvm.Module]
-        linkFuncs*: seq[llvm.Value]
+        curBB*: BasicBlock
+        type2llvmType*: Table[Type, LType]
+        linkModules*: seq[LModule]
+        linkFuncs*: seq[Value]
+        scopes*: Scope
+    Scope* = ref object
+        parent*: Scope
+        vars*: Table[string, (LType, Value)]
 
+proc newScope(parent: Scope = nil): Scope =
+    Scope(
+        parent: parent,
+        vars: initTable[string, (LType, Value)]()
+    )
 proc newModule*(name: string = "main"): Module =
     let
         cxt = newContext()
@@ -24,20 +40,127 @@ proc newModule*(name: string = "main"): Module =
         module: llvm.newModule(name, cxt),
         cxt: cxt,
         curBuilder: newBuilder(cxt),
-        type2llvmType: initTable[types.Type, llvm.Type]()
+        type2llvmType: initTable[Type, LType](),
+        scopes: newScope()
     )
+proc pushScope(self: Module) =
+    self.scopes = newScope(self.scopes)
+proc popScope(self: Module) =
+    self.scopes = self.scopes.parent
+proc extend(self: Scope, name: string, typ: LType, val: Value) =
+    self.vars[name] = (typ, val)
+proc lookup(self: Scope, name: string): (LType, Value) =
+    var scope = self
+    while not scope.isNil:
+        if name in scope.vars:
+            return scope.vars[name]
+        scope = scope.parent
+    assert false, fmt"{name} was not declared"
 
-proc codegen2*(self: Term, module: Module) =
+proc newLType(typ: Type, module: Module): LType =
+    let
+        cxt = module.cxt
+    case typ.kind
+    of types.TypeKind.Unit:
+        nil
+    of types.TypeKind.Bool:
+        cxt.intType(1)
+    of types.TypeKind.Int:
+        cxt.intType(32)
+    of types.TypeKind.String:
+        assert false, "notimplemnted"
+        nil
+    else:
+        echo typ
+        assert false, "notimplemnted"
+        nil
+
+converter toIntegerType(self: LType): IntegerType =
+    cast[IntegerType](self)
+converter toFunctionType(self: LType): FunctionType =
+    cast[FunctionType](self)
+
+
+proc builtin*(self: Module) =
     discard
-proc codegen*(self: Term): string =
-    var
-        cxt = newContext()
-        module = newModule()
-        i32 = intType(module.cxt, 32)
-        mainty = functionType(i32, @[])
-        main = module.module.addFunction("main", mainty)
-        bb = main.appendBasicBlock("entry", cxt)
-    module.curFun = main
-    module.curBuilder.atEndOf(bb)
-    self.codegen2(module)
-    echo module.module
+proc codegen*(self: Term, module: Module, global: bool = false): Value =
+    case self.kind
+    of TermKind.Unit:
+        nil
+    of TermKind.Bool:
+        let
+            b = self.b
+            boolty = newLType(Type.Bool, module)
+        boolty.constInt(if b: 1 else: 0)
+    of TermKind.Int:
+        let
+            i = self.i
+            intty = newLType(Type.Int, module)
+        intty.constInt(int i)
+    of TermKind.Id:
+        let
+            name = self.id.name
+            (typ, p) = module.scopes.lookup(name)
+        module.curBuilder.load(typ, p, name)
+    of TermKind.Let:
+        let
+            name = self.name.name
+            default = self.default
+            typ = newLType(default.typ, module)
+            p = module.curBuilder.alloca(typ, name)
+        module.scopes.extend(name, typ, p)
+        discard module.curBuilder.store(default.codegen(module, global), p, $self)
+        nil
+    of TermKind.TypeDef:
+        nil
+    of TermKind.FuncDef:
+        let
+            fn = self.fn
+            name = fn.name
+            paramty = fn.params.mapIt(newLType(it.typ.typ.typ, module))
+            rety = fn.rety.typ.typ
+        var
+            cxt = module.cxt
+            rety2 = if rety.isNil: nil else: newLType(rety, module)
+            fnty = functionType(rety2, paramty)
+            fn2 = module.module.addFunction(name, fnty)
+        module.scopes.extend(name, fnty, fn2)
+        if not fn.metadata.isNil and fn.metadata.kind == MetadataKind.ImportLL:
+            return nil
+        var
+            tmp = module.curBB
+            bb = fn2.appendBasicBlock("entry", cxt)
+        module.curFun = fn2
+        module.curBuilder.atEndOf(bb)
+        module.curBB = bb
+        module.pushScope
+        for i, (name, typ) in fn.params.mapIt(it.name).zip(paramty):
+            let p = module.curBuilder.alloca(typ, name)
+            module.scopes.extend(name, typ, p)
+            discard module.curBuilder.store(fn2.param(i), p, name)
+        var ret = fn.body.codegen(module)
+        if not ret.isNil:
+            discard module.curBuilder.ret(ret)
+        module.curBB = tmp
+        if not tmp.isNil:
+            module.curBuilder.atEndOf(tmp)
+        nil
+    of TermKind.App:
+        let
+            callee = self.callee
+            args = self.args
+            callee2 = codegen(callee, module)
+            args2 = args.mapIt(codegen(it, module))
+            rety = newLType(self.typ, module)
+        module.curBuilder.call(callee2, args2, $self)
+    of TermKind.Seq:
+        var ret: Value = nil
+        for e in self.ts:
+            ret = e.codegen(module, global)
+        ret
+    of TermKind.Metadata:
+        nil
+    else:
+        echo self
+        assert false, "notimplemented"
+        nil

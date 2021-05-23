@@ -2,6 +2,7 @@
 import sets
 import hashes
 import strformat
+import strutils
 
 
 type
@@ -24,7 +25,7 @@ type
         of TypeKind.String:
             nil
         of TypeKind.Arr:
-            paramty*: Type
+            paramty*: seq[Type]
             rety*: Type
         of TypeKind.Var:
             v*: TypeVar
@@ -50,7 +51,7 @@ proc Int*(typ: typedesc[Type]): Type =
     Type(kind: TypeKind.Int)
 proc String*(typ: typedesc[Type]): Type =
     Type(kind: TypeKind.String)
-proc Arr*(typ: typedesc[Type], paramty, rety: Type): Type =
+proc Arr*(typ: typedesc[Type], paramty: seq[Type], rety: Type): Type =
     Type(kind: TypeKind.Arr, paramty: paramty, rety: rety)
 proc Var*(typ: typedesc[Type], v: TypeVar): Type =
     Type(kind: TypeKind.Var, v: v)
@@ -62,6 +63,28 @@ proc ForAll*(ty: typedesc[PolyType], gen: HashSet[TypeVar], typ: Type): PolyType
 
 proc hash*(self: TypeVar): Hash =
     Hash self.id
+proc hash*(self: Type): Hash =
+    result = 0
+    case self.kind
+    of TypeKind.Unit:
+        result = result !& ord(TypeKind.Unit)
+    of TypeKind.Bool:
+        result = result !& ord(TypeKind.Bool)
+    of TypeKind.Int:
+        result = result !& ord(TypeKind.Int)
+    of TypeKind.String:
+        result = result !& ord(TypeKind.String)
+    of TypeKind.Arr:
+        result = result !& ord(TypeKind.Arr)
+        for e in self.paramty:
+            result = result !& hash e
+        result = result !& hash self.rety
+    of TypeKind.Var:
+        result = result !& ord(TypeKind.Var)
+        result = result !& hash self.v
+    of TypeKind.TypeDesc:
+        result = result !& ord(TypeKind.TypeDesc)
+        result = result !& hash self.typ
 proc `$`*(self: TypeVar): string =
     fmt"{self.id}'"
 proc `$`*(self: Type): string =
@@ -75,7 +98,10 @@ proc `$`*(self: Type): string =
     of TypeKind.String:
         "string"
     of TypeKind.Arr:
-        fmt"{self.paramty} -> {self.rety}"
+        let
+            params = self.paramty.join(", ")
+            params2 = if self.paramty.len == 1: params else: fmt"({params})"
+        fmt"{params2} -> {self.rety}"
     of TypeKind.Var:
         $self.v
     of TypeKind.TypeDesc:

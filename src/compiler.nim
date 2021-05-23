@@ -1,4 +1,6 @@
 
+import os
+
 import ast
 import parsers
 import sema
@@ -9,12 +11,20 @@ import sema/[
     infer
 ]
 
-proc compile(filename: string): string =
+from llvm import `$`, link
+
+proc compile(filename: string) =
     var
         module = newModule()
         parser = newParser()
 
-    echo parser.parse(filename).sema(module)
+    discard parser.parse(filename).sema(module).codegen(module)
+    for e in module.linkModules:
+        discard module.module.link(e)
+    let f = open(filename.absolutePath.splitPath.head / "test.ll", fmWrite)
+    f.write($module.module)
+    defer:
+        close f
 
 when isMainModule:
-    echo compile("test/test.rgn")
+    compile("test/test.rgn")

@@ -8,6 +8,7 @@ import lineInfos
 
 import sema/[
     il,
+    types,
     infer,
     convert
 ]
@@ -34,29 +35,37 @@ proc link(self: Metadata, module: Module) =
         # TODO: err msg
         assert false
     f.close()
-proc globalMetada(self: AstNode, module: Module) =
-    assert self.kind == akStmtList
-    for e in self.children:
+
+proc globalMetadada(self: Term, module: Module) =
+    assert self.kind == TermKind.Seq
+    for e in self.ts:
         # TODO: remove it
         if e.isNil:
             continue
-        if e.kind == akMetadata:
-            let metadata = newMetadata(e)
-            case metadata.name
-            of "link":
+        if e.kind == TermKind.Metadata:
+            let metadata = e.metadata
+            case metadata.kind
+            of MetadataKind.Link:
                 metadata.link(module)
             else:
                 assert false
 
 proc sema*(node: AstNode, module: Module): Term =
-    # registerSymbol(node, env)
-    # simpleTyping(node, env)
-    # resolveTyping(node, env)
     var
         tenv = newTypeEnv()
         program = newTerm(node)
-    # program.globalMetada(module)
-    # program.typeInduction(tenv)
         rety = program.typeInfer(tenv)
-    echo tenv.scope.vars
-    program
+    
+    program.globalMetadada(module)
+    let
+        tmp = case rety.kind
+        of types.TypeKind.Unit:
+            Term.Unit
+        of types.TypeKind.Int:
+            Term.TypeOf(Term.Int(0))
+        else:
+            assert rety.kind notin @[types.TypeKind.Unit, types.TypeKind.Int]
+            nil
+        main = newFunction("main", @[], tmp, program)
+    tmp.typ = Type.TypeDesc(rety)
+    Term.FuncDef(main)
