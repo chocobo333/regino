@@ -1,5 +1,4 @@
 
-import tables
 from os import `/`, splitPath, absolutePath
 import options
 
@@ -56,7 +55,6 @@ proc sema*(node: AstNode, module: Module): Term =
         tenv = newTypeEnv()
         program = newTerm(node)
         rety = program.typeInfer(tenv)
-    
     program.globalMetadada(module)
     let
         tmp = case rety.kind

@@ -245,6 +245,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         IfExpr,
         WhenExpr,
         LoopExpr,
+        LambdaDef,
         # ForExpr,
         SimplExpr
     )
@@ -273,6 +274,10 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
             Statement @ boxing @ akStmtList.newTreeNode
         )
     )                                                   @ boxing @ akLoopExpr.newTreeNode
+    LambdaDef: AstNode = preceded(
+        s"lambda" + sp1,
+        terminated(Id, sp0 + colon) > SimplExpr
+    )                                                   @ (it => akLambdaDef.newTreeNode(it))
 
     SimplExpr: AstNode = ArrowExpr
 

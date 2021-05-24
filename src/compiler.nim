@@ -1,19 +1,17 @@
 
 import os
 
-import ast
 import parsers
 import sema
 import codegen
 
 import sema/[
-    convert,
     infer
 ]
 
 from llvm import `$`, link
 
-import llvm.raw as llraw
+import llvm/raw as llraw
 
 proc optimize(self: Module): Module =
     let

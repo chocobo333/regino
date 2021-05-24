@@ -157,7 +157,7 @@ proc gen(typ: Type, env: TypeEnv): PolyType =
         gen = typ.ftv - env.ftv
     PolyType.ForAll(gen, typ)
 proc inst(typ: PolyType): Type =
-    case typ.kind
+    result = case typ.kind
     of PolyTypeKind.ForAll:
         let
             gen = toSeq(typ.gen.items)
@@ -261,7 +261,11 @@ proc infer*(self: Term, env: TypeEnv): Type =
     of TermKind.Let:
         let
             t1 = self.default.infer(env)
-            sym = Symbol.Let(PolyType.ForAll(nullFtv, t1))
+            sym = if t1.kind == TypeKind.Arr:
+                Symbol.Let(t1.gen(env))
+            else:
+                Symbol.Let(PolyType.ForAll(nullFtv, t1))
+            # sym = Symbol.Let(t1.gen(env))
         env.extend(self.name, sym)
         Type.Unit
     of TermKind.TypeDef:

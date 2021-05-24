@@ -146,7 +146,7 @@ proc `$`*(self: Metadata): string =
             self.name
     fmt"![{name}{tmp}]"
 proc `$`*(self: Term): string =
-    case self.kind
+    result = case self.kind
     of TermKind.Unit:
         "()"
     of TermKind.Bool:
@@ -181,3 +181,7 @@ proc `$`*(self: Term): string =
         fmt"typeof({self.typeof})"
     of TermKind.Metadata:
         $self.metadata
+    if not self.typ.isNil:
+        if self.typ.kind == TypeKind.Unit:
+            return
+        result = fmt"{result} (: {self.typ})"

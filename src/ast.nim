@@ -36,6 +36,7 @@ type
         akElifBranch
         akElseBranch
         akLoopExpr
+        akLambdaDef
         akInfix
         akPrefix
         akPostfix
@@ -183,6 +184,8 @@ proc repr*(self: AstNode, ind: uint = 2): string =
         let branch = self.children[0].repr2.indent(2)
         &"else:\n{branch}"
     of akLoopExpr:
+        ""
+    of akLambdaDef:
         ""
     of akInfix:
         ""

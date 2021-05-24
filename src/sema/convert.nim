@@ -1,5 +1,4 @@
 
-import algorithm
 import sequtils
 
 import ../ast
@@ -77,6 +76,12 @@ proc newTerm*(n: AstNode): Term =
         else:
             Metadata.UserDef(name.strVal, param)
         Term.Metadat(metadata)
+    of akLambdaDef:
+        let
+            name = n.children[0]
+            exp = n.children[1]
+        assert name.kind == akId
+        Term.Lam(name.strVal, newTerm(exp))
     of akCall:
         let
             callee = n.children[0]

@@ -13,6 +13,7 @@ func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
 func `+`(a: int, b: int) -> int:
     `add@int32/int32int32`(a, b)
 
+
 let
     a = 3
     b = f(a)

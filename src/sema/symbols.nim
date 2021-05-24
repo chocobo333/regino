@@ -48,7 +48,7 @@ proc Choice*(ty: typedesc[Symbol], typ: PolyType, syms: seq[Symbol]): Symbol =
 proc `$`*(self: Symbol): string =
     case self.kind
     of SymbolKind.Var..SymbolKind.Type:
-        fmt"{self.kind}{self.typ}"
+        fmt"{self.kind}({self.typ})"
     of SymbolKind.Choice:
         let tmp = self.syms.join(", ")
         fmt"Chioce({tmp})"

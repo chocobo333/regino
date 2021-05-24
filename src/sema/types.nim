@@ -3,6 +3,7 @@ import sets
 import hashes
 import strformat
 import strutils
+import sequtils
 
 
 type
@@ -86,7 +87,13 @@ proc hash*(self: Type): Hash =
         result = result !& ord(TypeKind.TypeDesc)
         result = result !& hash self.typ
 proc `$`*(self: TypeVar): string =
-    fmt"{self.id}'"
+    let m = len('a'..'z')
+    var p = self.id
+    while p > 26:
+        let q = p mod m
+        p = p div m
+        result.add chr(ord('a') + q)
+    result.add chr(ord('a') + p)
 proc `$`*(self: Type): string =
     case self.kind
     of TypeKind.Unit:
@@ -110,4 +117,5 @@ proc `$`*(self: Type): string =
 proc `$`*(self: PolyType): string =
     case self.kind
     of PolyTypeKind.ForAll:
-        $self.typ
+        let tmp = if self.gen.len == 0: "" else: "∀" & toSeq(self.gen.items).join(".∀") & "."
+        fmt"{tmp}{self.typ}"
