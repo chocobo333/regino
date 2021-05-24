@@ -47,7 +47,7 @@ type
         of TermKind.FuncDef:
             fn*: Function
         of TermKind.Lam:
-            param*: string
+            param*: Identifier
             body*: Term
         of TermKind.App:
             callee*: Term
@@ -67,13 +67,13 @@ type
         name*: string
         symbol*: Symbol
     Function* = ref object
-        name*: string
+        id*: Identifier
         params*: seq[ParamDef]
         rety*: Term
         metadata*: Metadata
         body*: Term
     ParamDef* = ref object
-        name*: string
+        name*: Identifier
         typ*: Term
     MetadataKind* {.pure.} = enum
         Link
@@ -108,7 +108,7 @@ proc TypeDef*(typ: typedesc[Term], name: string, default: Term): Term =
 proc FuncDef*(typ: typedesc[Term], fn: Function): Term =
     Term(kind: TermKind.FuncDef, fn: fn)
 proc Lam*(typ: typedesc[Term], param: string, body: Term): Term =
-    Term(kind: TermKind.Lam, param: param, body: body)
+    Term(kind: TermKind.Lam, param: Identifier(name: param), body: body)
 proc App*(typ: typedesc[Term], callee: Term, args: seq[Term]): Term =
     Term(kind: TermKind.App, callee: callee, args: args)
 proc If*(typ: typedesc[Term], cond: Term, thent: Term, elset: Term): Term =
@@ -128,12 +128,12 @@ proc UserDef*(typ: typedesc[Metadata], name: string, param: Term): Metadata =
     Metadata(kind: MetadataKind.UserDef, name: name, param: param)
 
 proc newFunction*(name: string, params: seq[ParamDef], rety: Term, body: Term, metadata: Metadata = nil): Function =
-    Function(name: name, params: params, rety: rety, body: body, metadata: metadata)
+    Function(id: Identifier(name: name), params: params, rety: rety, body: body, metadata: metadata)
 
 
 proc `$`*(self: Term): string
 proc `$`*(self: ParamDef): string =
-    fmt"{self.name}: {self.typ}"
+    fmt"{self.name.name}: {self.typ}"
 proc `$`*(self: Metadata): string =
     let 
         tmp = if self.param.isNil: "" else: fmt": {self.param}"
@@ -166,9 +166,9 @@ proc `$`*(self: Term): string =
             rety = if self.fn.rety.isNil: "" else: fmt" -> {self.fn.rety}"
             param = self.fn.params.map(`$`).join(", ")
             metadata = if self.fn.metadata.isNil: "" else: fmt" {self.fn.metadata}"
-        fmt"func {self.fn.name}({param}){rety}{metadata}:" & ("\n" & $self.fn.body).indent(2)
+        fmt"func {self.fn.id.name}({param}){rety}{metadata}:" & ("\n" & $self.fn.body).indent(2)
     of TermKind.Lam:
-        fmt"λ{self.param}.{self.body}" 
+        fmt"λ{self.param.name}.{self.body}" 
     of TermKind.App:
         let
             args = self.args.join(", ")

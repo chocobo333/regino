@@ -20,6 +20,7 @@ type
         case kind*: SymbolKind
         of Var..Type:
             val*: Value
+            lty*: llvm.Type
         of Choice:
             syms*: seq[Symbol]
 

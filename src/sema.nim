@@ -9,6 +9,7 @@ import lineInfos
 import sema/[
     il,
     types,
+    symbols,
     infer,
     convert
 ]
@@ -67,5 +68,7 @@ proc sema*(node: AstNode, module: Module): Term =
             assert rety.kind notin @[types.TypeKind.Unit, types.TypeKind.Int]
             nil
         main = newFunction("main", @[], tmp, program)
+        sym = Symbol.Func(nil)
     tmp.typ = Type.TypeDesc(rety)
+    main.id.symbol = sym
     Term.FuncDef(main)

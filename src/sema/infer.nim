@@ -192,7 +192,7 @@ proc unify(env: TypeEnv, t1, t2: Type): Substitution =
         of TypeKind.Unit..TypeKind.String:
             nullSubst
         of TypeKind.Arr:
-            
+            assert t1.paramty.len == t2.paramty.len, fmt"{t1} and {t2} can not be unified"
             env.unifyMany(t1.paramty.zip(t2.paramty) & (t1.rety, t2.rety))
         of TypeKind.Var:
             if t1.v.id == t2.v.id:
@@ -221,8 +221,9 @@ proc pushScope(self: TypeEnv) =
 proc popScope(self: TypeEnv) =
     let tmp = self.scope.parent
     self.scope = tmp
-proc extend(self: TypeEnv, name: string, sym: Symbol) =
-    self.scope.vars[name] = sym
+proc extend(self: TypeEnv, name: Identifier, sym: Symbol) =
+    name.symbol = sym
+    self.scope.vars[name.name] = sym
 proc lookup(self: TypeEnv, name: string): Symbol =
     var scope = self.scope
     while not scope.isNil:
@@ -261,15 +262,13 @@ proc infer*(self: Term, env: TypeEnv): Type =
         let
             t1 = self.default.infer(env)
             sym = Symbol.Let(PolyType.ForAll(nullFtv, t1))
-        self.name.symbol = sym
-        env.extend(self.name.name, sym)
+        env.extend(self.name, sym)
         Type.Unit
     of TermKind.TypeDef:
         let
             t1 = self.default.infer(env)
             sym = Symbol.Typ(PolyType.ForAll(nullFtv, t1))
-        self.name.symbol = sym
-        env.extend(self.name.name, sym)
+        env.extend(self.name, sym)
         Type.Unit
     of TermKind.FuncDef:
         let
@@ -281,7 +280,7 @@ proc infer*(self: Term, env: TypeEnv): Type =
             tvs = paramty.mapIt(Type.newVar())
             tv = Type.newVar()
             sym = Symbol.Func(PolyType.ForAll(nullFtv, Type.Arr(tvs, tv)))
-        env.extend(fn.name, sym)
+        env.extend(fn.id, sym)
         for (pt, tv) in paramty.zip(tvs):
             env.uni(Type.TypeDesc(tv), pt)
         env.uni(Type.TypeDesc(tv), rety)

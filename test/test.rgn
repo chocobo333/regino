@@ -4,6 +4,7 @@
 
 alias
     int = typeof(0)
+    string = typeof("")
 let
     a = 2
 func f(a: int) -> int:
