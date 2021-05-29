@@ -78,6 +78,8 @@ converter toIntegerType(self: LType): IntegerType =
     cast[IntegerType](self)
 converter toFunctionType(self: LType): FunctionType =
     cast[FunctionType](self)
+converter toFunctionValue(self: Value): FunctionValue =
+    cast[FunctionValue](self)
 
 
 proc builtin*(self: Module) =
@@ -139,7 +141,8 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         if not fn.metadata.isNil and fn.metadata.kind == MetadataKind.ImportLL:
             return nil
         var
-            tmp = module.curBB
+            tmpBB = module.curBB
+            tmpFun = module.curFun
             bb = fn2.appendBasicBlock("entry", cxt)
         module.curFun = fn2
         module.curBuilder.atEndOf(bb)
@@ -155,9 +158,10 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         var ret = fn.body.codegen(module)
         if not ret.isNil:
             discard module.curBuilder.ret(ret)
-        module.curBB = tmp
-        if not tmp.isNil:
-            module.curBuilder.atEndOf(tmp)
+        module.curBB = tmpBB
+        module.curFun = tmpFun
+        if not tmpBB.isNil:
+            module.curBuilder.atEndOf(tmpBB)
         nil
     of TermKind.App:
         let
@@ -167,6 +171,30 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             args2 = args.mapIt(codegen(it, module))
             rety = newLType(self.typ, module)
         module.curBuilder.call(callee2, args2, $self)
+    of TermKind.If:
+        let cond = self.cond.codegen(module)
+        var
+            thenb = module.curFun.appendBasicBlock("then")
+            elseb = module.curFun.appendBasicBlock("else")
+            ifcont = module.curFun.appendBasicBlock("ifcont")
+        discard module.curBuilder.condBr(cond, thenb, elseb)
+
+        module.curBuilder.atEndOf(thenb)
+        let thenv = self.thent.codegen(module)
+        module.curBuilder.br(ifcont)
+
+        module.curBuilder.atEndOf(elseb)
+        let elsev = self.elset.codegen(module)
+        module.curBuilder.br(ifcont)
+
+        module.curBuilder.atEndOf(ifcont)
+        module.curBB = ifcont
+        if self.typ.kind == types.TypeKind.Unit:
+            nil
+        else:
+            let phi = module.curBuilder.phi(newLType(self.typ, module), "")
+            phi.addIncoming(@[(thenv, thenb), (elsev, elseb)])
+            phi
     of TermKind.Seq:
         var ret: Value = nil
         for e in self.ts:

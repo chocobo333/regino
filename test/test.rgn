@@ -15,7 +15,14 @@ func `+`(a: int, b: int) -> int:
 
 
 let
-    a = 3
+    a = if false :
+        let
+            a = 3
+        `+`(a, 2)
+    elif true:
+        2
+    else :
+        0
     b = f(a)
     c = `+`(a, b)
 c

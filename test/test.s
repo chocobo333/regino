@@ -4,7 +4,7 @@
 	.p2align	4, 0x90
 _main:                                  ## @main
 ## %bb.0:                               ## %entry
-	movl	$6, %eax
+	movl	$4, %eax
 	retq
                                         ## -- End function
 	.globl	_f                              ## -- Begin function f

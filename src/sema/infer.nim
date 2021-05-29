@@ -17,19 +17,18 @@ proc newTypeVarId: int =
     inc cur_tvid
     cur_tvid
 proc newTypeVar: TypeVar =
-    TypeVar(id: newTypeVarId())
+    TypeVar(id: newTypeVarId(), overloads: @[])
 
 proc newVar(typ: typedesc[Type]): Type =
-    let v = TypeVar(id: newTypeVarId())
+    let v = newTypeVar()
     Type(kind: TypeKind.Var, v: v)
 
 
 type
-    Scope* = ref object
-        parent*: Scope
-        vars*: Table[string, Symbol]
+    Scope* = Table[string, seq[Symbol]]
     TypeEnv* = ref object
         scope*: Scope
+        scopes*: seq[Scope]
         cons*: seq[Constraint]
     Substitution* = Table[TypeVar, Type]
     Substituable* = concept T, var t
@@ -41,10 +40,10 @@ type
 
 # Scope
 proc newScope*(): Scope =
-    Scope(vars: initTable[string, Symbol]())
+    initTable[string, seq[Symbol]]()
 
 proc `$`*(self: Scope): string =
-    $self.vars
+    $self
 
 # TypeEnv
 proc newTypeEnv*(): TypeEnv =
@@ -111,23 +110,13 @@ proc apply[T: Substituable](self: Substitution, t: seq[T]): seq[T] =
 proc ftv[T: Substituable](self: seq[T]): HashSet[TypeVar] =
     let tmp = self.map(ftv).foldl(a+b, initHashSet[TypeVar]())
 
-proc apply(self: Substitution, t: Table[string, Symbol]): Table[string, Symbol] =
+proc apply(self: Substitution, t: Table[string, seq[Symbol]]): Table[string, seq[Symbol]] =
     result = t
     for key, value in result.pairs:
         result[key] = self.apply(value)
-proc ftv(self: Table[string, Symbol]): HashSet[TypeVar] =
+proc ftv(self: Table[string, seq[Symbol]]): HashSet[TypeVar] =
     toSeq(self.values).ftv
 
-proc apply(self: Substitution, t: Scope): Scope =
-    if t.isNil:
-        return nil
-    result = newScope()
-    result.vars = self.apply(t.vars)
-    result.parent = self.apply(t.parent)
-proc ftv(self: Scope): HashSet[TypeVar] =
-    if self.isNil:
-        return nullFtv
-    self.vars.ftv + self.parent.ftv
 proc apply(self: Substitution, t: TypeEnv): TypeEnv =
     result = newTypeEnv()
     result.cons = t.cons
@@ -166,13 +155,29 @@ proc inst(typ: PolyType): Type =
 
 proc occursIn(tv: TypeVar, typ: Type): bool =
     tv in ftv(typ)
-proc bindt(tv: TypeVar, typ: Type): Substitution =
-    if tv.occursIn(typ):
+proc unify(env: TypeEnv, t1, t2: Type): Substitution
+proc unifyMany(env: TypeEnv, cs: seq[(Type, Type)]): Substitution
+    
+proc bindt(env: TypeEnv, tv: TypeVar, typ2: Type): Substitution =
+    if tv.occursIn(typ2):
         raise newException(TypeError, "Infinite Type")
     else:
-        @[(tv, typ)].toTable()
+        case typ2.kind
+        of TypeKind.TypeDesc:
+            let overloads = tv.overloads
+            env.unify(overloads.filterIt(it.typ.kind == TypeKind.TypeDesc)[0].inst, typ2)
+        else:
+            @[(tv, typ2)].toTable()
+        # case tv.kind.kind
+        # of KindKind.Top:
+        #     @[(tv, typ2)].toTable()
+        # of KindKind.OverLoad:
+        #     @[(tv, typ2)].toTable()
+        # of KindKind.Singleton:
+        #     let typ = tv.kind.typ
+        #     assert typ.kind == typ2.kind, fmt"{typ} and {typ2} can not be unified"
+        #     env.unify(typ, typ2)
 
-proc unify(env: TypeEnv, t1, t2: Type): Substitution
 proc unifyMany(env: TypeEnv, cs: seq[(Type, Type)]): Substitution =
     if cs.len == 0:
         nullSubst
@@ -195,18 +200,18 @@ proc unify(env: TypeEnv, t1, t2: Type): Substitution =
             assert t1.paramty.len == t2.paramty.len, fmt"{t1} and {t2} can not be unified"
             env.unifyMany(t1.paramty.zip(t2.paramty) & (t1.rety, t2.rety))
         of TypeKind.Var:
-            if t1.v.id == t2.v.id:
+            if t1.v == t2.v:
                 nullSubst
             elif t1.v.id < t2.v.id:
-                bindt(t2.v, t1)
+                env.bindt(t2.v, t1)
             else:
-                bindt(t1.v, t2)
+                env.bindt(t1.v, t2)
         of TypeKind.TypeDesc:
             env.unify(t1.typ, t2.typ)
     elif t1.kind == TypeKind.Var:
-        bindt t1.v, t2
+        env.bindt t1.v, t2
     elif t2.kind == TypeKind.Var:
-        bindt t2.v, t1
+        env.bindt t2.v, t1
     else:
         assert false, fmt"{t1} and {t2} can not be unified"
         nullSubst
@@ -215,22 +220,46 @@ proc uni(env: TypeEnv, t1, t2: Type) =
     env.cons.add((t1, t2))
 
 proc pushScope(self: TypeEnv) =
-    let tmp = self.scope
-    self.scope = newScope()
-    self.scope.parent = tmp
+    self.scopes.add self.scope
+    var scope = self.scope
+    self.scope = scope
 proc popScope(self: TypeEnv) =
-    let tmp = self.scope.parent
-    self.scope = tmp
+    self.scope = self.scopes.pop
 proc extend(self: TypeEnv, name: Identifier, sym: Symbol) =
     name.symbol = sym
-    self.scope.vars[name.name] = sym
+    if name.name notin self.scope:
+        self.scope[name.name] = @[]
+    var syms = self.scope[name.name]
+    case sym.kind
+    of SymbolKind.Var..SymbolKind.Const:
+        syms = syms.filterIt(it.kind notin {SymbolKind.Var..SymbolKind.Const})
+        syms.add sym
+    of SymbolKind.Func:
+        syms.add sym
+    of SymbolKind.Type:
+        syms = syms.filterIt(it.kind != SymbolKind.Type)
+        syms.add sym
+    of SymbolKind.Choice:
+        assert false
+    self.scope[name.name] = syms
 proc lookup(self: TypeEnv, name: string): Symbol =
-    var scope = self.scope
-    while not scope.isNil:
-        if name in scope.vars:
-            return scope.vars[name]
-        scope = scope.parent
-    assert false, fmt"{name} was not declared"
+    let syms = self.scope[name]
+    case syms.len
+    of 0:
+        assert false, fmt"{name} was not declared"
+        nil
+    of 1:
+        syms[0]
+    else:
+        # TODO: f
+        let
+            kinds = syms.mapIt(it.typ)
+            # kinds = syms.mapIt(Kind(kind: KindKind.Singleton, typ: it.typ.inst))
+            # kind = Kind(kind: KindKind.OverLoad, kinds: kinds.toHashSet)
+            tv = newTypeVar()
+        tv.overloads = kinds
+        # tv.kind = kind
+        Symbol.Choice(PolyType.ForAll(nullFtv, Type.Var(tv)), syms)
 
 # proc asType(self: Term): Type =
 #     result = if self.kind == TermKind.Id:

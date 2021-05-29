@@ -4,7 +4,7 @@ source_filename = "main"
 ; Function Attrs: norecurse nounwind readnone willreturn
 define i32 @main() local_unnamed_addr #0 {
 entry:
-  ret i32 6
+  ret i32 4
 }
 
 ; Function Attrs: norecurse nounwind readnone willreturn

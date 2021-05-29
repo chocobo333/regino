@@ -249,9 +249,9 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         # ForExpr,
         SimplExpr
     )
-    CondBranch = Expr > Suite
+    CondBranch = terminated(Expr, sp0) > Suite
     ElifBranch = preceded(elift > sp1, CondBranch)      @ (it => akElifBranch.newTreeNode(it))
-    ElseBranch = preceded(elset, Suite)                 @ (it => akElseBranch.newTreeNode(@[it]))
+    ElseBranch = preceded(terminated(elset, sp0), Suite)                 @ (it => akElseBranch.newTreeNode(@[it]))
 
     IfExpr = (preceded(
         ift > sp1,

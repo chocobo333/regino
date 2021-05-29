@@ -43,6 +43,20 @@ type
 
     TypeVar* = ref object
         id*: int
+        overloads*: seq[PolyType]
+
+    # KindKind* {.pure.} = enum
+    #     Top
+    #     OverLoad
+    #     Singleton
+    # Kind* = ref object
+    #     case kind*: KindKind
+    #     of KindKind.Top:
+    #         nil
+    #     of KindKind.OverLoad:
+    #         kinds*: HashSet[Kind]
+    #     of KindKind.Singleton:
+    #         typ*: Type
 
 proc Unit*(typ: typedesc[Type]): Type =
     Type(kind: TypeKind.Unit)
@@ -119,3 +133,25 @@ proc `$`*(self: PolyType): string =
     of PolyTypeKind.ForAll:
         let tmp = if self.gen.len == 0: "" else: "∀" & toSeq(self.gen.items).join(".∀") & "."
         fmt"{tmp}{self.typ}"
+
+# proc hash*(self: Kind): Hash =
+#     result = hash ord self.kind
+#     case self.kind
+#     of KindKind.Top:
+#         discard
+#     of KindKind.OverLoad:
+#         result = result !& hash self.kinds
+#     of KindKind.Singleton:
+#         result = result !& hash self.typ
+
+# proc newKind*(): Kind =
+#     Kind(kind: KindKind.Top)
+
+# proc `$`*(self: Kind): string =
+#     case self.kind
+#     of KindKind.Top:
+#         "T"
+#     of KindKind.OverLoad:
+#         $self.kinds
+#     of KindKind.Singleton:
+#         &"{{{self.typ}}}"
