@@ -2,7 +2,7 @@
 import sequtils
 
 import ../ast
-import il
+import rts/il
 
     
 proc newTerm*(n: AstNode): Term =
@@ -56,7 +56,7 @@ proc newTerm*(n: AstNode): Term =
             assert e.children[2].isEmpty, "default value is not supported"
         let
             meta = if metadata.isEmpty: nil else: newTerm(metadata).metadata
-            params = paramty.mapIt(ParamDef(name: Identifier(name: it.children[0].strVal), typ: newTerm(it.children[1])))
+            params = paramty.mapIt(ParamDef(id: Identifier(name: it.children[0].strVal), typ: newTerm(it.children[1])))
         if not meta.isNil and meta.kind == MetadataKind.ImportLL:
             assert body.isEmpty
         else:

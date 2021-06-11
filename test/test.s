@@ -3,8 +3,8 @@
 	.globl	_main                           ## -- Begin function main
 	.p2align	4, 0x90
 _main:                                  ## @main
-## %bb.0:                               ## %entry
-	movl	$4, %eax
+## %bb.0:                               ## %ifcont
+	movl	$1, %eax
 	retq
                                         ## -- End function
 	.globl	_f                              ## -- Begin function f
@@ -14,6 +14,14 @@ _f:                                     ## @f
 	movl	%edi, %eax
 	retq
                                         ## -- End function
+	.globl	_f.1                            ## -- Begin function f.1
+	.p2align	4, 0x90
+_f.1:                                   ## @f.1
+## %bb.0:                               ## %entry
+	movl	%edi, %eax
+                                        ## kill: def $al killed $al killed $eax
+	retq
+                                        ## -- End function
 	.globl	"_+"                            ## -- Begin function +
 	.p2align	4, 0x90
 "_+":                                   ## @"+"
@@ -21,6 +29,14 @@ _f:                                     ## @f
                                         ## kill: def $esi killed $esi def $rsi
                                         ## kill: def $edi killed $edi def $rdi
 	leal	(%rdi,%rsi), %eax
+	retq
+                                        ## -- End function
+	.globl	"_-"                            ## -- Begin function -
+	.p2align	4, 0x90
+"_-":                                   ## @-
+## %bb.0:                               ## %entry
+	movl	%edi, %eax
+	subl	%esi, %eax
 	retq
                                         ## -- End function
 	.globl	"_add@int32/int32int32"         ## -- Begin function add@int32/int32int32

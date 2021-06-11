@@ -3,26 +3,23 @@
 
 
 alias
+    bool = typeof(false)
     int = typeof(0)
     string = typeof("")
 let
     a = 2
 func f(a: int) -> int:
     a
+func f(a: bool) -> bool:
+    a
 func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
 func `+`(a: int, b: int) -> int:
     `add@int32/int32int32`(a, b)
+func `-`(a: int, b: int) -> int:
+    `sub@int32/int32int32`(a, b)
 
-
-let
-    a = if false :
-        let
-            a = 3
-        `+`(a, 2)
-    elif true:
-        2
-    else :
-        0
-    b = f(a)
-    c = `+`(a, b)
-c
+if f(true):
+    `-`(2, 1)
+else:
+    f(0)

@@ -5,11 +5,14 @@ import options
 import ast
 import lineInfos
 
-import sema/[
+import rts/[
     il,
     types,
     symbols,
     infer,
+    typeenvs
+]
+import sema/[
     convert
 ]
 
@@ -66,7 +69,8 @@ proc sema*(node: AstNode, module: Module): Term =
             assert rety.kind notin @[types.TypeKind.Unit, types.TypeKind.Int]
             nil
         main = newFunction("main", @[], tmp, program)
-        sym = Symbol.Func(nil)
+        sym = Symbol(typ: Type.Arr(@[], rety))
     tmp.typ = Type.TypeDesc(rety)
     main.id.symbol = sym
+    main.id.typ = Type.Arr(@[], rety)
     Term.FuncDef(main)

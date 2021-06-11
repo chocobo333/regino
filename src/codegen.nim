@@ -2,9 +2,10 @@
 import sequtils
 import tables
 
-import sema/[
+import rts/[
     il,
-    types
+    types,
+    symbols
 ]
 
 import llvm except Type, Module
@@ -110,10 +111,10 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             module.curBuilder.load(ty, val, name)
     of TermKind.Let:
         let
-            id = self.name
-            name = id.name
+            id = self.sec.id
             sym = id.symbol
-            default = self.default
+            name = id.name
+            default = self.sec.default
             typ = newLType(default.typ, module)
             p = module.curBuilder.alloca(typ, name)
         sym.val = p
@@ -149,11 +150,13 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         module.curBB = bb
         for i in 0..<fn.params.len:
             let
-                name = fn.params[i].name.name
+                id = fn.params[i].id
+                name = id.name
+                sym = id.symbol
                 typ = paramty[i]
                 p = module.curBuilder.alloca(typ, name)
-            fn.params[i].name.symbol.val = p
-            fn.params[i].name.symbol.lty = typ
+            sym.val = p
+            sym.lty = typ
             discard module.curBuilder.store(fn2.param(i), p, name)
         var ret = fn.body.codegen(module)
         if not ret.isNil:

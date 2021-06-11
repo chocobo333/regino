@@ -3,8 +3,8 @@ source_filename = "main"
 
 ; Function Attrs: norecurse nounwind readnone willreturn
 define i32 @main() local_unnamed_addr #0 {
-entry:
-  ret i32 4
+ifcont:
+  ret i32 1
 }
 
 ; Function Attrs: norecurse nounwind readnone willreturn
@@ -14,9 +14,22 @@ entry:
 }
 
 ; Function Attrs: norecurse nounwind readnone willreturn
+define i1 @f.1(i1 returned %0) local_unnamed_addr #0 {
+entry:
+  ret i1 %0
+}
+
+; Function Attrs: norecurse nounwind readnone willreturn
 define i32 @"+"(i32 %0, i32 %1) local_unnamed_addr #0 {
 entry:
   %ret.i = add i32 %1, %0
+  ret i32 %ret.i
+}
+
+; Function Attrs: norecurse nounwind readnone willreturn
+define i32 @-(i32 %0, i32 %1) local_unnamed_addr #0 {
+entry:
+  %ret.i = sub i32 %0, %1
   ret i32 %ret.i
 }
 

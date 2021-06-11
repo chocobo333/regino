@@ -5,7 +5,7 @@ import parsers
 import sema
 import codegen
 
-import sema/[
+import rts/[
     infer
 ]
 
