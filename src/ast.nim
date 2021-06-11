@@ -42,11 +42,11 @@ type
         akPostfix
         akDot
         akCommand
+        akCall
         akDiscardPattern
         akIdPattern
         akLiteralPattern
         akPatterns
-        akCall
         akChar
         akInt
         akFloat
@@ -110,7 +110,7 @@ proc newStrNode*(val: string, info: LineInfo = newLineInfo(-1, newPosition(), ne
 proc newIdNode*(name: string, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
     AstNode(kind: akId, strVal: name, lineInfo: info)
 
-proc newTreeNode*(kind: range[akFailed..akCall], children: seq[AstNode], info: LineInfo = newLineInfo(children[0].lineInfo.fileid, children[0].lineInfo.span.a, children[^1].lineInfo.span.b)): AstNode =
+proc newTreeNode*(kind: range[akFailed..akPatterns], children: seq[AstNode], info: LineInfo = newLineInfo(children[0].lineInfo.fileid, children[0].lineInfo.span.a, children[^1].lineInfo.span.b)): AstNode =
     AstNode(kind: kind, children: children, lineInfo: info)
 
 proc newNode*(kind: AstKind, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =

@@ -14,12 +14,19 @@ func f(a: bool) -> bool:
     a
 func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
 func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
 func `+`(a: int, b: int) -> int:
     `add@int32/int32int32`(a, b)
 func `-`(a: int, b: int) -> int:
     `sub@int32/int32int32`(a, b)
+func `==`(a: int, b: int) -> bool:
+    `eq@bool/int32int32`(a, b)
 
-if f(true):
-    `-`(2, 1)
-else:
-    f(0)
+func fib(n: int) -> int:
+    if n == 0:
+        1
+    elif n == 1:
+        1
+    else:
+        fib(n-1) + fib(n-2)
+fib(12-1)

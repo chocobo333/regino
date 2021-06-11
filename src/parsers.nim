@@ -14,7 +14,7 @@ import lineInfos
 proc first[T](a: seq[T]): T = a[0]
 proc second[T](a: seq[T]): T = a[1]
 proc boxing[T](a: T): seq[T] = @[a]
-proc newTreeNode(kind: range[akFailed..akCall]): proc(a: seq[AstNode]): AstNode =
+proc newTreeNode(kind: range[akFailed..akPatterns]): proc(a: seq[AstNode]): AstNode =
     result = proc(a: seq[AstNode]): AstNode =
         kind.newTreeNode(a)
 
@@ -320,57 +320,46 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     PowerExpr = AtomExpr + *(powerop ^ sp0 + AtomExpr)  @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "power: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     MulExpr = PowerExpr + *(mulop ^ sp0 + PowerExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "mul: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     PlusExpr = MulExpr + *(plusop ^ sp0 + MulExpr)      @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "plus: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     AmpExpr = PlusExpr + *(ampop ^ sp0 + PlusExpr)      @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "amp: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     RangeExpr = AmpExpr + *(rangeop ^ sp0 + AmpExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "ramge: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     CmpExpr = RangeExpr + *(cmpop ^ sp0 + RangeExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "cmp: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     AndExpr = CmpExpr + *(andop ^ sp0 + CmpExpr)        @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "and: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     OrExpr = AndExpr + *(orop ^ sp0 + AndExpr)          @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "or: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     SymbolExpr = OrExpr + *(symbolop ^ sp0 + OrExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "symbol: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     AsgnExpr = SymbolExpr + *(asgnop ^ sp0 + SymbolExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "asgn: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])             
     ArrowExpr = AsgnExpr + *(arrowop ^ sp0 + AsgnExpr)  @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                echo "arrow: ", op.strVal
                                                                 result = akInfix.newTreeNode(@[op, result, right])
 
     # atom

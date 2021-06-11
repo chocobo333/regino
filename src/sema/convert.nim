@@ -77,22 +77,23 @@ proc newTerm*(n: AstNode): Term =
             Metadata.UserDef(name.strVal, param)
         Term.Metadat(metadata)
     of akIfExpr:
-        var
-            (res, i) = if n.children[^1].kind == akElseBranch:
-                (Term.If(newTerm(n.children[^2].children[0]), newTerm(n.children[^2].children[1]), newTerm(n.children[^1].children[0])), 3)
-            else:
-                (Term.If(newTerm(n.children[^1].children[0]), newTerm(n.children[^1].children[1]), Term.Unit), 2)
-        while i <= n.children.len:
-            res = Term.If(newTerm(n.children[^i].children[0]), newTerm(n.children[^i].children[1]), res)
-            inc i
-        res
+        if n.children[^1].kind == akElseBranch:
+            Term.If(n.children[0..^2].mapIt((newTerm(it.children[0]), newTerm(it.children[1]))), newTerm(n.children[^1].children[0]))
+        else:
+            Term.If(n.children[0..^1].mapIt((newTerm(it.children[0]), newTerm(it.children[1]))), Term.Unit)
     of akLambdaDef:
         let
             name = n.children[0]
             exp = n.children[1]
         assert name.kind == akId
         Term.Lam(name.strVal, newTerm(exp))
-    of akCall:
+    of akInfix:
+        assert n.children.len == 3
+        let
+            callee = n.children[0]
+            args = n.children[1..2]
+        Term.App(newTerm(callee), args.mapIt(newTerm(it)))
+    of akCommand, akCall:
         let
             callee = n.children[0]
             args = n.children[1..^1]

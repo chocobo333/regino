@@ -3,9 +3,9 @@
 	.globl	_main                           ## -- Begin function main
 	.p2align	4, 0x90
 _main:                                  ## @main
-## %bb.0:                               ## %ifcont
-	movl	$1, %eax
-	retq
+## %bb.0:                               ## %entry
+	movl	$11, %edi
+	jmp	_fib                            ## TAILCALL
                                         ## -- End function
 	.globl	_f                              ## -- Begin function f
 	.p2align	4, 0x90
@@ -39,6 +39,45 @@ _f.1:                                   ## @f.1
 	subl	%esi, %eax
 	retq
                                         ## -- End function
+	.globl	"_=="                           ## -- Begin function ==
+	.p2align	4, 0x90
+"_==":                                  ## @"=="
+## %bb.0:                               ## %entry
+	cmpl	%esi, %edi
+	sete	%al
+	retq
+                                        ## -- End function
+	.globl	_fib                            ## -- Begin function fib
+	.p2align	4, 0x90
+_fib:                                   ## @fib
+## %bb.0:                               ## %entry
+	pushq	%rbp
+	pushq	%rbx
+	pushq	%rax
+	movl	$1, %ebp
+	cmpl	$2, %edi
+	jb	LBB6_4
+## %bb.1:                               ## %else.preheader
+	movl	%edi, %ebx
+	xorl	%ebp, %ebp
+	.p2align	4, 0x90
+LBB6_2:                                 ## %else
+                                        ## =>This Inner Loop Header: Depth=1
+	leal	-1(%rbx), %edi
+	callq	_fib
+	addl	$-2, %ebx
+	addl	%eax, %ebp
+	cmpl	$1, %ebx
+	ja	LBB6_2
+## %bb.3:                               ## %ifcont.loopexit
+	incl	%ebp
+LBB6_4:                                 ## %ifcont
+	movl	%ebp, %eax
+	addq	$8, %rsp
+	popq	%rbx
+	popq	%rbp
+	retq
+                                        ## -- End function
 	.globl	"_add@int32/int32int32"         ## -- Begin function add@int32/int32int32
 	.p2align	4, 0x90
 "_add@int32/int32int32":                ## @"add@int32/int32int32"
@@ -54,6 +93,14 @@ _f.1:                                   ## @f.1
 ## %bb.0:                               ## %entry
 	movl	%edi, %eax
 	subl	%esi, %eax
+	retq
+                                        ## -- End function
+	.globl	"_eq@bool/int32int32"           ## -- Begin function eq@bool/int32int32
+	.p2align	4, 0x90
+"_eq@bool/int32int32":                  ## @"eq@bool/int32int32"
+## %bb.0:                               ## %entry
+	cmpl	%esi, %edi
+	sete	%al
 	retq
                                         ## -- End function
 .subsections_via_symbols

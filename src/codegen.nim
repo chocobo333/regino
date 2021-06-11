@@ -175,18 +175,30 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             rety = newLType(self.typ, module)
         module.curBuilder.call(callee2, args2, $self)
     of TermKind.If:
-        let cond = self.cond.codegen(module)
         var
-            thenb = module.curFun.appendBasicBlock("then")
+            thenbs = self.elift.mapIt(module.curFun.appendBasicBlock("then"))
             elseb = module.curFun.appendBasicBlock("else")
             ifcont = module.curFun.appendBasicBlock("ifcont")
-        discard module.curBuilder.condBr(cond, thenb, elseb)
 
-        module.curBuilder.atEndOf(thenb)
-        let thenv = self.thent.codegen(module)
-        module.curBuilder.br(ifcont)
+            thenvs: seq[Value] = @[]
+
+        for i in 0..<thenbs.len:
+            if i == thenbs.len-1:
+                discard module.curBuilder.condBr(self.elift[i][0].codegen(module), thenbs[i], elseb)
+            else:
+                var elifb = module.curFun.appendBasicBlock("elif")
+                discard module.curBuilder.condBr(self.elift[i][0].codegen(module), thenbs[i], elifb)
+                module.curBuilder.atEndOf(elifb)
+                module.curBB = elifb
+        for i in 0..<thenbs.len:
+            module.curBuilder.atEndOf(thenbs[i])
+            module.curBB = thenbs[i]
+            let thenv = self.elift[i][1].codegen(module)
+            thenvs.add thenv
+            module.curBuilder.br(ifcont)
 
         module.curBuilder.atEndOf(elseb)
+        module.curBB = elseb
         let elsev = self.elset.codegen(module)
         module.curBuilder.br(ifcont)
 
@@ -196,7 +208,7 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             nil
         else:
             let phi = module.curBuilder.phi(newLType(self.typ, module), "")
-            phi.addIncoming(@[(thenv, thenb), (elsev, elseb)])
+            phi.addIncoming(thenvs.zip(thenbs) & @[(elsev, elseb)])
             phi
     of TermKind.Seq:
         var ret: Value = nil
