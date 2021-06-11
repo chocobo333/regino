@@ -5,10 +5,13 @@
 alias
     bool = typeof(false)
     int = typeof(0)
+    float = typeof(0.0)
     string = typeof("")
 let
     a = 2
 func f(a: int) -> int:
+    a
+func f(a: float) -> float:
     a
 func f(a: bool) -> bool:
     a

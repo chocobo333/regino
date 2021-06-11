@@ -18,6 +18,12 @@ _f:                                     ## @f
 	.p2align	4, 0x90
 _f.1:                                   ## @f.1
 ## %bb.0:                               ## %entry
+	retq
+                                        ## -- End function
+	.globl	_f.2                            ## -- Begin function f.2
+	.p2align	4, 0x90
+_f.2:                                   ## @f.2
+## %bb.0:                               ## %entry
 	movl	%edi, %eax
                                         ## kill: def $al killed $al killed $eax
 	retq
@@ -56,22 +62,22 @@ _fib:                                   ## @fib
 	pushq	%rax
 	movl	$1, %ebp
 	cmpl	$2, %edi
-	jb	LBB6_4
+	jb	LBB7_4
 ## %bb.1:                               ## %else.preheader
 	movl	%edi, %ebx
 	xorl	%ebp, %ebp
 	.p2align	4, 0x90
-LBB6_2:                                 ## %else
+LBB7_2:                                 ## %else
                                         ## =>This Inner Loop Header: Depth=1
 	leal	-1(%rbx), %edi
 	callq	_fib
 	addl	$-2, %ebx
 	addl	%eax, %ebp
 	cmpl	$1, %ebx
-	ja	LBB6_2
+	ja	LBB7_2
 ## %bb.3:                               ## %ifcont.loopexit
 	incl	%ebp
-LBB6_4:                                 ## %ifcont
+LBB7_4:                                 ## %ifcont
 	movl	%ebp, %eax
 	addq	$8, %rsp
 	popq	%rbx

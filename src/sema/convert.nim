@@ -105,6 +105,8 @@ proc newTerm*(n: AstNode): Term =
         Term.App(newTerm(callee), args.mapIt(newTerm(it)))
     of akInt:
         Term.Int(n.intVal)
+    of akFloat:
+        Term.Float(n.floatVal)
     of akString:
         Term.String(n.strVal)
     of akBool:

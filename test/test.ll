@@ -4,8 +4,8 @@ source_filename = "main"
 ; Function Attrs: nounwind readnone
 define i32 @main() local_unnamed_addr #0 {
 entry:
-  %"fib(f(-(12, 1)))" = tail call i32 @fib(i32 11)
-  ret i32 %"fib(f(-(12, 1)))"
+  %"fib(-(12, 1))" = tail call i32 @fib(i32 11)
+  ret i32 %"fib(-(12, 1))"
 }
 
 ; Function Attrs: norecurse nounwind readnone willreturn
@@ -15,7 +15,13 @@ entry:
 }
 
 ; Function Attrs: norecurse nounwind readnone willreturn
-define i1 @f.1(i1 returned %0) local_unnamed_addr #1 {
+define float @f.1(float returned %0) local_unnamed_addr #1 {
+entry:
+  ret float %0
+}
+
+; Function Attrs: norecurse nounwind readnone willreturn
+define i1 @f.2(i1 returned %0) local_unnamed_addr #1 {
 entry:
   ret i1 %0
 }

@@ -67,6 +67,8 @@ proc newLType(typ: Type, module: Module): LType =
         cxt.intType(1)
     of types.TypeKind.Int:
         cxt.intType(32)
+    of types.TypeKind.Float:
+        cxt.floatType()
     of types.TypeKind.String:
         assert false, "notimplemnted"
         nil
