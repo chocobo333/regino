@@ -76,6 +76,13 @@ proc newTerm*(n: AstNode): Term =
         else:
             Metadata.UserDef(name.strVal, param)
         Term.Metadat(metadata)
+    of akDiscard:
+        assert n.children.len < 2
+        let a = if n.children.len == 1:
+            newTerm(n.children[0])
+        else:
+            Term.Unit
+        Term.Discard(a)
     of akIfExpr:
         if n.children[^1].kind == akElseBranch:
             Term.If(n.children[0..^2].mapIt((newTerm(it.children[0]), newTerm(it.children[1]))), newTerm(n.children[^1].children[0]))

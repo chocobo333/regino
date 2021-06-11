@@ -29,6 +29,7 @@ type
         akIdentDef
         akAsign
         akMetadata
+        akDiscard
         akParams
         akBlockExpr
         akIfExpr
@@ -168,6 +169,8 @@ proc repr*(self: AstNode, ind: uint = 2): string =
     of akAsign:
         ""
     of akMetadata:
+        ""
+    of akDiscard:
         ""
     of akParams:
         ""

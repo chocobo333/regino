@@ -32,4 +32,5 @@ func fib(n: int) -> int:
         1
     else:
         fib(n-1) + fib(n-2)
-fib(12-1)
+discard fib(12-1)
+1

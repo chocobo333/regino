@@ -4,8 +4,12 @@
 	.p2align	4, 0x90
 _main:                                  ## @main
 ## %bb.0:                               ## %entry
+	pushq	%rax
 	movl	$11, %edi
-	jmp	_fib                            ## TAILCALL
+	callq	_fib
+	movl	$1, %eax
+	popq	%rcx
+	retq
                                         ## -- End function
 	.globl	_f                              ## -- Begin function f
 	.p2align	4, 0x90

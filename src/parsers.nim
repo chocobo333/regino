@@ -37,6 +37,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     loop    = s"loop"
     falset  = s"false"
     truet   = s"true"
+    discar   = s"discard"
     KeyWords = p"let|var|const|if|elif|func|else|for|in|while|when"
     lpar    = s"(" ^ sp(0)
     rpar    = s")" ^ sp(0)
@@ -166,9 +167,10 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         ConstSection,
         AliasSection,
         FuncDef,
+        Discard,
+        Metadata,
         Asign,
         Expr,
-        Metadata
     )
     # IdentDef: AstNode = Patterns + alt(
     IdentDef: AstNode = Id + alt(
@@ -409,6 +411,13 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
             Id + ?preceded(colon, Literal),
             rbra
         )                                               @ (it => (if it[1].isSome: akMetadata.newTreeNode(@[it[0], it[1].get]) else: akMetadata.newTreeNode(@[it[0]])))
+    )
+    Discard = alt(
+        preceded(
+            discar + sp1,
+            Expr
+        )                                               @ (it => akDiscard.newTreeNode(@[it])),
+        discar                                          @ (it => akDiscard.newNode()),
     )
 
 export newParser, `$`

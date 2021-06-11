@@ -5,7 +5,7 @@ source_filename = "main"
 define i32 @main() local_unnamed_addr #0 {
 entry:
   %"fib(-(12, 1))" = tail call i32 @fib(i32 11)
-  ret i32 %"fib(-(12, 1))"
+  ret i32 1
 }
 
 ; Function Attrs: norecurse nounwind readnone willreturn

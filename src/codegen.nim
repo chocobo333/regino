@@ -212,6 +212,9 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             let phi = module.curBuilder.phi(newLType(self.typ, module), "")
             phi.addIncoming(thenvs.zip(thenbs) & @[(elsev, elseb)])
             phi
+    of TermKind.Discard:
+        discard self.`discard`.codegen(module)
+        nil
     of TermKind.Seq:
         var ret: Value = nil
         for e in self.ts:
