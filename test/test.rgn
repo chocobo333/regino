@@ -1,5 +1,7 @@
 
 ![link: "arith.ll"]
+![link: "io.ll"]
+![link: "string.ll"]
 
 
 alias
@@ -25,6 +27,9 @@ func `-`(a: int, b: int) -> int:
 func `==`(a: int, b: int) -> bool:
     `eq@bool/int32int32`(a, b)
 
+func echo(a: string) ![importll]
+func len(a: string) -> int ![importll]
+
 func fib(n: int) -> int:
     if n == 0:
         1
@@ -33,4 +38,8 @@ func fib(n: int) -> int:
     else:
         fib(n-1) + fib(n-2)
 discard fib(12-1)
-1
+
+let a = "hello world"
+echo a
+
+a.len()

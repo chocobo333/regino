@@ -57,6 +57,7 @@ proc newModule*(name: string = "main"): Module =
 #         scope = scope.parent
 #     assert false, fmt"{name} was not declared"
 
+var strtyp: LType
 proc newLType(typ: Type, module: Module): LType =
     let
         cxt = module.cxt
@@ -70,8 +71,10 @@ proc newLType(typ: Type, module: Module): LType =
     of types.TypeKind.Float:
         cxt.floatType()
     of types.TypeKind.String:
-        assert false, "notimplemnted"
-        nil
+        once:
+            strtyp = cxt.createStruct("string")
+            strtyp.body = @[pointerType(cxt.intType(8)), cxt.intType(32), cxt.intType(32)]
+        strtyp
     else:
         echo typ
         assert false, "notimplemnted"
@@ -101,6 +104,28 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             i = self.i
             intty = newLType(Type.Int, module)
         intty.constInt(int i)
+    of TermKind.String:
+        let
+            s = self.s
+        if strtyp.isNil:
+            discard newLType(Type.String, module)
+        let
+            conststr = module.cxt.constString(s)
+            global = module.module.newGlobal(conststr.typ, s)
+            inty = newLType(Type.Int, module)
+        global.initializer = conststr
+        global.constant = true
+        constStruct(
+            strtyp,
+            @[
+                constGep(
+                    global,
+                    @[inty.constInt(0), inty.constInt(0)]
+                ),
+                newLType(Type.Int, module).constInt(s.len),
+                newLType(Type.Int, module).constInt(s.len)
+            ]
+        )
     of TermKind.Id:
         let
             name = self.id.name
@@ -132,11 +157,10 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             name = id.name
             sym = id.symbol
             paramty = fn.params.mapIt(newLType(it.typ.typ.typ, module))
-            rety = fn.rety.typ.typ
+            rety = if fn.rety.typ.kind == types.TypeKind.Unit: voidType() else: newLType(fn.rety.typ.typ, module)
         var
             cxt = module.cxt
-            rety2 = if rety.isNil: nil else: newLType(rety, module)
-            fnty = functionType(rety2, paramty)
+            fnty = functionType(rety, paramty)
         var
             fn2 = module.module.addFunction(name, fnty)
         sym.val = fn2
@@ -175,7 +199,9 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             callee2 = codegen(callee, module, lval = true)
             args2 = args.mapIt(codegen(it, module))
             rety = newLType(self.typ, module)
-        module.curBuilder.call(callee2, args2, $self)
+        # TODO: check returning void
+        # module.curBuilder.call(callee2, args2, $self)
+        module.curBuilder.call(callee2, args2)
     of TermKind.If:
         var
             thenbs = self.elift.mapIt(module.curFun.appendBasicBlock("then"))

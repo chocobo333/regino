@@ -50,7 +50,7 @@ proc newTerm*(n: AstNode): Term =
             metadata = n.children[2]
             body = n.children[3]
         assert fname.kind == akId
-        assert rety.kind == akId
+        assert rety.kind in @[akId, akEmpty]
         for e in paramty:
             assert e.children[0].kind == akId
             assert e.children[2].isEmpty, "default value is not supported"
@@ -100,6 +100,16 @@ proc newTerm*(n: AstNode): Term =
             callee = n.children[0]
             args = n.children[1..2]
         Term.App(newTerm(callee), args.mapIt(newTerm(it)))
+    of akDot:
+        let
+            callee = n.children[1]
+            args = n.children[0..0]
+        if callee.kind == akId:
+            case callee.strVal
+            of "typeof":
+                assert args.len == 1
+                return Term.TypeOf(newTerm(args[0]))
+        Term.App(newTerm(callee), args.mapIt(newTerm(it)))
     of akCommand, akCall:
         let
             callee = n.children[0]
@@ -109,7 +119,10 @@ proc newTerm*(n: AstNode): Term =
             of "typeof":
                 assert args.len == 1
                 return Term.TypeOf(newTerm(args[0]))
-        Term.App(newTerm(callee), args.mapIt(newTerm(it)))
+        if callee.kind == akDot:
+            newTerm(akCall.newTreeNode(@[callee.children[1], callee.children[0]] & args))
+        else:
+            Term.App(newTerm(callee), args.mapIt(newTerm(it)))
     of akInt:
         Term.Int(n.intVal)
     of akFloat:

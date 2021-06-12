@@ -7,7 +7,9 @@ _main:                                  ## @main
 	pushq	%rax
 	movl	$11, %edi
 	callq	_fib
-	movl	$1, %eax
+	leaq	"_hello world"(%rip), %rdi
+	callq	_puts
+	movl	$11, %eax
 	popq	%rcx
 	retq
                                         ## -- End function
@@ -113,4 +115,22 @@ LBB7_4:                                 ## %ifcont
 	sete	%al
 	retq
                                         ## -- End function
+	.globl	_echo                           ## -- Begin function echo
+	.p2align	4, 0x90
+_echo:                                  ## @echo
+## %bb.0:
+	jmp	_puts                           ## TAILCALL
+                                        ## -- End function
+	.globl	_len                            ## -- Begin function len
+	.p2align	4, 0x90
+_len:                                   ## @len
+## %bb.0:
+	movl	%esi, %eax
+	retq
+                                        ## -- End function
+	.section	__TEXT,__const
+	.globl	"_hello world"                  ## @"hello world"
+"_hello world":
+	.ascii	"hello world"
+
 .subsections_via_symbols
