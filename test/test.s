@@ -121,6 +121,39 @@ _echo:                                  ## @echo
 ## %bb.0:
 	jmp	_puts                           ## TAILCALL
                                         ## -- End function
+	.globl	"_tos@string/i32"               ## -- Begin function tos@string/i32
+	.p2align	4, 0x90
+"_tos@string/i32":                      ## @"tos@string/i32"
+## %bb.0:
+	pushq	%rbp
+	pushq	%r15
+	pushq	%r14
+	pushq	%rbx
+	pushq	%rax
+	movq	%rsi, %r15
+	movl	%edi, %r14d
+	cvtsi2ss	%edi, %xmm0
+	callq	_log10f
+	cvttss2si	%xmm0, %ebp
+	incl	%ebp
+	movl	%ebp, %edi
+	callq	_malloc
+	movq	%rax, %rbx
+	leaq	_fmt(%rip), %rsi
+	movq	%rax, %rdi
+	movl	%r14d, %edx
+	xorl	%eax, %eax
+	callq	_sprintf
+	movq	%rbx, (%r15)
+	movl	%ebp, 8(%r15)
+	movl	%ebp, 12(%r15)
+	addq	$8, %rsp
+	popq	%rbx
+	popq	%r14
+	popq	%r15
+	popq	%rbp
+	retq
+                                        ## -- End function
 	.globl	_len                            ## -- Begin function len
 	.p2align	4, 0x90
 _len:                                   ## @len
@@ -132,5 +165,9 @@ _len:                                   ## @len
 	.globl	"_hello world"                  ## @"hello world"
 "_hello world":
 	.ascii	"hello world"
+
+	.globl	_fmt                            ## @fmt
+_fmt:
+	.ascii	"%d"
 
 .subsections_via_symbols
