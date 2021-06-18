@@ -28,6 +28,10 @@ func `-`(a: int, b: int) -> int:
 func `==`(a: int, b: int) -> bool:
     `eq@bool/int32int32`(a, b)
 
+func `tos@string/i32`(a: int) -> string ![importll]
+func `$`(a: int) -> string:
+    `tos@string/i32`(a)
+
 func echo(a: string) ![importll]
 func len(a: string) -> int ![importll]
 
@@ -40,7 +44,7 @@ func fib(n: int) -> int:
         fib(n-1) + fib(n-2)
 discard fib(12-1)
 
-let a = "hello world"
+let a = $(fib(11))
 echo a
 
 a.len()
