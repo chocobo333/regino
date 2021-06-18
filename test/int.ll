@@ -4,7 +4,7 @@ declare i8* @malloc(i32)
 declare float @log10f(float)
 declare i32 @sprintf(i8*, i8*, ...)
 
-@fmt = constant [2 x i8] c"%d"
+@fmt = constant [3 x i8] c"%d\00"
 
 define void @"tos@string/i32"(i32, %string*) {
     %len = sitofp i32 %0 to float
@@ -12,7 +12,7 @@ define void @"tos@string/i32"(i32, %string*) {
     %len3 = fptosi float %len2 to i32
     %len4 = add i32 1, %len3
     %pointer = call i8* @malloc(i32 %len4)
-    %fmtstr = getelementptr [2 x i8], [2 x i8]* @fmt, i32 0, i32 0
+    %fmtstr = getelementptr [3 x i8], [3 x i8]* @fmt, i32 0, i32 0
     call i32 (i8*, i8*, ...) @sprintf(i8* %pointer, i8* %fmtstr, i32 %0)
     %4 = getelementptr %string, %string* %1, i32 0, i32 0
     store i8* %pointer, i8** %4

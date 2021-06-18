@@ -100,6 +100,12 @@ proc newTerm*(n: AstNode): Term =
             callee = n.children[0]
             args = n.children[1..2]
         Term.App(newTerm(callee), args.mapIt(newTerm(it)))
+    of akPrefix:
+        assert n.children.len == 2
+        let
+            callee = n.children[0]
+            args = n.children[1..1]
+        Term.App(newTerm(callee), args.mapIt(newTerm(it)))
     of akDot:
         let
             callee = n.children[1]

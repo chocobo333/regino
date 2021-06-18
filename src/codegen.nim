@@ -63,7 +63,7 @@ proc newLType(typ: Type, module: Module): LType =
         cxt = module.cxt
     case typ.kind
     of types.TypeKind.Unit:
-        nil
+        cxt.voidType()
     of types.TypeKind.Bool:
         cxt.intType(1)
     of types.TypeKind.Int:
@@ -75,6 +75,11 @@ proc newLType(typ: Type, module: Module): LType =
             strtyp = cxt.createStruct("string")
             strtyp.body = @[pointerType(cxt.intType(8)), cxt.intType(32), cxt.intType(32)]
         strtyp
+    of types.TypeKind.Arr:
+        let
+            paramty = typ.paramty.mapIt(it.newLType(module))
+            rety = typ.rety.newLType(module)
+        pointerType(functionType(rety, paramty))
     else:
         echo typ
         assert false, "notimplemnted"
@@ -158,15 +163,29 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             sym = id.symbol
             paramty = fn.params.mapIt(newLType(it.typ.typ.typ, module))
             rety = if fn.rety.typ.kind == types.TypeKind.Unit: voidType() else: newLType(fn.rety.typ.typ, module)
+            retyhasregion = fn.rety.typ.kind != types.TypeKind.Unit and fn.rety.typ.typ.hasRegion
         var
             cxt = module.cxt
-            fnty = functionType(rety, paramty)
+            fnty = if retyhasregion:
+                functionType(module.cxt.voidType, paramty & pointerType(rety))
+            else:
+                functionType(rety, paramty)
         var
             fn2 = module.module.addFunction(name, fnty)
         sym.val = fn2
         sym.lty = fnty
-        if not fn.metadata.isNil and fn.metadata.kind == MetadataKind.ImportLL:
-            return nil
+        if not fn.metadata.isNil:
+            case fn.metadata.kind
+            of MetadataKind.ImportLL:
+                let fun1 = module.linkFuncs.filterIt(it.name == name)
+                assert fun1.len == 1
+                # let fun = fun1[0]
+                # echo fun.typ
+                # echo newLType(sym.typ, module)
+                # echo fun.typ == newLType(sym.typ, module)
+                return nil
+            else:
+                discard
         var
             tmpBB = module.curBB
             tmpFun = module.curFun
@@ -186,7 +205,11 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             discard module.curBuilder.store(fn2.param(i), p, name)
         var ret = fn.body.codegen(module)
         if not ret.isNil:
-            discard module.curBuilder.ret(ret)
+            if retyhasregion:
+                discard module.curBuilder.store(ret, fn2.param(fn.params.len))
+                discard module.curBuilder.retVoid()
+            else:
+                discard module.curBuilder.ret(ret)
         module.curBB = tmpBB
         module.curFun = tmpFun
         if not tmpBB.isNil:
@@ -201,7 +224,12 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             rety = newLType(self.typ, module)
         # TODO: check returning void
         # module.curBuilder.call(callee2, args2, $self)
-        module.curBuilder.call(callee2, args2)
+        if self.typ.hasRegion:
+            let ret = module.curBuilder.alloca(rety, "callret")
+            discard module.curBuilder.call(callee2, args2 & ret)
+            module.curBuilder.load(rety, ret, "callret")
+        else:
+            module.curBuilder.call(callee2, args2)
     of TermKind.If:
         var
             thenbs = self.elift.mapIt(module.curFun.appendBasicBlock("then"))
