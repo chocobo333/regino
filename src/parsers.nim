@@ -7,7 +7,8 @@ import eat except Parser
 import eat/dsl
 
 import ast
-import lineInfos
+import lineinfos
+import uri
 
 
 
@@ -18,8 +19,8 @@ proc newTreeNode(kind: range[akFailed..akPatterns]): proc(a: seq[AstNode]): AstN
     result = proc(a: seq[AstNode]): AstNode =
         kind.newTreeNode(a)
 
-ParserDef Parser(fileid: FileId, indent: seq[int]):
-    fileid = -1
+ParserDef Parser(uri: Uri, indent: seq[int]):
+    uri = initUri()
     indent = @[0]
 
     Eof = !p".|\n|\r\n|\r"
@@ -108,7 +109,8 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
                                                         #            it
     Int0 = p"[0-9]+"
 
-    Operators = p"[\p{Sm}*/\\?!%&$^@-]+"                @ (it => newIdNode(it.fragment).seta(it.pos).setb(it.endpos))
+    Operators0 = p"[\p{Sm}*/\\?!%&$^@-]+"
+    Operators = Operators0                          @ (it => newIdNode(it.fragment).seta(it.pos).setb(it.endpos))
 
     NewLine = +(sp(0) > p"\n" @ first) > sp(0)          @ (it => it[^1].fragment.len)
     Indent = NewLine                                    @@ proc(it: PResult[int]): PResult[int] =
@@ -158,7 +160,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
         preceded(?Nodent, Eof)
     )
     StmtList: AstNode = separated1(Statement, Nodent)   @ akStmtList.newTreeNode
-    
+
     # statement
     Statement: AstNode = alt(
         Comment,
@@ -266,7 +268,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     ) > *preceded(Nodent, ElifBranch)) + ?preceded(Nodent, ElseBranch) @ (it => akWhenExpr.newTreeNode(it[0] & (if it[1].isSome: @[it[1].get] else: @[])))
 
     LoopExpr = preceded(
-        loop > colon ^ sp0, 
+        loop > colon ^ sp0,
         alt(
             delimited(
                 Indent,
@@ -310,7 +312,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     Trailer: (AstKind, seq[AstNode]) = alt(
         delimited(!sp1, Operators, !(Atom ^ sp0))       @ (it => (akPostfix, @[it])),
         preceded(dot ^ sp0, Atom)                       @ (it => (akDot, @[it])),
-        preceded(sp1 + !Operators, ArgList1)            @ (it => (akCommand, it)),
+        preceded(sp1 + !terminated(Operators, sp1), ArgList1) @ (it => (akCommand, it)),
         delimited(lpar, ArgList, rpar)                  @ (it => (akCall, it)),
     )
     TrailerNotCommand: (AstKind, seq[AstNode]) = alt(
@@ -322,43 +324,43 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
     PowerExpr = AtomExpr + *(powerop ^ sp0 + AtomExpr)  @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     MulExpr = PowerExpr + *(mulop ^ sp0 + PowerExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     PlusExpr = MulExpr + *(plusop ^ sp0 + MulExpr)      @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     AmpExpr = PlusExpr + *(ampop ^ sp0 + PlusExpr)      @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     RangeExpr = AmpExpr + *(rangeop ^ sp0 + AmpExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     CmpExpr = RangeExpr + *(cmpop ^ sp0 + RangeExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     AndExpr = CmpExpr + *(andop ^ sp0 + CmpExpr)        @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     OrExpr = AndExpr + *(orop ^ sp0 + AndExpr)          @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     SymbolExpr = OrExpr + *(symbolop ^ sp0 + OrExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     AsgnExpr = SymbolExpr + *(asgnop ^ sp0 + SymbolExpr)    @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
-                                                                result = akInfix.newTreeNode(@[op, result, right])             
+                                                                result = akInfix.newTreeNode(@[op, result, right])
     ArrowExpr = AsgnExpr + *(arrowop ^ sp0 + AsgnExpr)  @ proc(it: auto): auto =
                                                             result = it[0]
                                                             for (op, right) in it[1]:
@@ -376,18 +378,18 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
                                                                 atom
 
 
-    Id = Id0                                            @ (it => newIdNode(it.fragment, it.toLineInfo(fileid)))
-    Int = Int0                                          @ (it => newIntNode(parseInt(it.fragment), it.toLineInfo(fileid)))
+    Id = Id0                                            @ (it => newIdNode(it.fragment, it.toLocation(uri)))
+    Int = Int0                                          @ (it => newIntNode(parseInt(it.fragment), it.toLocation(uri)))
     Float = alt(
-        Int0 > dot > Int0                               @ (it => newFloatNode(parseFloat(it[0].fragment & "." & it[2].fragment), newLineInfo(fileid, it[0], it[2]))),
-        Int0 > dot > !Id0                               @ (it => newFloatNode(parseFloat(it[0].fragment), newLineInfo(fileid, it[0], it[1]))),
-        dot > Int0                                      @ (it => newFloatNode(parseFloat("." & it[1].fragment), newLineInfo(fileid, it[0], it[1])))
+        Int0 > dot > Int0                               @ (it => newFloatNode(parseFloat(it[0].fragment & "." & it[2].fragment), newLocation(uri, it[0], it[2]))),
+        Int0 > dot > !Id0                               @ (it => newFloatNode(parseFloat(it[0].fragment), newLocation(uri, it[0], it[1]))),
+        dot > Int0                                      @ (it => newFloatNode(parseFloat("." & it[1].fragment), newLocation(uri, it[0], it[1])))
     )
     Boolean = alt(
-        falset          @ (it => newBoolNode(false, newLineInfo(fileid, it, it))),
-        truet           @ (it => newBoolNode(true, newLineInfo(fileid, it, it)))
+        falset          @ (it => newBoolNode(false, newLocation(uri, it, it))),
+        truet           @ (it => newBoolNode(true, newLocation(uri, it, it)))
     )
-    String = strlit                                     @ (it => newStrNode(it.fragment[1..^2], it.toLineInfo(fileid)))
+    String = strlit                                     @ (it => newStrNode(it.fragment[1..^2], it.toLocation(uri)))
     Literal = alt(
         Float,
         Int,
@@ -423,7 +425,7 @@ ParserDef Parser(fileid: FileId, indent: seq[int]):
 export newParser, `$`
 proc parse*(self: Parser, filename: string): AstNode =
     self.indent = @[0]
-    self.fileid = newFileId(filename)
+    self.uri = parseUri(filename)
 
     let s = open(filename, fmRead)
     defer:
@@ -484,7 +486,7 @@ false
 
 for e in a:
     echo e
-    
+
 """
     # var res = parser.Program(a)
     # if res.isOk:

@@ -69,7 +69,7 @@ const
 
 type
     AstNode* = ref object
-        lineInfo*: LineInfo
+        loc*: Location
         case kind*: AstKind
         of akChar..akInt:
             intVal*: BiggestInt
@@ -83,7 +83,7 @@ type
             children*: seq[AstNode]
 
 proc `$`*(self: AstNode): string =
-    let k = fmt"{($self.kind)[2..^1].green} {""@"".cyan} {($self.lineInfo)}"
+    let k = fmt"{($self.kind)[2..^1].green} {""@"".cyan} {($self.loc)}"
     case self.kind:
     of akChar..akInt:
         genGraph(k, self.intVal)
@@ -96,26 +96,26 @@ proc `$`*(self: AstNode): string =
     else:
         genGraphS(k, self.children)
 
-proc newIntNode*(val: BiggestInt, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
-    AstNode(kind: akInt, intVal: val, lineInfo: info)
+proc newIntNode*(val: BiggestInt, loc: Location = newLocation()): AstNode =
+    AstNode(kind: akInt, intVal: val, loc: loc)
 
-proc newFloatNode*(val: BiggestFloat, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
-    AstNode(kind: akFloat, floatVal: val, lineInfo: info)
+proc newFloatNode*(val: BiggestFloat, loc: Location = newLocation()): AstNode =
+    AstNode(kind: akFloat, floatVal: val, loc: loc)
 
-proc newBoolNode*(val: bool, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
-    AstNode(kind: akBool, boolVal: val, lineInfo: info)
+proc newBoolNode*(val: bool, loc: Location = newLocation()): AstNode =
+    AstNode(kind: akBool, boolVal: val, loc: loc)
 
-proc newStrNode*(val: string, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
-    AstNode(kind: akString, strVal: val, lineInfo: info)
+proc newStrNode*(val: string, loc: Location = newLocation()): AstNode =
+    AstNode(kind: akString, strVal: val, loc: loc)
 
-proc newIdNode*(name: string, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
-    AstNode(kind: akId, strVal: name, lineInfo: info)
+proc newIdNode*(name: string, loc: Location = newLocation()): AstNode =
+    AstNode(kind: akId, strVal: name, loc: loc)
 
-proc newTreeNode*(kind: range[akFailed..akPatterns], children: seq[AstNode], info: LineInfo = newLineInfo(children[0].lineInfo.fileid, children[0].lineInfo.span.a, children[^1].lineInfo.span.b)): AstNode =
-    AstNode(kind: kind, children: children, lineInfo: info)
+proc newTreeNode*(kind: range[akFailed..akPatterns], children: seq[AstNode], loc: Location = newLocation(children[0].loc.uri, children[0].loc.`range`.a, children[^1].loc.`range`.b)): AstNode =
+    AstNode(kind: kind, children: children, loc: loc)
 
-proc newNode*(kind: AstKind, info: LineInfo = newLineInfo(-1, newPosition(), newPosition())): AstNode =
-    AstNode(kind: kind, lineInfo: info)
+proc newNode*(kind: AstKind, loc: Location = newLocation()): AstNode =
+    AstNode(kind: kind, loc: loc)
 
 proc newEmptyNode*(): AstNode = akEmpty.newNode()
 proc newFailedNode*(): AstNode = akFailed.newNode()
@@ -126,11 +126,11 @@ proc isEmpty*(self: AstNode): bool =
 
 proc seta*(self: AstNode, a: Position): AstNode =
     result = self
-    result.lineInfo.span.a = a
+    result.loc.`range`.a = a
 
 proc setb*(self: AstNode, b: Position): AstNode =
     result = self
-    result.lineInfo.span.b = b
+    result.loc.`range`.b = b
 
 proc repr*(self: AstNode, ind: uint = 2): string =
     proc repr2(self: AstNode): string = repr(self, ind)

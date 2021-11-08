@@ -1,20 +1,19 @@
 
 from os import `/`, splitPath, absolutePath
 import options
+import sets
+import tables
+import strutils
+import sequtils
 
 import ast
 import lineInfos
 
-import rts/[
-    il,
-    types,
-    symbols,
+import
     infer,
+    il,
     typeenvs
-]
-import sema/[
-    convert
-]
+import convert
 
 import codegen
 
@@ -25,7 +24,7 @@ proc link(self: Metadata, module: Module) =
     let param = self.param
     assert param.kind == TermKind.String
     let
-        path = param.lineInfo.fileId.getFileInfo.filename.splitPath.head.absolutePath / param.s
+        path = param.loc.uri.path.splitPath.head.absolutePath / param.strval
         f = open(path)
         s = f.readAll()
         module2 = llvm.parseIr(module.cxt, path)
@@ -39,13 +38,13 @@ proc link(self: Metadata, module: Module) =
         assert false
     f.close()
 
-proc globalMetadada(self: Term, module: Module) =
+proc globalMetadada(self: ref Term, module: Module) =
     assert self.kind == TermKind.Seq
-    for e in self.ts:
+    for e in self.terms:
         # TODO: remove it
         if e.isNil:
             continue
-        if e.kind == TermKind.Metadata:
+        if e.kind == TermKind.Meta:
             let metadata = e.metadata
             case metadata.kind
             of MetadataKind.Link:
@@ -53,24 +52,27 @@ proc globalMetadada(self: Term, module: Module) =
             else:
                 assert false
 
-proc sema*(node: AstNode, module: Module): Term =
+proc sema*(node: AstNode, module: Module): ref Term =
     var
         tenv = newTypeEnv()
         program = newTerm(node)
-        rety = program.typeInfer(tenv)
+        rety = program.infer(tenv, true)
     program.globalMetadada(module)
     let
         tmp = case rety.kind
-        of types.TypeKind.Unit:
+        of il.TypeKind.Unit:
             Term.Unit
-        of types.TypeKind.Int:
-            Term.TypeOf(Term.Int(0))
+        of il.TypeKind.Integer:
+            Term.TypeOf(Term.Integer(0))
         else:
-            assert rety.kind notin @[types.TypeKind.Unit, types.TypeKind.Int]
+            assert rety.kind notin @[il.TypeKind.Unit, il.TypeKind.Integer]
             nil
-        main = newFunction("main", @[], tmp, program)
-        sym = Symbol(typ: Type.Arr(@[], rety))
-    tmp.typ = Type.TypeDesc(rety)
-    main.id.symbol = sym
-    main.id.typ = Type.Arr(@[], rety)
-    Term.FuncDef(main)
+        mainid = newIdent("main")
+        main = Term.Funcdef(newFunction(mainid, @[], tmp, program))
+        mainty = Type.Arrow(@[], rety)
+        sym = PSymbol.Func(mainid, PolyType.ForAll(nullFtv, mainty), main, true)
+    tenv.addIdent(mainid, sym)
+    mainid.typ = mainty
+    mainid.typ.symbol = some sym
+    # mainid.typ.symbol.get.instances[mainid.typ] = Symbol()
+    main

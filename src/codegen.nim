@@ -1,12 +1,10 @@
 
 import sequtils
 import tables
+import options
 
-import rts/[
-    il,
-    types,
-    symbols
-]
+import
+    il
 
 import llvm except Type, Module
 
@@ -58,24 +56,24 @@ proc newModule*(name: string = "main"): Module =
 #     assert false, fmt"{name} was not declared"
 
 var strtyp: LType
-proc newLType(typ: Type, module: Module): LType =
+proc newLType(typ: ref Type, module: Module): LType =
     let
         cxt = module.cxt
     case typ.kind
-    of types.TypeKind.Unit:
+    of il.TypeKind.Unit:
         cxt.voidType()
-    of types.TypeKind.Bool:
+    of il.TypeKind.Bool:
         cxt.intType(1)
-    of types.TypeKind.Int:
+    of il.TypeKind.Integer:
         cxt.intType(32)
-    of types.TypeKind.Float:
+    of il.TypeKind.Float:
         cxt.floatType()
-    of types.TypeKind.String:
+    of il.TypeKind.String:
         once:
             strtyp = cxt.createStruct("string")
             strtyp.body = @[pointerType(cxt.intType(8)), cxt.intType(32), cxt.intType(32)]
         strtyp
-    of types.TypeKind.Arr:
+    of il.TypeKind.Arrow:
         let
             paramty = typ.paramty.mapIt(it.newLType(module))
             rety = typ.rety.newLType(module)
@@ -95,29 +93,42 @@ converter toFunctionValue(self: Value): FunctionValue =
 
 proc builtin*(self: Module) =
     discard
-proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = false): Value =
+
+proc sym(self: ref Term): Symbol =
+    if self.typ in self.typ.symbol.get.instances:
+        result = self.typ.symbol.get.instances[self.typ]
+    else:
+        result = Symbol()
+        self.typ.symbol.get.instances[self.typ] = result
+proc `sym=`*(self: ref Term, sym: Symbol) =
+    self.typ.symbol.get.instances[self.typ] = sym
+proc paramty(self: Function): seq[ref Type] =
+    self.id.typ.paramty
+proc rety(self: Function): ref Type =
+    self.id.typ.rety
+proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool = false): Value =
     case self.kind
     of TermKind.Unit:
         nil
     of TermKind.Bool:
         let
-            b = self.b
+            b = self.boolval
             boolty = newLType(Type.Bool, module)
         boolty.constInt(if b: 1 else: 0)
-    of TermKind.Int:
+    of TermKind.Integer:
         let
-            i = self.i
-            intty = newLType(Type.Int, module)
+            i = self.intval
+            intty = newLType(Type.Integer, module)
         intty.constInt(int i)
     of TermKind.String:
         let
-            s = self.s
+            s = self.strval
         if strtyp.isNil:
             discard newLType(Type.String, module)
         let
             conststr = module.cxt.constString(s)
             global = module.module.newGlobal(conststr.typ, s)
-            inty = newLType(Type.Int, module)
+            inty = newLType(Type.Integer, module)
         global.initializer = conststr
         global.constant = true
         constStruct(
@@ -127,26 +138,27 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
                     global,
                     @[inty.constInt(0), inty.constInt(0)]
                 ),
-                newLType(Type.Int, module).constInt(s.len),
-                newLType(Type.Int, module).constInt(s.len)
+                newLType(Type.Integer, module).constInt(s.len),
+                newLType(Type.Integer, module).constInt(s.len)
             ]
         )
     of TermKind.Id:
         let
-            name = self.id.name
-            sym = self.id.symbol
+            name = self.name
+            sym = self.sym
             val = sym.val
             ty = sym.lty
         if lval:
+            # echo val
             val
         else:
             module.curBuilder.load(ty, val, name)
     of TermKind.Let:
         let
-            id = self.sec.id
-            sym = id.symbol
+            id = self.iddef.id
+            sym = id.sym
             name = id.name
-            default = self.sec.default
+            default = self.iddef.default.get
             typ = newLType(default.typ, module)
             p = module.curBuilder.alloca(typ, name)
         sym.val = p
@@ -160,10 +172,10 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             fn = self.fn
             id = fn.id
             name = id.name
-            sym = id.symbol
-            paramty = fn.params.mapIt(newLType(it.typ.typ.typ, module))
-            rety = if fn.rety.typ.kind == types.TypeKind.Unit: voidType() else: newLType(fn.rety.typ.typ, module)
-            retyhasregion = fn.rety.typ.kind != types.TypeKind.Unit and fn.rety.typ.typ.hasRegion
+            sym = id.sym
+            paramty = fn.paramty.mapIt(newLType(it, module))
+            rety = if fn.rety == Type.Unit: voidType() else: newLType(fn.rety, module)
+            retyhasregion = fn.rety != Type.Unit and fn.rety.hasRegion
         var
             cxt = module.cxt
             fnty = if retyhasregion:
@@ -174,8 +186,8 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             fn2 = module.module.addFunction(name, fnty)
         sym.val = fn2
         sym.lty = fnty
-        if not fn.metadata.isNil:
-            case fn.metadata.kind
+        if fn.metadata.isSome:
+            case fn.metadata.get.kind
             of MetadataKind.ImportLL:
                 let fun1 = module.linkFuncs.filterIt(it.name == name)
                 assert fun1.len == 1
@@ -193,11 +205,11 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         module.curFun = fn2
         module.curBuilder.atEndOf(bb)
         module.curBB = bb
-        for i in 0..<fn.params.len:
+        for i in 0..<fn.param.params.len:
             let
-                id = fn.params[i].id
+                id = fn.param.params[i].id
                 name = id.name
-                sym = id.symbol
+                sym = id.sym
                 typ = paramty[i]
                 p = module.curBuilder.alloca(typ, name)
             sym.val = p
@@ -206,7 +218,7 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         var ret = fn.body.codegen(module)
         if not ret.isNil:
             if retyhasregion:
-                discard module.curBuilder.store(ret, fn2.param(fn.params.len))
+                discard module.curBuilder.store(ret, fn2.param(fn.param.params.len))
                 discard module.curBuilder.retVoid()
             else:
                 discard module.curBuilder.ret(ret)
@@ -215,7 +227,7 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         if not tmpBB.isNil:
             module.curBuilder.atEndOf(tmpBB)
         nil
-    of TermKind.App:
+    of TermKind.Apply:
         let
             callee = self.callee
             args = self.args
@@ -232,7 +244,7 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             module.curBuilder.call(callee2, args2)
     of TermKind.If:
         var
-            thenbs = self.elift.mapIt(module.curFun.appendBasicBlock("then"))
+            thenbs = self.`elif`.mapIt(module.curFun.appendBasicBlock("then"))
             elseb = module.curFun.appendBasicBlock("else")
             ifcont = module.curFun.appendBasicBlock("ifcont")
 
@@ -240,41 +252,41 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
 
         for i in 0..<thenbs.len:
             if i == thenbs.len-1:
-                discard module.curBuilder.condBr(self.elift[i][0].codegen(module), thenbs[i], elseb)
+                discard module.curBuilder.condBr(self.`elif`[i][0].codegen(module), thenbs[i], elseb)
             else:
                 var elifb = module.curFun.appendBasicBlock("elif")
-                discard module.curBuilder.condBr(self.elift[i][0].codegen(module), thenbs[i], elifb)
+                discard module.curBuilder.condBr(self.`elif`[i][0].codegen(module), thenbs[i], elifb)
                 module.curBuilder.atEndOf(elifb)
                 module.curBB = elifb
         for i in 0..<thenbs.len:
             module.curBuilder.atEndOf(thenbs[i])
             module.curBB = thenbs[i]
-            let thenv = self.elift[i][1].codegen(module)
+            let thenv = self.`elif`[i][1].codegen(module)
             thenvs.add thenv
             module.curBuilder.br(ifcont)
 
         module.curBuilder.atEndOf(elseb)
         module.curBB = elseb
-        let elsev = self.elset.codegen(module)
+        let elsev = self.`else`.codegen(module)
         module.curBuilder.br(ifcont)
 
         module.curBuilder.atEndOf(ifcont)
         module.curBB = ifcont
-        if self.typ.kind == types.TypeKind.Unit:
+        if self.typ == Type.Unit:
             nil
         else:
             let phi = module.curBuilder.phi(newLType(self.typ, module), "")
             phi.addIncoming(thenvs.zip(thenbs) & @[(elsev, elseb)])
             phi
     of TermKind.Discard:
-        discard self.`discard`.codegen(module)
+        discard self.term.codegen(module)
         nil
     of TermKind.Seq:
         var ret: Value = nil
-        for e in self.ts:
+        for e in self.terms:
             ret = e.codegen(module, global)
         ret
-    of TermKind.Metadata:
+    of TermKind.Meta:
         nil
     else:
         echo self

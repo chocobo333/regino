@@ -5,9 +5,6 @@ import parsers
 import sema
 import codegen
 
-import rts/[
-    infer
-]
 
 from llvm import `$`, link
 

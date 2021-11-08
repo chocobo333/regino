@@ -1,11 +1,12 @@
 
 import sequtils
+import options
 
-import ../ast
-import rts/il
+import ast
+import il
 
-    
-proc newTerm*(n: AstNode): Term =
+
+proc newTerm*(n: AstNode): ref Term =
     result = case n.kind
     of akEmpty:
         Term.Unit
@@ -17,13 +18,14 @@ proc newTerm*(n: AstNode): Term =
                 assert it.kind == akIdentDef
                 assert it.children.len == 3
                 let
-                    id = it.children[0]
+                    aid = it.children[0]
                     typ = it.children[1]
                     default = it.children[2]
-                assert id.kind == akId, ""
+                assert aid.kind == akId, ""
+                let id = newTerm(aid)
                 assert typ.isEmpty(), "notimplemented type annotation"
                 assert not default.isNil, "let section needs initialization"
-                Term.Let(id.strVal, newTerm(default))
+                Term.Let(newIdentDef(id, default=newTerm(default)))
         )
         Term.Seq(ts)
     of akAliasSection:
@@ -32,15 +34,16 @@ proc newTerm*(n: AstNode): Term =
                 assert it.kind == akIdentDef
                 assert it.children.len == 3
                 let
-                    id = it.children[0]
+                    aid = it.children[0]
                     typ = it.children[1]
                     default = it.children[2]
-                assert id.kind == akId, ""
+                assert aid.kind == akId, ""
+                let id = newTerm(aid)
                 assert typ.isEmpty(), "notimplemented type annotation"
                 assert not default.isNil, "alias section needs initialization"
-                Term.TypeDef(id.strVal, newTerm(default))
+                newIdentDef(id, default=newTerm(default))
         )
-        Term.Seq(ts)
+        Term.Typedef(ts)
     of akFuncDef:
         let
             fname = n.children[0]
@@ -55,13 +58,14 @@ proc newTerm*(n: AstNode): Term =
             assert e.children[0].kind == akId
             assert e.children[2].isEmpty, "default value is not supported"
         let
-            meta = if metadata.isEmpty: nil else: newTerm(metadata).metadata
-            params = paramty.mapIt(ParamDef(id: Identifier(name: it.children[0].strVal), typ: newTerm(it.children[1])))
-        if not meta.isNil and meta.kind == MetadataKind.ImportLL:
+            meta = if metadata.isEmpty: none Metadata else: some newTerm(metadata).metadata
+            params = paramty.mapIt(IdentDef(id: newTerm(it.children[0]), typ: some newTerm(it.children[1])))
+        if meta.isSome and meta.get.kind == MetadataKind.ImportLL:
             assert body.isEmpty
         else:
             assert not body.isEmpty
-        let fn = newFunction(fname.strVal, params, newTerm(rety), newTerm(body), meta)
+        # let fn = newFunction(fname.strVal, params, newTerm(rety), newTerm(body), meta)
+        let fn = Function(id: newTerm(fname), param: FunctionParam(params: params, rety: newTerm(rety)), body: newTerm(body), metadata: meta)
         Term.FuncDef(fn)
     of akMetadata:
         let
@@ -73,9 +77,11 @@ proc newTerm*(n: AstNode): Term =
             Metadata.Link(param)
         of "importll":
             Metadata.ImportLL(param)
+        of "subtype":
+            Metadata.Subtype
         else:
             Metadata.UserDef(name.strVal, param)
-        Term.Metadat(metadata)
+        Term.Meta(metadata)
     of akDiscard:
         assert n.children.len < 2
         let a = if n.children.len == 1:
@@ -93,19 +99,19 @@ proc newTerm*(n: AstNode): Term =
             name = n.children[0]
             exp = n.children[1]
         assert name.kind == akId
-        Term.Lam(name.strVal, newTerm(exp))
+        Term.Lambda(@[newIdentDef(newTerm(name))], newTerm(exp))
     of akInfix:
         assert n.children.len == 3
         let
             callee = n.children[0]
             args = n.children[1..2]
-        Term.App(newTerm(callee), args.mapIt(newTerm(it)))
+        Term.Apply(newTerm(callee), args.mapIt(newTerm(it)))
     of akPrefix:
         assert n.children.len == 2
         let
             callee = n.children[0]
             args = n.children[1..1]
-        Term.App(newTerm(callee), args.mapIt(newTerm(it)))
+        Term.Apply(newTerm(callee), args.mapIt(newTerm(it)))
     of akDot:
         let
             callee = n.children[1]
@@ -115,7 +121,7 @@ proc newTerm*(n: AstNode): Term =
             of "typeof":
                 assert args.len == 1
                 return Term.TypeOf(newTerm(args[0]))
-        Term.App(newTerm(callee), args.mapIt(newTerm(it)))
+        Term.Apply(newTerm(callee), args.mapIt(newTerm(it)))
     of akCommand, akCall:
         let
             callee = n.children[0]
@@ -128,9 +134,9 @@ proc newTerm*(n: AstNode): Term =
         if callee.kind == akDot:
             newTerm(akCall.newTreeNode(@[callee.children[1], callee.children[0]] & args))
         else:
-            Term.App(newTerm(callee), args.mapIt(newTerm(it)))
+            Term.Apply(newTerm(callee), args.mapIt(newTerm(it)))
     of akInt:
-        Term.Int(n.intVal)
+        Term.Integer(n.intVal)
     of akFloat:
         Term.Float(n.floatVal)
     of akString:
@@ -144,4 +150,4 @@ proc newTerm*(n: AstNode): Term =
         echo n
         assert false, "notimplemented"
         nil
-    result.lineInfo = n.lineInfo
+    result.loc = n.loc

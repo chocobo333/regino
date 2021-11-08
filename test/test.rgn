@@ -29,8 +29,14 @@ func `==`(a: int, b: int) -> bool:
     `eq@bool/int32int32`(a, b)
 
 func `tos@string/i32`(a: int) -> string ![importll]
-func `$`(a: int) -> string:
+func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
+
+func toInt(a: bool) -> int ![subtype]:
+    if a:
+        1
+    else:
+        0
 
 func echo(a: string) ![importll]
 func len(a: string) -> int ![importll]
@@ -45,6 +51,13 @@ func fib(n: int) -> int:
 discard fib(12-1)
 
 let a = $(fib(11))
+echo $(3)
 echo a
+let b = $(f(3))
+let c = 1 + 2
+echo b
+echo $(fib(9))
+echo $(1 + 2)
 
-a.len()
+echo $(a.len())
+f(3)
