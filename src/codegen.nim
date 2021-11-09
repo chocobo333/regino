@@ -165,6 +165,18 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
         sym.lty = typ
         discard module.curBuilder.store(default.codegen(module, global), p, $self)
         nil
+    of TermKind.Var:
+        let
+            id = self.iddef.id
+            sym = id.sym
+            name = id.name
+            default = self.iddef.default.get
+            typ = newLType(default.typ, module)
+            p = module.curBuilder.alloca(typ, name)
+        sym.val = p
+        sym.lty = typ
+        discard module.curBuilder.store(default.codegen(module, global), p, $self)
+        nil
     of TermKind.TypeDef:
         nil
     of TermKind.FuncDef:
@@ -237,9 +249,9 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
         # TODO: check returning void
         # module.curBuilder.call(callee2, args2, $self)
         if self.typ.hasRegion:
-            let ret = module.curBuilder.alloca(rety, "callret")
+            let ret = module.curBuilder.alloca(rety, "*" & $self)
             discard module.curBuilder.call(callee2, args2 & ret)
-            module.curBuilder.load(rety, ret, "callret")
+            module.curBuilder.load(rety, ret, $self)
         else:
             module.curBuilder.call(callee2, args2)
     of TermKind.If:
@@ -278,6 +290,12 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
             let phi = module.curBuilder.phi(newLType(self.typ, module), "")
             phi.addIncoming(thenvs.zip(thenbs) & @[(elsev, elseb)])
             phi
+    of TermKind.Asign:
+        let
+            sym = self.pat.sym
+            name = self.pat.name
+        discard module.curBuilder.store(self.val.codegen(module, global), self.pat.codegen(module, global, lval=true), $self)
+        nil
     of TermKind.Discard:
         discard self.term.codegen(module)
         nil

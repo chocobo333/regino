@@ -98,8 +98,9 @@ type
 
     Pattern* = object
         case kind*: PatternKind
-        of PatternKind.Literal, PatternKind.Ident:
+        of PatternKind.Literal:
             lit*: ref Term
+        of PatternKind.Ident:
             id*: ref Term
         of PatternKind.Range:
             lb*: ref Term
@@ -159,7 +160,7 @@ type
             label*: Ident
             `block`*: ref Term
         of For, Asign:
-            pat*: Pattern
+            pat*: ref Term
             val*: ref Term
             forbody*: ref Term # for For
         of Typeof, TermKind.Discard:
@@ -256,11 +257,14 @@ type
 
 
 suite IdentDef:
+    proc `$`*(self: ref Type): string
     proc `$`*(self: ref Term): string
     proc `$`*(self: IdentDef): string =
         result = $self.id.name
         if self.typ.isSome:
             result.add fmt": {self.typ.get}"
+        elif self.id.typ.kind != TypeKind.Unit:
+            result.add fmt"(: {self.id.typ})"
         if self.default.isSome:
             result.add fmt" = {self.default.get}"
     proc newIdentDef*(id: Ident): IdentDef =
@@ -315,7 +319,6 @@ suite Function:
         Function(id: id, param: FunctionParam(params: paramty, rety: rety), body: body, metadata: metadata)
 
 suite TypeVar:
-    proc `$`*(self: ref Type): string
     proc `$`*(self: TypeVar): string =
         let m = len('a'..'z')
         var p = self.id
@@ -792,9 +795,9 @@ suite Term:
     proc Block*(_: typedesc[Term]): ref Term =
         result = new Term
         result[] = Term()
-    proc Asign*(_: typedesc[Term]): ref Term =
+    proc Asign*(_: typedesc[Term], pat: ref Term, val: ref Term): ref Term =
         result = new Term
-        result[] = Term()
+        result[] = Term(kind: TermKind.Asign, pat: pat, val: val)
     proc Typeof*(_: typedesc[Term], term: ref Term): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Typeof, term: term)
@@ -814,6 +817,11 @@ suite Term:
     proc newIdent*(name: string): Ident =
         Term.Id(name)
 
+suite Pattern:
+    proc Literal*(_: typedesc[Pattern], lit: ref Term): Pattern =
+        Pattern(kind: PatternKind.Literal, lit: lit)
+    proc Id*(_: typedesc[Pattern], id: ref Term): Pattern =
+        Pattern(kind: PatternKind.Ident, id: id)
 suite PSymbol:
     proc `$`*(self: PSymbol): string =
         let

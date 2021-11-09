@@ -1,6 +1,8 @@
 
 import relations
 import strformat
+import sequtils
+import options
 
 
 type
@@ -29,3 +31,26 @@ proc `$`*[T](self: Order[T]): string =
                 result.add fmt"{key} < {val}, "
         result = result[0..^3]
         result.add("}")
+
+proc path*[T](self: Order[T], t1, t2: T): Option[seq[(T, T)]] =
+    if (t1, t2) in self:
+        some @[(t1, t2)]
+    else:
+        if t1 in self.primal:
+            var
+                l = int.high
+                shortest: seq[(T, T)]
+                t: T
+            for e in self.primal[t1]:
+                let p = self.path(e, t2)
+                if p.isSome:
+                    if p.get.len < l:
+                        l = p.get.len
+                        shortest = p.get
+                        t = e
+            if shortest.len == 0:
+                none(seq[(T, T)])
+            else:
+                some((t1, t) & shortest)
+        else:
+            none(seq[(T, T)])

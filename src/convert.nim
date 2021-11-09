@@ -6,6 +6,16 @@ import ast
 import il
 
 
+proc newPattern*(n: AstNode): Pattern =
+    case n.kind
+    of akId:
+        Pattern.Id(Term.Id(n.strVal))
+    else:
+        echo n.kind
+        echo n
+        assert false, "notimplemented"
+        Pattern()
+
 proc newTerm*(n: AstNode): ref Term =
     result = case n.kind
     of akEmpty:
@@ -26,6 +36,22 @@ proc newTerm*(n: AstNode): ref Term =
                 assert typ.isEmpty(), "notimplemented type annotation"
                 assert not default.isNil, "let section needs initialization"
                 Term.Let(newIdentDef(id, default=newTerm(default)))
+        )
+        Term.Seq(ts)
+    of akVarSection:
+        let ts = n.children.mapIt(
+            block:
+                assert it.kind == akIdentDef
+                assert it.children.len == 3
+                let
+                    aid = it.children[0]
+                    typ = it.children[1]
+                    default = it.children[2]
+                assert aid.kind == akId, ""
+                let id = newTerm(aid)
+                assert typ.isEmpty(), "notimplemented type annotation"
+                assert not default.isNil, "let section needs initialization"
+                Term.Var(newIdentDef(id, default=newTerm(default)))
         )
         Term.Seq(ts)
     of akAliasSection:
@@ -67,6 +93,14 @@ proc newTerm*(n: AstNode): ref Term =
         # let fn = newFunction(fname.strVal, params, newTerm(rety), newTerm(body), meta)
         let fn = Function(id: newTerm(fname), param: FunctionParam(params: params, rety: newTerm(rety)), body: newTerm(body), metadata: meta)
         Term.FuncDef(fn)
+    of akAsign:
+        echo n
+        for e in  n.children:
+            echo e
+        let
+            pat = newTerm(n.children[0])
+            val = newTerm(n.children[2])
+        Term.Asign(pat, val)
     of akMetadata:
         let
             name = n.children[0]

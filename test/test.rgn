@@ -10,8 +10,7 @@ alias
     int = typeof(0)
     float = typeof(0.0)
     string = typeof("")
-let
-    a = 2
+
 func f(a: int) -> int:
     a
 func f(a: float) -> float:
@@ -32,6 +31,7 @@ func `tos@string/i32`(a: int) -> string ![importll]
 func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
 
+
 func toInt(a: bool) -> int ![subtype]:
     if a:
         1
@@ -48,16 +48,11 @@ func fib(n: int) -> int:
         1
     else:
         fib(n-1) + fib(n-2)
-discard fib(12-1)
-
-let a = $(fib(11))
-echo $(3)
+var a = true
 echo a
-let b = $(f(3))
-let c = 1 + 2
-echo b
-echo $(fib(9))
-echo $(1 + 2)
-
-echo $(a.len())
-f(3)
+a = 3
+echo a
+a = true
+echo a
+echo true
+0

@@ -18,6 +18,7 @@ type
     TypeEnv* = object
         scopes*: seq[Scope]
         typeOrder*: seq[Order[ref Type]]
+        converters*: Table[(ref Type, ref Type), Ident]
         constraints*: seq[Constraint]
         tvconstraints*: seq[Constraint]
         # subs*: Substitution

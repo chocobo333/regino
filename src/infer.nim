@@ -24,7 +24,9 @@ proc `<=`*(env: TypeEnv, t1, t2: ref Type): bool =
     elif t1.kind != TypeKind.Var and t1 == t2:
         true
     else:
-        env.typeOrder.anyIt((t1, t2) in it)
+        # echo env.typeOrder[^1].path(t1, t2)
+        # env.typeOrder.anyIt((t1, t2) in it)
+        env.typeOrder[^1].path(t1, t2).isSome
 proc `<=?`*(env: TypeEnv, t1, t2: ref Type): Option[seq[Constraint]] =
     if t1.kind == TypeKind.Bottom:
         some newSeq[Constraint]()
@@ -83,10 +85,16 @@ proc coerceRelation(self: var TypeEnv, t1, t2: ref Type) =
         discard
     else:
         self.constraints.add (t1, t2)
-proc addTypeRelation(self: var TypeEnv, t1, t2: ref Type) =
+proc addTypeRelation(self: var TypeEnv, t1, t2: ref Type, fn: Ident) =
+    template `<=`(t1, t2: ref Type): bool =
+        self.`<=`(t1, t2)
+    # template `<=?`(t1, t2: ref Type): Option[seq[Constraint]] =
+    #     self.`<=?`(t1, t2)
     assert t1.kind == TypeKind.Typedesc
     assert t2.kind == TypeKind.Typedesc
+    assert not (t2.typ <= t1.typ)
     self.typeOrder[^1].add (t1.typ, t2.typ)
+    self.converters[(t1.typ, t2.typ)] = fn
 
 proc bindtv(self: TypeEnv, t1, t2: ref Type) =
     case t2.kind
@@ -152,6 +160,8 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Type) =
             # TODO: if lb >= t2
             if t1.tv.lb <= t2 and t2 <= t1.tv.ub:
                 t1.tv.ub = t2
+            elif t1.tv.ub <= t2:
+                discard
             else:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
             if t1.tv.lb == t2:
@@ -159,6 +169,8 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Type) =
         elif t2.kind == TypeKind.Var:
             if t2.tv.lb <= t1 and t1 <= t2.tv.ub:
                 t2.tv.lb = t1
+            elif t1 <= t2.tv.lb:
+                discard
             else:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
             if t2.tv.ub == t1:
@@ -316,7 +328,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
                 env.coerceRelation(Type.Unit, inferedRety)  # ?
             of MetadataKind.Subtype:
                 assert paramty.len == 1, "converter must take only one argument."
-                env.addTypeRelation(paramty[0], rety)
+                env.addTypeRelation(paramty[0], rety, self.fn.id)
                 env.coerceRelation(inferedRety, tv)
             else:
                 discard
@@ -349,6 +361,10 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
     of TermKind.Block:
         Type.Unit
     of TermKind.Asign:
+        let
+            pat = self.pat.typeInfer(env, global)
+            val = self.val.typeInfer(env, global)
+        env.coerceRelation(val, pat)
         Type.Unit
     of TermKind.Typeof:
         Type.Typedesc(self.term.typeInfer(env, global))
@@ -380,6 +396,11 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
     self.typ = result
 
 proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
+    setTypeEnv(env)
+    # template `<=`(t1, t2: ref Type): bool =
+    #     self.`<=`(t1, t2)
+    # template `<=?`(t1, t2: ref Type): Option[seq[Constraint]] =
+    #     self.`<=?`(t1, t2)
     if self.typ.kind == TypeKind.Var:
         if self.typ.tv.lb.compilable:
             env.bindtv(self.typ, self.typ.tv.lb)
@@ -423,22 +444,18 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
         assert impl.typ == id.typ
         self.check(Type.Unit) & ret
     of TermKind.Var:
-        # let
-        #     tv = Type.Var
-        #     id = self.iddef.id
-        #     impl = self.iddef.default.get
-        #     t1 = impl.typeInfer(env, global)
-        #     sym = if t1.kind == TypeKind.Arrow:
-        #         # PSymbol.Let(t1.gen(env), self, global)
-        #         # TODO:
-        #         PSymbol()
-        #     else:
-        #         PSymbol.Let(id, PolyType.ForAll(nullFtv, tv), impl, global)
-        #     # sym = PSymbol.Let(t1.gen(env))
-        # id.typ = tv
-        # env.addIdent(id, sym)
-        # env.coerceRelation(t1, tv)
-        self.check(Type.Unit)
+        let
+            id = self.iddef.id
+            impl = self.iddef.default.get
+            ret = id.typeCheck(env) & impl.typeCheck(env)
+        assert impl.typ <= id.typ, fmt"{impl.typ} <= {id.typ}"
+        if impl.typ != id.typ and impl.typ <= id.typ:
+            let
+                fn = env.converters[(impl.typ, id.typ)]
+                impl = Term.Apply(fn, @[impl])
+            impl.typ = id.typ
+            self.iddef.default = some impl
+        self.check(Type.Unit) & ret
     of TermKind.Const:
         self.check(Type.Unit)
     of TermKind.Typedef:
@@ -523,20 +540,40 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
     of TermKind.Block:
         self.check(Type.Unit)
     of TermKind.Asign:
-        self.check(Type.Unit)
+        let
+            ret = self.pat.typeCheck(env) & self.val.typeCheck(env)
+        assert self.val.typ <= self.pat.typ, fmt"{self.val.typ} <= {self.pat.typ}"
+        if self.val.typ != self.pat.typ and self.val.typ <= self.pat.typ:
+            let
+                fn = env.converters[(self.val.typ, self.pat.typ)]
+                val = Term.Apply(fn, @[self.val])
+            val.typ = self.pat.typ
+            self.val = val
+        self.check(Type.Unit) & ret
     of TermKind.Typeof:
         self.check(Type.Typedesc(self.term.typ)) & self.term.typeCheck(env)
     of TermKind.Discard:
         self.check(Type.Unit) & self.term.typeCheck(env)
     of TermKind.Apply:
-        self.callee.typeCheck(env) &  self.args.mapIt(it.typeCheck(env)).flatten
-        # let
-        #     callee = self.callee.typeInfer(env, global)
-        #     args = self.args.mapIt(it.typeInfer(env, global))
-        #     tv = Type.Var()
-        # # env.coerceRelation(Type.Arrow(args, tv), callee) # ?
-        # env.coerceRelation(callee, Type.Arrow(args, tv))
-        # tv
+        let
+            ret = self.callee.typeCheck(env) &  self.args.mapIt(it.typeCheck(env)).flatten
+            callee = self.callee.typ
+            args = self.args.mapIt(it.typ)
+        for i in 0..<callee.paramty.len:
+            let (argty, paramty) = (args[i], callee.paramty[i])
+            assert argty <= paramty, fmt"{argty} <= {paramty}"
+            if argty != paramty and argty <= paramty:
+                let
+                    p = env.typeOrder[^1].path(argty, paramty).get
+                var
+                    arg = self.args[i]
+                for (t1, t2) in p:
+                    let
+                        fn = env.converters[(t1, t2)]
+                    arg = Term.Apply(fn, @[arg])
+                    arg.typ = t2
+                self.args[i] = arg
+        ret
     of TermKind.Meta:
         # if not self.metadata.param.isNil:
         #     discard self.metadata.param.typeInfer(env, global)
