@@ -1,3 +1,8 @@
 
+import compiler
+
+import cligen
+
+
 when isMainModule:
-    echo "Hello regino!"
+    dispatch(compile)

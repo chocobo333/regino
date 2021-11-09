@@ -21,7 +21,6 @@ type
         converters*: Table[(ref Type, ref Type), Ident]
         constraints*: seq[Constraint]
         tvconstraints*: seq[Constraint]
-        # subs*: Substitution
     Substituable* = concept T, var t
         apply(Substitution, T)
         t.ftv() is HashSet[TypeVar]

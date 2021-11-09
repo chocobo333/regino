@@ -35,7 +35,7 @@ proc optimize(self: Module): Module =
     self.module.module = module
     self
 
-proc compile(filename: string) =
+proc compile*(filename: string) =
     var
         module = newModule()
         parser = newParser()
