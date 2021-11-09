@@ -14,5 +14,5 @@ Currently, this project is implemented in the [Nim language](https://nim-lang.or
 
 ```sh
 nim c -r src/compiler.nim
-lli test/test.ll
+lli test/test.ll # or ./runTest.sh
 ```
