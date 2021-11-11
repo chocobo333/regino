@@ -1,8 +1,9 @@
 
 import compiler
+import lsp
 
 import cligen
 
 
 when isMainModule:
-    dispatch(compile)
+    dispatchMulti([compile], [Lsp, cmdName="lsp"])
