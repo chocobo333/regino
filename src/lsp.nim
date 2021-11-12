@@ -242,8 +242,7 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode) =
                 Diagnostic.create(
                     Range.create(
                         Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character),
-                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character+1),
-                        # Position.create(it.loc.`range`.b.line, it.loc.`range`.b.character)
+                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character+1)
                     ),
                     some DiagnosticSeverity.Error.int,
                     none int,
