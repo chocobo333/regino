@@ -117,8 +117,8 @@ proc newTreeNode*(kind: range[akFailed..akPatterns], children: seq[AstNode], loc
 proc newNode*(kind: AstKind, loc: Location = newLocation()): AstNode =
     AstNode(kind: kind, loc: loc)
 
-proc newEmptyNode*(): AstNode = akEmpty.newNode()
-proc newFailedNode*(): AstNode = akFailed.newNode()
+proc newEmptyNode*(loc: Location = newLocation()): AstNode = akEmpty.newNode(loc)
+proc newFailedNode*(loc: Location = newLocation()): AstNode = akFailed.newNode(loc)
 proc empty*(t: typedesc[AstNode]): AstNode = newEmptyNode()
 
 proc isEmpty*(self: AstNode): bool =

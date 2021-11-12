@@ -1,5 +1,6 @@
 
 import strutils
+import strformat
 import options
 import sugar
 
@@ -19,7 +20,20 @@ proc newTreeNode(kind: range[akFailed..akPatterns]): proc(a: seq[AstNode]): AstN
     result = proc(a: seq[AstNode]): AstNode =
         kind.newTreeNode(a)
 
-ParserDef Parser(uri: Uri, indent: seq[int]):
+type
+    ParseErrorKind = enum
+        Expected
+    ParseError* = object
+        loc*: Location
+        msg: seq[string]
+        kind: ParseErrorKind
+
+proc `$`*(self: ParseError): string =
+    result = fmt"{self.loc} "
+    result.add case self.kind
+    of Expected:
+        fmt"expected: {self.msg[0]}"
+ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     uri = initUri()
     indent = @[0]
 
@@ -27,6 +41,7 @@ ParserDef Parser(uri: Uri, indent: seq[int]):
 
     sp0     = sp(0)
     sp1     = sp(1)
+    oneline = p".*"
     fun     = s"func"
     ift     = s"if"
     whent   = s"when"
@@ -112,6 +127,8 @@ ParserDef Parser(uri: Uri, indent: seq[int]):
     Operators0 = p"[\p{Sm}*/\\?!%&$^@-]+"
     Operators = Operators0                          @ (it => newIdNode(it.fragment).seta(it.pos).setb(it.endpos))
 
+    Pos = pos()
+    Fail = Pos @ (it => newFailedNode(newLocation(uri, it, it)))
     NewLine = +(sp(0) > p"\n" @ first) > sp(0)          @ (it => it[^1].fragment.len)
     Indent = NewLine                                    @@ proc(it: PResult[int]): PResult[int] =
                                                             if it.isErr:
@@ -224,23 +241,38 @@ ParserDef Parser(uri: Uri, indent: seq[int]):
                                                                 rety = if it[1].isSome: it[1].get else: newEmptyNode()
                                                                 paramty = it[0]
                                                             akParams.newTreeNode(@[rety] & paramty)
-    Suite = preceded(
-        colon,
-        alt(
-            delimited(Indent, StmtList, Dedent),
-            Statement @ (it => akStmtList.newTreeNode(@[it]))
-        )
+    Suite = alt(
+        preceded(
+            colon,
+            alt(
+                Statement @ (it => akStmtList.newTreeNode(@[it])),
+                delimited(Indent, StmtList, Dedent),
+                terminated(Fail, delimited(Indent, oneline ^* Nodent, Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["expression"]); it)),
+                terminated(Fail, alt(&Nodent, Eof @ (it => 0), Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["expression"]); it))
+            )
+        ),
+        preceded(
+            sp0,
+            alt(
+                Statement @ (it => akStmtList.newTreeNode(@[it])),
+                delimited(Indent, StmtList, Dedent),
+                terminated(Fail, delimited(Indent, oneline ^* Nodent, Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]); it)),
+                terminated(Fail, alt(&Nodent, Eof @ (it => 0), Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it))
+            )
+        ),
     )
+    NoBody = sp0 + &NewLine @ proc(it: auto): AstNode = newEmptyNode()
     FuncDef: AstNode = preceded(
         fun > sp1,
         Id > Params
-    ) + (?Metadata > ?Suite) @ proc(it: auto): AstNode =
-                                                                    let
-                                                                        id = it[0][0]
-                                                                        params = it[0][1]
-                                                                        meta = if it[1][0].isSome: it[1][0].get else: newEmptyNode()
-                                                                        body = if it[1][1].isSome: it[1][1].get else: newEmptyNode()
-                                                                    akFuncDef.newTreeNode(@[id, params, meta, body])
+    ) + (?Metadata + alt(NoBody, Suite))                    @ proc(it: auto): AstNode =
+                                                                let
+                                                                    id = it[0][0]
+                                                                    params = it[0][1]
+                                                                    meta = if it[1][0].isSome: it[1][0].get else: newEmptyNode()
+                                                                    # body = if it[1][1].isSome: it[1][1].get else: newEmptyNode()
+                                                                    body = it[1][1]
+                                                                akFuncDef.newTreeNode(@[id, params, meta, body])
 
     # epression
     asop = p"[\p{Sm}*/\\?!%&$^@-]*="                    @ (it => newIdNode(it.fragment))
@@ -253,9 +285,12 @@ ParserDef Parser(uri: Uri, indent: seq[int]):
         # ForExpr,
         SimplExpr
     )
-    CondBranch = terminated(Expr, sp0) > Suite
-    ElifBranch = preceded(elift > sp1, CondBranch)      @ (it => akElifBranch.newTreeNode(it))
-    ElseBranch = preceded(terminated(elset, sp0), Suite)                 @ (it => akElseBranch.newTreeNode(@[it]))
+    CondBranch = alt(
+        terminated(Expr, sp0) > Suite,
+        preceded(sp0, Fail > Suite) @ (it => (errs.add ParseError(loc: it[0].loc, msg: @["expression"]); it))
+    )
+    ElifBranch = preceded(elift > sp1, CondBranch)                      @ (it => akElifBranch.newTreeNode(it))
+    ElseBranch = preceded(terminated(elset, sp0), Suite)                @ (it => akElseBranch.newTreeNode(@[it]))
 
     IfExpr = (preceded(
         ift > sp1,
@@ -423,14 +458,24 @@ ParserDef Parser(uri: Uri, indent: seq[int]):
     )
 
 export newParser, `$`
-proc parse*(self: Parser, filename: string): AstNode =
+proc parse*(self: ref Parser, filename: string): AstNode =
     self.indent = @[0]
     self.uri = parseUri(filename)
+    self.errs = @[]
 
     let s = open(filename, fmRead)
     defer:
         s.close()
-    self.Program(s.readAll).unwrap
+    let ret = self.Program(s.readAll)
+    ret.unwrap
+proc parse*(self: ref Parser, filename: string, text: string): AstNode =
+    self.indent = @[0]
+    self.uri = parseUri(filename)
+    self.errs = @[]
+
+    let ret = self.Program(text)
+    ret.unwrap
+proc errs*(self: ref Parser): seq[ParseError] = self.errs
 
 
 when isMainModule:

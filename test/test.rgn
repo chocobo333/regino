@@ -37,7 +37,6 @@ func toInt(a: bool) -> int ![subtype]:
         1
     else:
         0
-
 func echo(a: string) ![importll]
 func len(a: string) -> int ![importll]
 

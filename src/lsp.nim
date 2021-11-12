@@ -10,6 +10,7 @@ import json
 import jsonschema
 
 import eat
+import parsers
 
 
 type
@@ -95,6 +96,10 @@ jsonSchema:
     DidChangeTextDocumentParams:
         textDocument: VersionedTextDocumentIdentifier
         contentChanges: TextDocumentContentChangeEvent[]
+    PublishDiagnosticsParams:
+        uri: string
+        version ?: int
+        diagnostics: Diagnostic[]
     TextDocumentSyncOptions:
         openClose ?: bool
         change ?: int
@@ -205,28 +210,66 @@ proc notify(s: Stream, `method`: string) =
     s.sendMessage NotificationMessage.create(jsonrpc, `method`, none JsonNode).JsonNode
 proc notify(s: Stream, `method`: string, params: JsonNode) =
     s.sendMessage NotificationMessage.create(jsonrpc, `method`, some params).JsonNode
+proc notify(s: Stream, p: (string, JsonNode)) =
+    s.notify(p[0], p[1])
+type
+    Window = object
+        s: Stream
+proc window(s: Stream): Window = Window(s: s)
+proc `window/showMessage`(msg: string, msgtype: MessageType = MessageType.Log): (string, JsonNode) =
+    (
+        "window/showMessage",
+        ShowMessageParams.create(
+            msgtype.int,
+            msg
+        ).JsonNode
+    )
+proc showMessage(window: Window, msg: string, msgtype: MessageType = MessageType.Log) =
+    window.s.notify `window/showMessage`("[regino]: " & msg, msgtype)
+
 proc `textDocument/didOpen`(s: Stream, params: JsonNode) =
     if params.isValid(DidOpenTextDocumentParams):
         let
             params = DidOpenTextDocumentParams(params)
+            textDocument = params["textDocument"]
+            uri = textDocument["uri"].getStr
+            text = textDocument["text"].getStr
+            parser = newParser()
+            res = parser.parse(uri, text)
+        s.window.showMessage(fmt"Got didOpen notificfation {uri}")
+        let
+            diags = parser.errs.mapIt(
+                Diagnostic.create(
+                    Range.create(
+                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character),
+                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character+1),
+                        # Position.create(it.loc.`range`.b.line, it.loc.`range`.b.character)
+                    ),
+                    some DiagnosticSeverity.Error.int,
+                    none int,
+                    none CodeDescription,
+                    none string,
+                    $it,
+                    none seq[int],
+                    none seq[DiagnosticRelatedInformation],
+                    none JsonNode
+                )
+            )
         s.notify(
-            "window/showMessage",
-            ShowMessageParams.create(
-                MessageType.Log.int,
-                "Got didOpen notificfation"
+            "textDocument/publishDiagnostics",
+            PublishDiagnosticsParams.create(
+                uri,
+                none int,
+                diags
             ).JsonNode
         )
 proc `textDocument/didChange`(s: Stream, params: JsonNode) =
     if params.isValid(DidChangeTextDocumentParams):
         let
             params = DidChangeTextDocumentParams(params)
-        s.notify(
-            "window/showMessage",
-            ShowMessageParams.create(
-                MessageType.Log.int,
-                "Got didChange notificfation"
-            ).JsonNode
-        )
+            textDocument = params["textDocument"]
+            uri = textDocument["uri"].getStr
+        s.window.showMessage(fmt"Got didChange notificfation: {uri}")
 proc Lsp*(): int =
     let
         instream = stdin.newFileStream
@@ -242,6 +285,7 @@ proc Lsp*(): int =
                 s.sendMessage msg.response(n)
             case `method`
             of "initialize":
+                outstream.window.showMessage("Got initilize request")
                 outstream.respond InitializeResult.create(
                     ServerCapabilities.create(
                         some TextDocumentSyncOptions.create(
@@ -271,7 +315,8 @@ proc Lsp*(): int =
 
 when isMainModule:
     let
-        instream = stdin.newFileStream
-        msg = instream.readMessage
-    echo msg.isValid(RequestMessage)
-    echo msg
+        parser = newParser()
+    echo parser.parse("test/test04.rgn")
+    for err in parser.errs:
+        echo err
+    echo parser.errs.len
