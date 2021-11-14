@@ -92,7 +92,11 @@ proc apply*(self: Substitution, t: ref Type): ref Type =
         discard
     of TypeKind.List:
         t.elem = self.apply t.elem
-    of TypeKind.Tuple, TypeKind.Intersection:
+    of TypeKind.Pair:
+        t.first = self.apply t.first
+        t.second = self.apply t.second
+    # of TypeKind.Tuple, TypeKind.Intersection:
+    of TypeKind.Intersection:
         for i in 0..<t.types.len:
             t.types[i] = self.apply t.types[i]
     of TypeKind.Record:

@@ -23,6 +23,8 @@ proc `<=`*(env: TypeEnv, t1, t2: ref Type): bool =
         true
     elif t1.kind != TypeKind.Var and t1 == t2:
         true
+    elif t1.kind == TypeKind.Pair and t2.kind == TypeKind.Pair:
+        `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
     else:
         # echo env.typeOrder[^1].path(t1, t2)
         # env.typeOrder.anyIt((t1, t2) in it)
@@ -128,12 +130,15 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Type) =
             return
         of TypeKind.List:
             self.resolveRelation(t1.base, t2.base)
-        of TypeKind.Tuple:
-            if t1.types.len == t2.types.len:
-                for (t1, t2) in t1.types.zip(t2.types):
-                    self.resolveRelation(t1, t2)
-            else:
-                raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+        of TypeKind.Pair:
+            self.resolveRelation(t1.first, t2.first)
+            self.resolveRelation(t1.second, t2.second)
+        # of TypeKind.Tuple:
+        #     if t1.types.len == t2.types.len:
+        #         for (t1, t2) in t1.types.zip(t2.types):
+        #             self.resolveRelation(t1, t2)
+        #     else:
+        #         raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
         of TypeKind.Record:
             # TODO: implment for record
             raise newException(TypeError, "notimplemented")
@@ -143,7 +148,7 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Type) =
             self.resolveRelation(t1.rety, t2.rety)
         of TypeKind.Typedesc:
             self.resolveRelation(t1.typ, t2.typ)
-        else:
+        of TypeKind.Var:
             t1.tv.ub = self.lub(t1.tv.ub, t2.tv.ub)
             t2.tv.lb = self.glb(t1.tv.lb, t2.tv.lb)
             if t1.tv.ub == t1.tv.lb:
@@ -152,6 +157,13 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Type) =
                 self.bindtv(t2, t2.tv.ub)
             if t1.kind == TypeKind.Var and t2.kind == TypeKind.Var:
                 self.tvconstraints.add (t1, t2)
+        else:
+            echo t1
+            echo t2
+            echo t1.symbol
+            echo t2.symbol
+            echo self.constraints
+            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
     else:
         if t1.kind == TypeKind.Var:
             # TODO: if lb >= t2
@@ -186,6 +198,26 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Type) =
                     self.constraints.add (t2.rety, t3.rety)
             else:
                 self.bindtv(t1, Type.Intersection(l.mapIt(it[0])))
+        # elif t2.kind == TypeKind.Tuple:
+        #     case t2.types.len
+        #     of 0:
+        #         self.constraints.add (t1, Type.Unit)
+        #     of 1:
+        #         self.constraints.add (t1, Type.Pair(t2.types[0], Type.Unit))
+        #     of 2:
+        #         self.constraints.add (t1, Type.Pair(t2.types[0], t2.types[1]))
+        #     else:
+        #         self.constraints.add (t1, Type.Pair(t2.types[0], Type.Tuple(t2.types[1..^1])))
+        # elif t1.kind == TypeKind.Tuple:
+        #     case t1.types.len
+        #     of 0:
+        #         self.constraints.add (Type.Unit, t2)
+        #     of 1:
+        #         self.constraints.add (Type.Pair(t1.types[0], Type.Unit), t2)
+        #     of 2:
+        #         self.constraints.add (Type.Pair(t1.types[0], t1.types[1]), t2)
+        #     else:
+        #         self.constraints.add (Type.Pair(t1.types[0], Type.Tuple(t1.types[1..^1])), t2)
         elif t1 <= t2:
             discard
         else:
@@ -242,7 +274,14 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
     of TermKind.List:
         Type.Unit
     of TermKind.Tuple:
-        Type.Tuple(self.seqval.mapIt(it.typeInfer(env, global)))
+        case self.seqval.len
+        of 0:
+            Type.Unit
+        of 1:
+            Type.Pair(self.seqval[0].typeInfer(env, global), Type.Unit)
+        else:
+            self.seqval.mapIt(it.typeInfer(env, global)).foldr(Type.Pair(a, b))
+        # Type.Tuple(self.seqval.mapIt(it.typeInfer(env, global)))
     of TermKind.Record:
         Type.Unit
     of TermKind.Let:
@@ -396,12 +435,22 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
             callee = self.callee.typeInfer(env, global)
             args = self.args.mapIt(it.typeInfer(env, global))
             tv = Type.Var()
-        # env.coerceRelation(Type.Arrow(args, tv), callee) # ?
         env.coerceRelation(callee, Type.Arrow(args, tv))
         # TODO: if callee is not of Interseciion type, add tv < callee.rety
         if callee.kind == TypeKind.Arrow:
             env.coerceRelation(tv, callee.rety)
         tv
+    of TermKind.Projection:
+        let
+            container = self.container.typeInfer(env, global)
+            index = self.index
+            typ = Type.Pair(Type.Var, Type.Var)
+        env.coerceRelation(container, typ)
+        env.coerceRelation(typ, container)
+        if index == 0:
+            typ.first
+        else:
+            typ.second
     of TermKind.Meta:
         if not self.metadata.param.isNil:
             discard self.metadata.param.typeInfer(env, global)
@@ -452,7 +501,8 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
     of TermKind.List:
         self.check(Type.Unit)
     of TermKind.Tuple:
-        self.seqval.mapIt(it.typeCheck(env)).flatten & self.check(Type.Tuple(self.seqval.mapIt(it.typ)))
+        # self.seqval.mapIt(it.typeCheck(env)).flatten & self.check(Type.Tuple(self.seqval.mapIt(it.typ)))
+        self.seqval.mapIt(it.typeCheck(env)).flatten & self.check(self.seqval.mapIt(it.typ).foldr(Type.Pair(a, b)))
     of TermKind.Record:
         self.check(Type.Unit)
     of TermKind.Let:
@@ -606,6 +656,17 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
                     arg.typ = t2
                 self.args[i] = arg
         ret
+    of TermKind.Projection:
+        let
+            ret = self.container.typeCheck(env)
+            container = self.container.typ
+            index = self.index
+        # assert container.kind == TypeKind.Tuple
+        assert container.kind == TypeKind.Pair
+        ret & (if index == 0:
+            self.check(container.first)
+        else:
+            self.check(container.second))
     of TermKind.Meta:
         # if not self.metadata.param.isNil:
         #     discard self.metadata.param.typeInfer(env, global)

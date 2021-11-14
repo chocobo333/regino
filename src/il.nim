@@ -47,6 +47,7 @@ type
         Typeof
         Discard
         Apply
+        Projection
         Meta
         Seq
 
@@ -179,6 +180,9 @@ type
         of Apply:
             callee*: ref Term
             args*: seq[ref Term]
+        of Projection:
+            container*: ref Term
+            index*: range[0..1]
         of TermKind.Meta:
             metadata*: Metadata
         of Seq:
@@ -194,7 +198,8 @@ type
         Char
         String
         List
-        Tuple
+        Pair
+        # Tuple
         Record
         Arrow
         Typedesc
@@ -219,7 +224,11 @@ type
             nil
         of TypeKind.List:
             elem*: ref Type
-        of TypeKind.Tuple, TypeKind.Intersection:
+        of TypeKind.Pair:
+            first*: ref Type
+            second*: ref Type
+        # of TypeKind.Tuple, TypeKind.Intersection:
+        of TypeKind.Intersection:
             types*: seq[ref Type]
         of TypeKind.Record:
             idtypes*: seq[(Ident, ref Type)]
@@ -363,7 +372,10 @@ suite Type:
                 true
             of TypeKind.List:
                 self.elem == other.elem
-            of TypeKind.Tuple, TypeKind.Intersection:
+            of TypeKind.Pair:
+                self.first == other.first and self.second == other.second
+            # of TypeKind.Tuple, TypeKind.Intersection:
+            of TypeKind.Intersection:
                 self.types.zip(other.types).mapIt(it[0] == it[1]).foldl(a and b)
             of TypeKind.Record:
                 self.idtypes.zip(other.idtypes).mapIt(it[0] == it[1]).foldl(a and b)
@@ -408,8 +420,10 @@ suite Type:
             "string"
         of TypeKind.List:
             fmt"[{self.base[]}]"
-        of TypeKind.Tuple:
-            "(" & self.types.mapIt($it[]).join(", ") & ")"
+        of TypeKind.Pair:
+            fmt"({self.first}, {self.second})"
+        # of TypeKind.Tuple:
+        #     "(" & self.types.mapIt($it[]).join(", ") & ")"
         of TypeKind.Record:
             "{" & self.idtypes.mapIt(fmt"{it[0]}: {it[1][]}").join(", ") & "}"
         of TypeKind.Arrow:
@@ -470,9 +484,12 @@ suite Type:
     proc List*(_: typedesc[Type], elem: ref Type): ref Type =
         result = new Type
         result[] = Type(kind: TypeKind.List, elem: elem)
-    proc Tuple*(_: typedesc[Type], types: seq[ref Type]): ref Type =
+    proc Pair*(_: typedesc[Type], first, second: ref Type): ref Type =
         result = new Type
-        result[] = Type(kind: TypeKind.Tuple, types: types)
+        result[] = Type(kind: TypeKind.Pair, first: first, second: second)
+    # proc Tuple*(_: typedesc[Type], types: seq[ref Type]): ref Type =
+    #     result = new Type
+    #     result[] = Type(kind: TypeKind.Tuple, types: types)
     proc Record*(_: typedesc[Type], idtypes: seq[(Ident, ref Type)]): ref Type =
         result = new Type
         result[] = Type(kind: TypeKind.Record, idtypes: idtypes)
@@ -509,7 +526,10 @@ suite Type:
             true
         of TypeKind.List:
             true
-        of TypeKind.Tuple, TypeKind.Intersection:
+        of TypeKind.Pair:
+            self.first.hasRegion or self.second.hasRegion
+        # of TypeKind.Tuple, TypeKind.Intersection:
+        of TypeKind.Intersection:
             self.types.any(hasRegion)
         of TypeKind.Record:
             self.idtypes.anyIt(it[1].hasRegion)
@@ -529,8 +549,10 @@ suite Type:
             self.paramty.all(compilable) and self.rety.compilable
         of TypeKind.List:
             self.elem.compilable
-        of TypeKind.Tuple:
-            self.types.all(compilable)
+        of TypeKind.Pair:
+            self.first.compilable and self.second.compilable
+        # of TypeKind.Tuple:
+        #     self.types.all(compilable)
         of TypeKind.Intersection:
             false
         of TypeKind.Record:
@@ -661,6 +683,8 @@ suite Term:
             let
                 args = self.args.join(", ")
             fmt"{self.callee}({args})"
+        of TermKind.Projection:
+            fmt"{self.container}.{self.index}"
         of TermKind.Meta:
             fmt"{self.metadata}"
         of TermKind.Seq:
@@ -675,77 +699,7 @@ suite Term:
                     fmt" (: {it.typ})"
                 fmt"{it}{tmp}"
             self.terms.map(f).join("\n")
-    proc treeRepr*(self: ref Term): string =
-        let k = fmt"{($self.kind)[2..^1].green} {""@"".cyan} {($self.loc)}"
-        case self.kind:
-        of TermKind.Unit:
-            k
-        of TermKind.Bool:
-            ""
-        of TermKind.Integer:
-            ""
-        of TermKind.Float:
-            ""
-        of TermKind.Char:
-            ""
-        of TermKind.String:
-            ""
-        of TermKind.Id:
-            ""
-        of TermKind.Lambda:
-            ""
-        of TermKind.List:
-            ""
-        of TermKind.Tuple:
-            ""
-        of TermKind.Record:
-            ""
-        of TermKind.Let:
-            ""
-        of TermKind.Var:
-            ""
-        of TermKind.Const:
-            ""
-        of TermKind.Typedef:
-            ""
-        of TermKind.Funcdef:
-            ""
-        of TermKind.If:
-            ""
-        of TermKind.When:
-            ""
-        of TermKind.Case:
-            ""
-        of TermKind.While:
-            ""
-        of TermKind.For:
-            ""
-        of TermKind.Loop:
-            ""
-        of TermKind.Block:
-            ""
-        of TermKind.Asign:
-            ""
-        of TermKind.Typeof:
-            ""
-        of TermKind.Discard:
-            ""
-        of TermKind.Apply:
-            ""
-        of TermKind.Meta:
-            ""
-        of TermKind.Seq:
-            genGraphS(k, self.terms)
-        # of TermKind..akInt:
-        #     genGraph(k, self.intVal)
-        # of akFloat:
-        #     genGraph(k, self.floatVal)
-        # of akBool:
-        #     genGraph(k, self.boolVal)
-        # of akString..akId:
-        #     genGraph(k, &"\"{self.strVal}\"")
-        # else:
-        #     genGraphS(k, self.children)
+
     proc Unit*(_: typedesc[Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Unit)
@@ -827,6 +781,9 @@ suite Term:
     proc Apply*(_: typedesc[Term], callee: ref Term, args: seq[ref Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Apply, callee: callee, args: args)
+    proc Projection*(_: typedesc[Term], container: ref Term, index: range[0..1]): ref Term =
+        result = new Term
+        result[] = Term(kind: TermKind.Projection, container: container, index: index)
     proc Meta*(_: typedesc[Term], meta: Metadata): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Meta, metadata: meta)

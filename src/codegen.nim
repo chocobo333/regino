@@ -73,8 +73,8 @@ proc newLType(typ: ref Type, module: Module): LType =
             strtyp = cxt.createStruct("string")
             strtyp.body = @[pointerType(cxt.intType(8)), cxt.intType(32), cxt.intType(32)]
         strtyp
-    of il.TypeKind.Tuple:
-        cxt.createStruct(typ.types.mapIt(it.newLType(module)))
+    of il.TypeKind.Pair:
+        cxt.createStruct(@[typ.first.newLType(module), typ.second.newLType(module)])
     of il.TypeKind.Arrow:
         let
             paramty = typ.paramty.mapIt(it.newLType(module))
@@ -155,13 +155,16 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
         else:
             module.curBuilder.load(ty, val, name)
     of TermKind.Tuple:
-        var
-            typ = self.typ.newLType(module)
-            ret: Value = typ.undef
-        #we should insertvalue for constant value first.
-        for (i, term) in self.seqval.pairs:
-            ret = module.curBuilder.insertvalue(ret, term.codegen(module, global), i, $term)
-        ret
+        proc makeTuple(typ: ref Type, terms: seq[ref Term]): Value =
+            if typ.second.kind == il.TypeKind.Pair:
+                var ret = module.curBuilder.insertvalue(typ.newLType(module).undef, makeTuple(typ.second, terms[1..^1]), 1, $terms[1..^1])
+                module.curBuilder.insertvalue(ret, terms[0].codegen(module, global), 0, $terms[0])
+            else:
+                assert terms.len == 2, ""
+                var ret = module.curBuilder.insertvalue(typ.newLType(module).undef, terms[1].codegen(module, global), 1, $terms[1])
+                module.curBuilder.insertvalue(ret, terms[0].codegen(module, global), 0, $terms[0])
+
+        makeTuple(self.typ, self.seqval)
     of TermKind.Let:
         let
             id = self.iddef.id
@@ -263,6 +266,11 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
             module.curBuilder.load(rety, ret, $self)
         else:
             module.curBuilder.call(callee2, args2)
+    of TermKind.Projection:
+        let
+            container = self.container
+            index = self.index
+        module.curBuilder.extractvalue(container.codegen(module), index, $self)
     of TermKind.If:
         var
             thenbs = self.`elif`.mapIt(module.curFun.appendBasicBlock("then"))

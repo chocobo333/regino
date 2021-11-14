@@ -52,13 +52,12 @@ func fib(n: int) -> int:
         1
     else:
         fib(n-1) + fib(n-2)
-let a: bool = true
+
+let a = 1
 echo a
-a = false
-echo a
-let a = 3
-echo a
-let b = 3
-let a = (a, true)
-echo b = a[0]
+let a = (a+1, true, 0)
+let b = a.0
+echo b
+echo (a.1).0
+echo (a.1).1
 0
