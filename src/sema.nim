@@ -54,8 +54,9 @@ proc globalMetadada(self: ref Term, module: Module) =
 
 proc sema*(node: AstNode, module: Module): ref Term =
     var
-        tenv = newTypeEnv()
-        program = newTerm(node)
+        mainScope = newScope(nil)
+        tenv = newTypeEnv(mainScope)
+        program = newTerm(node, mainScope)
         rety = program.infer(tenv, true)
     program.globalMetadada(module)
     let
@@ -68,7 +69,7 @@ proc sema*(node: AstNode, module: Module): ref Term =
             assert rety.kind notin @[il.TypeKind.Unit, il.TypeKind.Integer]
             nil
         mainid = newIdent("main")
-        main = Term.Funcdef(newFunction(mainid, @[], tmp, program))
+        main = Term.Funcdef(newFunction(mainid, @[], tmp, newBody(program, mainScope)))
         mainty = Type.Arrow(@[], rety)
         sym = PSymbol.Func(mainid, PolyType.ForAll(nullFtv, mainty), main, true)
     tenv.addIdent(mainid, sym)
@@ -76,4 +77,5 @@ proc sema*(node: AstNode, module: Module): ref Term =
     mainid.typ.symbol = some sym
     # mainid.typ.symbol.get.instances[mainid.typ] = Symbol()
     echo program
+    echo mainScope
     main

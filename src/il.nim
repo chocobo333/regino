@@ -10,6 +10,7 @@ import tables
 import coloredString
 
 import lineinfos
+import orders
 
 import utils
 import eat/utils as eutils
@@ -78,7 +79,17 @@ type
         id*: Ident  # string?
         param*: FunctionParam
         metadata*: Option[Metadata]
-        body*: ref Term
+        body*: Body
+
+    Body* = object
+        term*: ref Term
+        scope*: Scope
+
+    Scope* = ref object
+        parent*: Scope
+        syms*: Table[string, seq[PSymbol]]
+        typeOrder*: Order[ref Type]  # cumulative
+        converters*: Table[(ref Type, ref Type), Ident]
 
     MetadataKind* {.pure.} = enum
         Link
@@ -136,7 +147,7 @@ type
             name*: string
         of Lambda:
             param*: IdentDefs
-            body*: ref Term
+            body*: Body
         of TermKind.Tuple, TermKind.List:
             seqval*: seq[Term]
         of TermKind.Record:
@@ -148,21 +159,21 @@ type
         of Funcdef:
             fn*: Function
         of If, When:
-            `elif`*: seq[(ref Term, ref Term)]
-            `else`*: ref Term
+            `elif`*: seq[(ref Term, Body)]
+            `else`*: Body
         of Case:
             matcher*: ref Term
             branches*: seq[(Term, Term)]
         of While:
             cond*: ref Term
-            wbody*: ref Term
+            wbody*: Body
         of Loop, Block:
             label*: Ident
-            `block`*: ref Term
+            `block`*: Body
         of For, Asign:
             pat*: ref Term
             val*: ref Term
-            forbody*: ref Term # for For
+            forbody*: Body # for For
         of Typeof, TermKind.Discard:
             term*: ref Term
         of Apply:
@@ -297,6 +308,15 @@ suite Metadata:
         Metadata(kind: MetadataKind.Subtype)
     proc Userdef*(_: typedesc[Metadata], name: string, param: ref Term): Metadata =
         Metadata(kind: MetadataKind.Userdef, param: param, name: name)
+
+suite Body:
+    proc `$`*(self: Body): string =
+        $self.term
+    proc newBody*(term: ref Term, scope: Scope): Body =
+        Body(
+            term: term,
+            scope: scope
+        )
 suite FunctionParam:
     proc `$`*(self: FunctionParam): string =
         let
@@ -315,7 +335,7 @@ suite Function:
             meta = if self.metadata.isSome: fmt" {self.metadata.get}" else: ""
             body = $self.body
         &"func {self.id.name}{self.param}{meta}:\n{body.indent(2)}"
-    proc newFunction*(id: Ident, paramty: IdentDefs, rety, body: ref Term, metadata: Option[Metadata] = none Metadata): Function =
+    proc newFunction*(id: Ident, paramty: IdentDefs, rety: ref Term, body: Body, metadata: Option[Metadata] = none Metadata): Function =
         Function(id: id, param: FunctionParam(params: paramty, rety: rety), body: body, metadata: metadata)
 
 suite TypeVar:
@@ -747,7 +767,7 @@ suite Term:
     proc Id*(_: typedesc[Term], name: string): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Id, name: name)
-    proc Lambda*(_: typedesc[Term], param: IdentDefs, body: ref Term): ref Term =
+    proc Lambda*(_: typedesc[Term], param: IdentDefs, body: Body): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Lambda, param: param, body: body)
     proc List*(_: typedesc[Term]): ref Term =
@@ -774,7 +794,7 @@ suite Term:
     proc Funcdef*(_: typedesc[Term], fn: Function): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Funcdef, fn: fn)
-    proc If*(_: typedesc[Term], `elif`: seq[(ref Term, ref Term)], `else`: ref Term): ref Term =
+    proc If*(_: typedesc[Term], `elif`: seq[(ref Term, Body)], `else`: Body): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.If, `elif`: `elif`, `else`: `else`)
     proc When*(_: typedesc[Term]): ref Term =
@@ -838,7 +858,8 @@ suite PSymbol:
                 "..."
             else:
                 $self.impl
-        fmt"({kind}){id}: {typ} (= {impl})"
+            loc = self.decl.loc
+        fmt"{loc}: ({kind}){id}: {typ} (= {impl})"
     var
         symid = 0
 
@@ -870,3 +891,38 @@ suite PSymbol:
 suite Symbol:
     proc `$`*(self: Symbol): string =
         $self[]
+
+suite Scope:
+    iterator items*(self: Scope): Scope =
+        ## The first element is the youngest scope
+        var scope = self
+        while not scope.isNil:
+            yield scope
+            scope = scope.parent
+
+    iterator reversed*(self: Scope): Scope =
+        ## The first element is the oldest scope
+        for scope in toSeq(self.items).reversed:
+            yield scope
+
+    proc `$`*(self: Scope): string =
+        var
+            tmp = self
+            scopes: seq[Table[string, seq[PSymbol]]]
+        while not tmp.isNil:
+            scopes.add tmp.syms
+            tmp = tmp.parent
+        if scopes.foldl(a + b.len, 0) == 0:
+            return "{}"
+        for scope in scopes:
+            for (key, val) in scope.pairs:
+                result &= &"\"{key}\": {val},\n"
+        result = &"{{\n{result[0..^3].indent(2)}\n}}"
+
+    proc newScope*(parent: Scope = nil): Scope =
+        Scope(
+            parent: parent,
+            syms: initTable[string, seq[PSymbol]](),
+            typeOrder: if parent.isNil: newOrder[ref Type]() else: parent.typeOrder,
+            converters: initTable[(ref Type, ref Type), Ident]()
+        )

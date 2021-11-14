@@ -227,7 +227,7 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
             sym.val = p
             sym.lty = typ
             discard module.curBuilder.store(fn2.param(i), p, name)
-        var ret = fn.body.codegen(module)
+        var ret = fn.body.term.codegen(module)
         if not ret.isNil:
             if retyhasregion:
                 discard module.curBuilder.store(ret, fn2.param(fn.param.params.len))
@@ -273,13 +273,13 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
         for i in 0..<thenbs.len:
             module.curBuilder.atEndOf(thenbs[i])
             module.curBB = thenbs[i]
-            let thenv = self.`elif`[i][1].codegen(module)
+            let thenv = self.`elif`[i][1].term.codegen(module)
             thenvs.add thenv
             module.curBuilder.br(ifcont)
 
         module.curBuilder.atEndOf(elseb)
         module.curBB = elseb
-        let elsev = self.`else`.codegen(module)
+        let elsev = self.`else`.term.codegen(module)
         module.curBuilder.br(ifcont)
 
         module.curBuilder.atEndOf(ifcont)

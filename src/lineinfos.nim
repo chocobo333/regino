@@ -20,6 +20,11 @@ type
 
 proc `$`*(self: Location): string =
     fmt"{self.uri}({self.`range`.a.line+1}, {self.`range`.a.character+1})"
+proc `end`*(self: Location): Location =
+    Location(
+        uri: self.uri,
+        `range`: self.`range`.b..self.`range`.b
+    )
 
 converter to*(pos: spanned.Position): lineinfos.Position =
     lineinfos.Position(

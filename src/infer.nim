@@ -26,7 +26,7 @@ proc `<=`*(env: TypeEnv, t1, t2: ref Type): bool =
     else:
         # echo env.typeOrder[^1].path(t1, t2)
         # env.typeOrder.anyIt((t1, t2) in it)
-        env.typeOrder[^1].path(t1, t2).isSome
+        env.scope.typeOrder.path(t1, t2).isSome
 proc `<=?`*(env: TypeEnv, t1, t2: ref Type): Option[seq[Constraint]] =
     if t1.kind == TypeKind.Bottom:
         some newSeq[Constraint]()
@@ -52,15 +52,15 @@ proc `<=?`*(env: TypeEnv, t1, t2: ref Type): Option[seq[Constraint]] =
         else:
             none(seq[Constraint])
     else:
-        if env.typeOrder.anyIt((t1, t2) in it):
+        if env.scope.typeOrder.path(t1, t2).isSome:
             some newSeq[Constraint]()
         else:
             none(seq[Constraint])
 
 template setTypeEnv(env: TypeEnv): untyped =
-    proc `<=`(t1, t2: ref Type): bool =
+    template `<=`(t1, t2: ref Type): bool =
         env.`<=`(t1, t2)
-    proc `<=?`(t1, t2: ref Type): Option[seq[Constraint]] =
+    template `<=?`(t1, t2: ref Type): Option[seq[Constraint]] =
         env.`<=?`(t1, t2)
 
 proc lub(self: TypeEnv, t1, t2: ref Type): ref Type =
@@ -93,8 +93,8 @@ proc addTypeRelation(self: var TypeEnv, t1, t2: ref Type, fn: Ident) =
     assert t1.kind == TypeKind.Typedesc
     assert t2.kind == TypeKind.Typedesc
     assert not (t2.typ <= t1.typ)
-    self.typeOrder[^1].add (t1.typ, t2.typ)
-    self.converters[(t1.typ, t2.typ)] = fn
+    self.scope.typeOrder.add (t1.typ, t2.typ)
+    self.scope.converters[(t1.typ, t2.typ)] = fn
 
 proc bindtv(self: TypeEnv, t1, t2: ref Type) =
     case t2.kind
@@ -114,10 +114,7 @@ proc bindtv(self: TypeEnv, t1, t2: ref Type) =
 proc resolveRelation(self: var TypeEnv, t1, t2: ref Type) =
     # implies t1 < t2
     # setTypeEnv(self)
-    template `<=`(t1, t2: ref Type): bool =
-        self.`<=`(t1, t2)
-    template `<=?`(t1, t2: ref Type): Option[seq[Constraint]] =
-        self.`<=?`(t1, t2)
+    setTypeEnv(self)
     # TODO: should change function name
     if t1.kind == TypeKind.Link:
         self.resolveRelation(t1.to, t2)
@@ -190,7 +187,7 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Type) =
             else:
                 self.bindtv(t1, Type.Intersection(l.mapIt(it[0])))
         elif t1 <= t2:
-            echo "debug: ", t1, " <= ", t2
+            discard
         else:
             echo t1
             echo t2
@@ -233,7 +230,10 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
     of TermKind.Id:
         let
             syms = env.lookupId(self.name)
-        if syms.len == 1:
+        case syms.len
+        of 0:
+            Type.Var
+        of 1:
             syms[0].ptyp.inst
         else:
             Type.Intersection(syms.mapIt(it.ptyp.inst))
@@ -312,14 +312,14 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
         else:
             env.coerceRelation(Type.TypeDesc(tv), rety)
             env.coerceRelation(rety, Type.TypeDesc(tv))
-        env.pushScope
+        env.pushScope self.fn.body.scope
         for (iddef, tv) in self.fn.param.params.zip(tvs):
             let
                 sym = PSymbol.Let(iddef.id, PolyType.ForAll(nullFtv, tv), iddef.default.get(Term.Unit), global)
             iddef.id.typ = tv
             env.addIdent(iddef.id, sym)
         let
-            inferedRety = self.fn.body.typeInfer(env)
+            inferedRety = self.fn.body.term.typeInfer(env)
         env.popScope
         if metadata.isSome:
             case metadata.get.kind
@@ -338,8 +338,18 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
     of TermKind.If:
         let
             conds = self.`elif`.mapIt(it[0].typeInfer(env, global))
-            thents = self.`elif`.mapIt(it[1].typeInfer(env, global))
-            elset = self.`else`.typeInfer(env, global)
+            thents = self.`elif`.mapIt(
+                block:
+                    env.pushScope it[1].scope
+                    let body = it[1].term.typeInfer(env, global)
+                    env.popScope
+                    body
+                )
+            elset = block:
+                env.pushScope self.`else`.scope
+                let body = self.`else`.term.typeInfer(env, global)
+                env.popScope
+                body
             tv = Type.Var
         for cond in conds:
             env.coerceRelation(cond, Type.Bool)
@@ -395,15 +405,13 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
         terms[^1]
     self.typ = result
 
-proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
+proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
     setTypeEnv(env)
-    # template `<=`(t1, t2: ref Type): bool =
-    #     self.`<=`(t1, t2)
-    # template `<=?`(t1, t2: ref Type): Option[seq[Constraint]] =
-    #     self.`<=?`(t1, t2)
     if self.typ.kind == TypeKind.Var:
         if self.typ.tv.lb.compilable:
             env.bindtv(self.typ, self.typ.tv.lb)
+        elif self.kind == TermKind.Id and self.typ.symbol.isNone:
+            return @[SemaError.Undefined(self.name)]
         else:
             return @[TypeError.Undeciable]
     proc check(self: ref Term, typ2: ref Type): seq[Error] =
@@ -425,9 +433,10 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
     of TermKind.String:
         self.check(Type.String)
     of TermKind.Id:
-        assert self.typ.symbol.isSome
-        # self.typ.symbol.get.instances[self.typ] = Symbol()
-        @[]
+        if self.typ.symbol.isSome:
+            @[]
+        else:
+            @[SemaError.Undefined(self.name)]
     of TermKind.Lambda:
         self.check(Type.Unit)
     of TermKind.List:
@@ -451,7 +460,7 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
         assert impl.typ <= id.typ, fmt"{impl.typ} <= {id.typ}"
         if impl.typ != id.typ and impl.typ <= id.typ:
             let
-                fn = env.converters[(impl.typ, id.typ)]
+                fn = env.lookupConverter(impl.typ, id.typ)
                 impl = Term.Apply(fn, @[impl])
             impl.typ = id.typ
             self.iddef.default = some impl
@@ -469,12 +478,15 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
         #     env.addIdent(id, sym)
         self.check(Type.Unit)
     of TermKind.Funcdef:
-        let
+        var
             # paramty = self.fn.param.params.mapIt(it.typ.get.typeInfer(env, global))
             # rety = self.fn.param.rety.typeInfer(env, global)
             ret = self.fn.param.params.mapIt(it.typ.get.typeCheck(env)).flatten &
                 self.fn.param.params.mapIt(it.id.typeCheck(env)).flatten &
                 self.fn.id.typeCheck(env) & self.fn.param.rety.typeCheck(env)
+        env.pushScope self.fn.body.scope
+        ret.add self.fn.body.term.typeCheck(env)
+        env.popScope
         #     metadata = self.fn.metadata
         #     tvs = paramty.mapIt(Type.Var())
         #     tv = Type.Var()
@@ -515,11 +527,21 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
     of TermKind.If:
         let
             conds = self.`elif`.mapIt(it[0].typeCheck(env))
-            thens = self.`elif`.mapIt(it[1].typeCheck(env))
-            elset = self.`else`.typeCheck(env)
+            thens = self.`elif`.mapIt(
+                block:
+                    env.pushScope it[1].scope
+                    let res = it[1].term.typeCheck(env)
+                    env.popScope
+                    res
+            )
+            elset = block:
+                env.pushScope self.`else`.scope
+                let res = self.`else`.term.typeCheck(env)
+                env.popScope
+                res
             condtypes = self.`elif`.mapIt(it[0].typ)
-            thentypes = self.`elif`.mapIt(it[1].typ)
-            elsetype = self.`else`.typ
+            thentypes = self.`elif`.mapIt(it[1].term.typ)
+            elsetype = self.`else`.term.typ
         for cond in condtypes:
             assert cond == Type.Bool
         # for thent in thents:
@@ -545,7 +567,7 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
         assert self.val.typ <= self.pat.typ, fmt"{self.val.typ} <= {self.pat.typ}"
         if self.val.typ != self.pat.typ and self.val.typ <= self.pat.typ:
             let
-                fn = env.converters[(self.val.typ, self.pat.typ)]
+                fn = env.lookupConverter(self.val.typ, self.pat.typ)
                 val = Term.Apply(fn, @[self.val])
             val.typ = self.pat.typ
             self.val = val
@@ -564,12 +586,12 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
             assert argty <= paramty, fmt"{argty} <= {paramty}"
             if argty != paramty and argty <= paramty:
                 let
-                    p = env.typeOrder[^1].path(argty, paramty).get
+                    p = env.scope.typeOrder.path(argty, paramty).get
                 var
                     arg = self.args[i]
                 for (t1, t2) in p:
                     let
-                        fn = env.converters[(t1, t2)]
+                        fn = env.lookupConverter(t1, t2)
                     arg = Term.Apply(fn, @[arg])
                     arg.typ = t2
                 self.args[i] = arg
@@ -607,7 +629,5 @@ proc infer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Type =
     env.resolveRelations()
     let errs = self.typeCheck(env)
     if errs.len > 0:
-        var err: ref Error = new(Error)
-        err[] = errs[0]
-        raise err
+        errs[0].`raise`
 

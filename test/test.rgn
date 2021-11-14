@@ -37,6 +37,11 @@ func toInt(a: bool) -> int ![subtype]:
         1
     else:
         0
+func `$`(a: bool) -> string ![subtype]:
+    if a:
+        "true"
+    else:
+        "false"
 func echo(a: string) ![importll]
 func len(a: string) -> int ![importll]
 
@@ -49,9 +54,6 @@ func fib(n: int) -> int:
         fib(n-1) + fib(n-2)
 var a = true
 echo a
-a = 3
-echo a
-a = true
-echo a
-echo true
+let a = 3
+echo 3
 0
