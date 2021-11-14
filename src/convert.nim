@@ -195,6 +195,11 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
             newTerm(akCall.newTreeNode(@[callee.children[1], callee.children[0]] & args), scope)
         else:
             Term.Apply(newTerm(callee, scope), args.mapIt(newTerm(it, scope)))
+    of akTuple:
+        if n.children.len == 0:
+            Term.Unit()
+        else:
+            Term.Tuple(n.children.mapIt(it.newTerm(scope)))
     of akInt:
         Term.Integer(n.intVal)
     of akFloat:

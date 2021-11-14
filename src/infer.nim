@@ -242,7 +242,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
     of TermKind.List:
         Type.Unit
     of TermKind.Tuple:
-        Type.Unit
+        Type.Tuple(self.seqval.mapIt(it.typeInfer(env, global)))
     of TermKind.Record:
         Type.Unit
     of TermKind.Let:
@@ -258,8 +258,6 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
             else:
                 PSymbol.Let(id, PolyType.ForAll(nullFtv, tv), impl, global)
             # sym = PSymbol.Let(t1.gen(env))
-        id.typ = tv
-        env.addIdent(id, sym)
         if self.iddef.typ.isSome:
             let
                 typ = self.iddef.typ.get.typeInfer(env, global)
@@ -267,6 +265,8 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
             env.coerceRelation(typ, Type.Typedesc(tv))
         env.coerceRelation(t1, tv)
         env.coerceRelation(tv, t1)
+        id.typ = tv
+        env.addIdent(id, sym)
         Type.Unit
     of TermKind.Var:
         let
@@ -281,14 +281,14 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
             else:
                 PSymbol.Let(id, PolyType.ForAll(nullFtv, tv), impl, global)
             # sym = PSymbol.Let(t1.gen(env))
-        id.typ = tv
-        env.addIdent(id, sym)
         if self.iddef.typ.isSome:
             let
                 typ = self.iddef.typ.get.typeInfer(env, global)
             env.coerceRelation(Type.Typedesc(tv), typ)
             env.coerceRelation(typ, Type.Typedesc(tv))
         env.coerceRelation(t1, tv)
+        id.typ = tv
+        env.addIdent(id, sym)
         Type.Unit
     of TermKind.Const:
         Type.Unit
@@ -452,7 +452,7 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
     of TermKind.List:
         self.check(Type.Unit)
     of TermKind.Tuple:
-        self.check(Type.Unit)
+        self.seqval.mapIt(it.typeCheck(env)).flatten & self.check(Type.Tuple(self.seqval.mapIt(it.typ)))
     of TermKind.Record:
         self.check(Type.Unit)
     of TermKind.Let:

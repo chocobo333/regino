@@ -54,6 +54,10 @@ func fib(n: int) -> int:
         fib(n-1) + fib(n-2)
 let a: bool = true
 echo a
+a = false
+echo a
 let a = 3
-echo 3
+echo a
+let b = 3
+let a = (a, true)
 0

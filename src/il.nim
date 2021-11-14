@@ -149,7 +149,7 @@ type
             param*: IdentDefs
             body*: Body
         of TermKind.Tuple, TermKind.List:
-            seqval*: seq[Term]
+            seqval*: seq[ref Term]
         of TermKind.Record:
             recordval*: seq[(Term, Term)]
         of Let, Var, Const:
@@ -773,9 +773,9 @@ suite Term:
     proc List*(_: typedesc[Term]): ref Term =
         result = new Term
         result[] = Term()
-    proc Tuple*(_: typedesc[Term]): ref Term =
+    proc Tuple*(_: typedesc[Term], terms: seq[ref Term]): ref Term =
         result = new Term
-        result[] = Term()
+        result[] = Term(kind: TermKind.Tuple, seqval: terms)
     proc Record*(_: typedesc[Term]): ref Term =
         result = new Term
         result[] = Term()

@@ -73,6 +73,8 @@ proc newLType(typ: ref Type, module: Module): LType =
             strtyp = cxt.createStruct("string")
             strtyp.body = @[pointerType(cxt.intType(8)), cxt.intType(32), cxt.intType(32)]
         strtyp
+    of il.TypeKind.Tuple:
+        cxt.createStruct(typ.types.mapIt(it.newLType(module)))
     of il.TypeKind.Arrow:
         let
             paramty = typ.paramty.mapIt(it.newLType(module))
@@ -149,10 +151,17 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
             val = sym.val
             ty = sym.lty
         if lval:
-            # echo val
             val
         else:
             module.curBuilder.load(ty, val, name)
+    of TermKind.Tuple:
+        var
+            typ = self.typ.newLType(module)
+            ret: Value = typ.undef
+        #we should insertvalue for constant value first.
+        for (i, term) in self.seqval.pairs:
+            ret = module.curBuilder.insertvalue(ret, term.codegen(module, global), i, $term)
+        ret
     of TermKind.Let:
         let
             id = self.iddef.id
