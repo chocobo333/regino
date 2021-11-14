@@ -404,7 +404,8 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     # atom
     Atom: AstNode = ?Operators + alt(
         Literal, Id,
-        delimited(lpar, Expr, rpar)
+        delimited(lpar, Expr, rpar),
+        Tuple
     )                                                   @ proc(it: (Option[AstNode], AstNode)): auto =
                                                             let (op, atom) = it
                                                             if op.isSome:
@@ -431,6 +432,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         Boolean,
         String
     )
+    Tuple = delimited(lpar, Expr^*(comma), rpar)        @ (it => akTuple.newTreeNode(it))
     DiscardPattern = us                                 @ (it => akDiscardPattern.newNode())
     IdPattern = Id                                      @ (it => akIdPattern.newTreeNode(@[it]))
     LiteralPattern = Literal                            @ (it => akLiteralPattern.newTreeNode(@[it]))
