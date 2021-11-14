@@ -227,7 +227,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     LetSection = s"let" + Section                       @ (it => akLetSection.newTreeNode(it[1]).seta(it[0].pos))
     VarSection = s"var" + Section                       @ (it => akVarSection.newTreeNode(it[1]).seta(it[0].pos))
     ConstSection = s"const" + Section                   @ (it => akConstSection.newTreeNode(it[1]).seta(it[0].pos))
-    AliasSection = s"alias" + Section                   @ (it => akAliasSection.newTreeNode(it[1]).seta(it[0].pos))
+    AliasSection = s"type" + Section                   @ (it => akAliasSection.newTreeNode(it[1]).seta(it[0].pos))
     ParamList: seq[AstNode] = separated0(
         IdentDef,
         comma

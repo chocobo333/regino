@@ -5,7 +5,7 @@
 ![link: "string.ll"]
 
 
-alias
+type
     bool = typeof(false)
     int = typeof(0)
     float = typeof(0.0)

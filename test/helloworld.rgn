@@ -1,0 +1,8 @@
+![link: "io.ll"]
+
+type
+    string = typeof("")
+func echo(a: string) ![importll]
+
+echo "Hello, world!"
+0
