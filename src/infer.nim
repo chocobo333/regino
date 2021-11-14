@@ -260,6 +260,11 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
             # sym = PSymbol.Let(t1.gen(env))
         id.typ = tv
         env.addIdent(id, sym)
+        if self.iddef.typ.isSome:
+            let
+                typ = self.iddef.typ.get.typeInfer(env, global)
+            env.coerceRelation(Type.Typedesc(tv), typ)
+            env.coerceRelation(typ, Type.Typedesc(tv))
         env.coerceRelation(t1, tv)
         env.coerceRelation(tv, t1)
         Type.Unit
@@ -278,6 +283,11 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
             # sym = PSymbol.Let(t1.gen(env))
         id.typ = tv
         env.addIdent(id, sym)
+        if self.iddef.typ.isSome:
+            let
+                typ = self.iddef.typ.get.typeInfer(env, global)
+            env.coerceRelation(Type.Typedesc(tv), typ)
+            env.coerceRelation(typ, Type.Typedesc(tv))
         env.coerceRelation(t1, tv)
         Type.Unit
     of TermKind.Const:

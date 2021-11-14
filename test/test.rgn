@@ -52,7 +52,7 @@ func fib(n: int) -> int:
         1
     else:
         fib(n-1) + fib(n-2)
-var a = true
+let a: bool = true
 echo a
 let a = 3
 echo 3

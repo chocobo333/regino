@@ -1,5 +1,4 @@
 ## 
-* typed let or var declaration
 * tuple, list, record and distinct type
 * module system
 * type classes; trait

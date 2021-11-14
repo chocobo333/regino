@@ -33,9 +33,11 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
                     default = it.children[2]
                 assert aid.kind == akId, ""
                 let id = newTerm(aid, scope)
-                assert typ.isEmpty(), "notimplemented type annotation"
                 assert not default.isNil, "let section needs initialization"
-                Term.Let(newIdentDef(id, default=newTerm(default, scope)))
+                if typ.isEmpty():
+                    Term.Let(newIdentDef(id, default=newTerm(default, scope)))
+                else:
+                    Term.Let(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
         )
         Term.Seq(ts)
     of akVarSection:
@@ -49,9 +51,12 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
                     default = it.children[2]
                 assert aid.kind == akId, ""
                 let id = newTerm(aid, scope)
-                assert typ.isEmpty(), "notimplemented type annotation"
                 assert not default.isNil, "let section needs initialization"
-                Term.Var(newIdentDef(id, default=newTerm(default, scope)))
+                if typ.isEmpty():
+                    Term.Var(newIdentDef(id, default=newTerm(default, scope)))
+                else:
+                    Term.Var(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
+
         )
         Term.Seq(ts)
     of akAliasSection:
