@@ -55,9 +55,12 @@ func fib(n: int) -> int:
 
 let a = 1
 echo a
-let a = (a+1, true, 0)
+let a = (0, a+1, true)
 let b = a.0
 echo b
-echo (a.1).0
-echo (a.1).1
+echo a.1.0
+echo a.1.1
+let c = a.1
+echo c.0
+echo c.1
 0

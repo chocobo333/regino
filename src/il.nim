@@ -13,7 +13,7 @@ import lineinfos
 import orders
 
 import utils
-import eat/utils as eutils
+
 
 from llvm import Value
 

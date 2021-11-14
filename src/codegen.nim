@@ -165,6 +165,22 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
                 module.curBuilder.insertvalue(ret, terms[0].codegen(module, global), 0, $terms[0])
 
         makeTuple(self.typ, self.seqval)
+        # let
+        #     typ = block:
+        #         var
+        #             typ = self.typ
+        #             elemtyp: seq[LType]
+        #         while typ.kind == il.TypeKind.Pair:
+        #             elemtyp.add typ.first.newLType(module)
+        #             typ = typ.second
+        #         elemtyp.add typ.newLType(module)
+        #         module.cxt.createStruct(
+        #             elemtyp
+        #         )
+        # var ret: Value = typ.undef
+        # for (i, term) in self.seqval.pairs:
+        #     ret = module.curBuilder.insertvalue(ret, term.codegen(module, global), i, $term)
+        # module.curBuilder.bitcast(ret, self.typ.newLType(module))
     of TermKind.Let:
         let
             id = self.iddef.id

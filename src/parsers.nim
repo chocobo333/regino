@@ -346,6 +346,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     )
     Trailer: (AstKind, seq[AstNode]) = alt(
         delimited(!sp1, Operators, !(Atom ^ sp0))       @ (it => (akPostfix, @[it])),
+        preceded(dot ^ sp0, Int)                       @ (it => (akDot, @[it])),
         preceded(dot ^ sp0, Atom)                       @ (it => (akDot, @[it])),
         preceded(sp1 + !terminated(Operators, sp1), ArgList1) @ (it => (akCommand, it)),
         delimited(lpar, ArgList, rpar)                  @ (it => (akCall, it)),
