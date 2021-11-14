@@ -60,4 +60,5 @@ let a = 3
 echo a
 let b = 3
 let a = (a, true)
+echo b = a[0]
 0

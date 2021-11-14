@@ -182,6 +182,11 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
                 assert args.len == 1
                 return Term.TypeOf(newTerm(args[0], scope))
         Term.Apply(newTerm(callee, scope), args.mapIt(newTerm(it, scope)))
+    of akBracketExpr:
+        let
+            callee = Term.Id("[]")
+            args = n.children
+        Term.Apply(callee, args.mapIt(it.newTerm(scope)))
     of akCommand, akCall:
         let
             callee = n.children[0]

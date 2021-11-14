@@ -42,6 +42,7 @@ type
         akPrefix
         akPostfix
         akDot
+        akBracketExpr
         akCommand
         akCall
         akTuple
@@ -199,6 +200,8 @@ proc repr*(self: AstNode, ind: uint = 2): string =
         ""
     of akDot:
         ""
+    of akBracketExpr:
+        $self.children[0] & "[" & self.children[1..^1].join(", ") & "]"
     of akCommand:
         var
             args = self.children[1..^1].map(repr2).join(", ")

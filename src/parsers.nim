@@ -349,11 +349,13 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         preceded(dot ^ sp0, Atom)                       @ (it => (akDot, @[it])),
         preceded(sp1 + !terminated(Operators, sp1), ArgList1) @ (it => (akCommand, it)),
         delimited(lpar, ArgList, rpar)                  @ (it => (akCall, it)),
+        delimited(lbra, ArgList, rbra)                  @ (it => (akBracketExpr, it)),
     )
     TrailerNotCommand: (AstKind, seq[AstNode]) = alt(
         delimited(!sp1, Operators, !(Atom ^ sp0))       @ (it => (akPostfix, @[it])),
         preceded(dot ^ sp0, Atom)                       @ (it => (akDot, @[it])),
         delimited(lpar, ArgList, rpar)                  @ (it => (akCall, it)),
+        delimited(lbra, ArgList, rbra)                  @ (it => (akBracketExpr, it)),
     )
 
     PowerExpr = AtomExpr + *(powerop ^ sp0 + AtomExpr)  @ proc(it: auto): auto =
