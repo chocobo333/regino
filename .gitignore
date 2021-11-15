@@ -8,3 +8,6 @@ regino
 
 # Nim's cache files
 nimcache/
+
+tools/
+profile_results.txt

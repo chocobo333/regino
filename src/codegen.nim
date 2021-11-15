@@ -164,7 +164,7 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
                 var ret = module.curBuilder.insertvalue(typ.newLType(module).undef, terms[1].codegen(module, global), 1, $terms[1])
                 module.curBuilder.insertvalue(ret, terms[0].codegen(module, global), 0, $terms[0])
 
-        makeTuple(self.typ, self.seqval)
+        makeTuple(self.typ, self.terms)
         # let
         #     typ = block:
         #         var

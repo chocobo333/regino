@@ -149,8 +149,8 @@ type
         of Lambda:
             param*: IdentDefs
             body*: Body
-        of TermKind.Tuple, TermKind.List:
-            seqval*: seq[ref Term]
+        of Seq, TermKind.Tuple, TermKind.List:
+            terms*: seq[ref Term]
         of TermKind.Record:
             recordval*: seq[(Term, Term)]
         of Let, Var, Const:
@@ -185,8 +185,6 @@ type
             index*: range[0..1]
         of TermKind.Meta:
             metadata*: Metadata
-        of Seq:
-            terms*: seq[ref Term]
 
     TypeKind* {.pure.} = enum
         Bottom
@@ -635,10 +633,10 @@ suite Term:
         of TermKind.Lambda:
             fmt"λ{self.param}.{self.body}"
         of TermKind.List:
-            let s = self.seqval.map(`$`).join(", ")
+            let s = self.terms.map(`$`).join(", ")
             fmt"[{s}]"
         of TermKind.Tuple:
-            let s = self.seqval.map(`$`).join(", ")
+            let s = self.terms.map(`$`).join(", ")
             fmt"({s})"
         of TermKind.Record:
             # TODO: implement for record
@@ -729,7 +727,7 @@ suite Term:
         result[] = Term()
     proc Tuple*(_: typedesc[Term], terms: seq[ref Term]): ref Term =
         result = new Term
-        result[] = Term(kind: TermKind.Tuple, seqval: terms)
+        result[] = Term(kind: TermKind.Tuple, terms: terms)
     proc Record*(_: typedesc[Term]): ref Term =
         result = new Term
         result[] = Term()

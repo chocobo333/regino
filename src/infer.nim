@@ -273,13 +273,13 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Typ
     of TermKind.List:
         Type.Unit
     of TermKind.Tuple:
-        case self.seqval.len
+        case self.terms.len
         of 0:
             Type.Unit
         of 1:
-            Type.Pair(self.seqval[0].typeInfer(env, global), Type.Unit)
+            Type.Pair(self.terms[0].typeInfer(env, global), Type.Unit)
         else:
-            self.seqval.mapIt(it.typeInfer(env, global)).foldr(Type.Pair(a, b))
+            self.terms.mapIt(it.typeInfer(env, global)).foldr(Type.Pair(a, b))
         # Type.Tuple(self.seqval.mapIt(it.typeInfer(env, global)))
     of TermKind.Record:
         Type.Unit
@@ -501,7 +501,7 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
         self.check(Type.Unit)
     of TermKind.Tuple:
         # self.seqval.mapIt(it.typeCheck(env)).flatten & self.check(Type.Tuple(self.seqval.mapIt(it.typ)))
-        self.seqval.mapIt(it.typeCheck(env)).flatten & self.check(self.seqval.mapIt(it.typ).foldr(Type.Pair(a, b)))
+        self.terms.mapIt(it.typeCheck(env)).flatten & self.check(self.terms.mapIt(it.typ).foldr(Type.Pair(a, b)))
     of TermKind.Record:
         self.check(Type.Unit)
     of TermKind.Let:
