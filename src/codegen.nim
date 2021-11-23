@@ -77,7 +77,7 @@ proc newLType(typ: ref Value, module: Module): LType =
     of il.ValueKind.Pair:
         cxt.createStruct(@[typ.first.newLType(module), typ.second.newLType(module)])
     of il.ValueKind.Record:
-        cxt.createStruct(typ.members.mapIt(it[1].newLType(module)))
+        cxt.createStruct(toSeq(typ.members.values).mapIt(it.newLType(module)))
     # of il.ValueKind.Arrow:
     #     let
     #         paramty = typ.paramty.mapIt(it.newLType(module))

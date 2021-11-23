@@ -64,4 +64,4 @@ let (a, b, c) = c
 echo a
 echo b
 echo c
-a-2
+0

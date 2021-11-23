@@ -96,8 +96,8 @@ proc apply*(self: Substitution, t: ref Value): ref Value =
         t.first = self.apply t.first
         t.second = self.apply t.second
     of ValueKind.Record:
-        for i in 0..<t.members.len:
-            t.members[i][1] = self.apply t.members[i][1]
+        for key in t.members.keys:
+            t.members[key] = self.apply t.members[key]
     # of ValueKind.Tuple, ValueKind.Intersection:
     of ValueKind.Intersection:
         for i in 0..<t.types.len:

@@ -248,7 +248,7 @@ type
             first*: ref Value
             second*: ref Value
         of ValueKind.Record:
-            members*: seq[(Ident, ref Value)]
+            members*: Table[string, ref Value]
         # of ValueKind.Tuple, ValueKind.Intersection:
         of ValueKind.Intersection:
             types*: seq[ref Value]
@@ -454,16 +454,13 @@ suite Value:
             of ValueKind.Pair:
                 self.first == other.first and self.second == other.second
             of ValueKind.Record:
-                let
-                    st = self.members.mapIt((it[0].name, it[1])).toTable
-                    ot = other.members.mapIt((it[0].name, it[1])).toTable
-                if st.len == ot.len:
+                if self.members.len == other.members.len:
                     var ret = true
-                    for member in st.keys:
-                        if member notin ot:
+                    for member in self.members.keys:
+                        if member notin other.members:
                             ret = false
                         else:
-                            ret = ret and st[member] == ot[member]
+                            ret = ret and self.members[member] == other.members[member]
                     ret
                 else:
                     false
@@ -532,7 +529,7 @@ suite Value:
         of ValueKind.Pair:
             fmt"({self.first}, {self.second})"
         of ValueKind.Record:
-            let s = self.members.mapIt(fmt"{it[0]}: {it[1]}").join", "
+            let s = toSeq(self.members.pairs).mapIt(fmt"{it[0]}: {it[1]}").join", "
             fmt"({s})"
         # of ValueKind.Tuple:
         #     "(" & self.types.mapIt($it[]).join(", ") & ")"
@@ -620,7 +617,7 @@ suite Value:
     # proc Tuple*(_: typedesc[Value], types: seq[ref Value]): ref Value =
     #     result = new Value
     #     result[] = Value(kind: ValueKind.Tuple, types: types)
-    proc Record*(_: typedesc[Value], members: seq[(Ident, ref Value)]): ref Value =
+    proc Record*(_: typedesc[Value], members: Table[string, ref Value]): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Record, members: members)
     proc Arrow*(_: typedesc[Value], params: seq[ref Value], rety: ref Value): ref Value =
@@ -663,7 +660,7 @@ suite Value:
         of ValueKind.Pair:
             self.first.hasRegion or self.second.hasRegion
         of ValueKind.Record:
-            self.members.mapIt(it[1]).any(hasRegion)
+            toSeq(self.members.values).any(hasRegion)
         # of ValueKind.Tuple, ValueKind.Intersection:
         of ValueKind.Pi:
             true
@@ -695,7 +692,7 @@ suite Value:
         of ValueKind.Pair:
             self.first.compilable and self.second.compilable
         of ValueKind.Record:
-            self.members.mapIt(it[1]).all(compilable)
+            toSeq(self.members.values).all(compilable)
         # of ValueKind.Tuple:
         #     self.types.all(compilable)
         of ValueKind.Pi:
