@@ -43,7 +43,7 @@ proc compile*(filename: string) =
     discard parser.parse(filename).sema(module).codegen(module)
     for e in module.linkModules:
         discard module.module.link(e)
-    module = module.optimize
+    # module = module.optimize
     let f = open(filename.absolutePath.splitPath.head / "test.ll", fmWrite)
     f.write($module.module)
     defer:

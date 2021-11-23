@@ -46,6 +46,7 @@ type
         akCommand
         akCall
         akTuple
+        akRecord
         akDiscardPattern
         akIdPattern
         akLiteralPattern
@@ -217,6 +218,8 @@ proc repr*(self: AstNode, ind: uint = 2): string =
     of akCall:
         ""
     of akTuple:
+        "(" & self.children.join(", ") & ")"
+    of akRecord:
         "(" & self.children.join(", ") & ")"
     of akChar:
         (chr self.intVal).repr

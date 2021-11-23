@@ -13,7 +13,7 @@ import convert
 
 import codegen
 
-import llvm except Type, Module
+import llvm except Value, Type, Module
 
 
 proc link(self: Metadata, module: Module) =
@@ -57,21 +57,26 @@ proc sema*(node: AstNode, module: Module): ref Term =
     program.globalMetadada(module)
     let
         tmp = case rety.kind
-        of il.TypeKind.Unit:
-            Term.Unit
-        of il.TypeKind.Integer:
+        of il.ValueKind.Unit:
+            Term.unit
+        of il.ValueKind.Integer:
             Term.TypeOf(Term.Integer(0))
         else:
-            assert rety.kind notin @[il.TypeKind.Unit, il.TypeKind.Integer]
+            assert rety.kind notin @[il.ValueKind.Unit, il.ValueKind.Integer]
             nil
         mainid = newIdent("main")
         main = Term.Funcdef(newFunction(mainid, @[], tmp, newBody(program, mainScope)))
-        mainty = Type.Arrow(@[], rety)
-        sym = PSymbol.Func(mainid, PolyType.ForAll(nullFtv, mainty), main, true)
+        mainty = Value.Pi(@[], @[], rety)
+        sym = Symbol.Func(mainid, mainty, main, true)
     tenv.addIdent(mainid, sym)
     mainid.typ = mainty
     mainid.typ.symbol = some sym
     # mainid.typ.symbol.get.instances[mainid.typ] = Symbol()
-    # echo program
-    # echo mainScope
+    echo program
+    echo mainScope
+    echo program.terms[10]
+    echo program.terms[10].fn.body.scope
+    for i in 0..<program.terms[10].fn.param.params.len:
+        echo program.terms[10].fn.param.params[i].pat.id.typ
+        echo program.terms[10].fn.param.params[i].pat.id.typ.symbol.get
     main

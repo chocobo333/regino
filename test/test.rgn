@@ -5,62 +5,61 @@
 ![link: "string.ll"]
 
 
-type
-    bool = typeof(false)
+#const
+#    bool = typeof(false)
+const
     int = typeof(0)
     float = typeof(0.0)
     string = typeof("")
+    A = (int, string)
+    B = (a: int, b: int)
+#    a = (3, "f")
 
 func f(a: int) -> int:
     a
 func f(a: float) -> float:
     a
-func f(a: bool) -> bool:
-    a
+# func f(a: bool) -> bool:
+#    a
 func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
 func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
-func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
+# func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
 func `+`(a: int, b: int) -> int:
     `add@int32/int32int32`(a, b)
 func `-`(a: int, b: int) -> int:
     `sub@int32/int32int32`(a, b)
-func `==`(a: int, b: int) -> bool:
-    `eq@bool/int32int32`(a, b)
+# func `==`(a: int, b: int) -> bool:
+#     `eq@bool/int32int32`(a, b)
 
 func `tos@string/i32`(a: int) -> string ![importll]
 func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
 
 
-func toInt(a: bool) -> int ![subtype]:
-    if a:
-        1
-    else:
-        0
-func `$`(a: bool) -> string ![subtype]:
-    if a:
-        "true"
-    else:
-        "false"
+# func toInt(a: bool) -> int ![subtype]:
+#     if a:
+#         1
+#     else:
+#         0
+# func `$`(a: bool) -> string ![subtype]:
+#     if a:
+#         "true"
+#     else:
+#         "false"
 func echo(a: string) ![importll]
 func len(a: string) -> int ![importll]
 
-func fib(n: int) -> int:
-    if n == 0:
-        1
-    elif n == 1:
-        1
-    else:
-        fib(n-1) + fib(n-2)
+# func fib(n: int) -> int:
+#     if n == 0:
+#         1
+#     elif n == 1:
+#         1
+#     else:
+#         fib(n-1) + fib(n-2)
 
-let a = 1
-echo a
-let a = (0, a+1, true)
-let b = a.0
-echo b
-echo a.1.0
-echo a.1.1
-let c = a.1
-echo c.0
-echo c.1
+let a = ("aaa", 5, 0)
+let b = (a: 1, b: 3)
+let c = (3, "f")
+let (a, b) = c
+echo a + 1
 0

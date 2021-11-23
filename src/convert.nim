@@ -7,21 +7,55 @@ import il
 
 
 proc newPattern*(n: AstNode): Pattern =
-    case n.kind
+    result = case n.kind
     of akId:
-        Pattern.Id(Term.Id(n.strVal))
+        let id = Term.Id(n.strVal)
+        id.loc = n.loc
+        Pattern.Id(id)
+    of akTuple:
+        case n.children.len
+        of 0:
+            echo n.kind
+            echo n
+            assert false, "notimplemented"
+            Pattern()
+        of 1:
+            Pattern.Pair(n.children[0].newPattern(), Pattern.Discard)
+        of 2:
+            Pattern.Pair(n.children[0].newPattern(), n.children[1].newPattern())
+        else:
+            Pattern.Pair(n.children[0].newPattern(), akTuple.newTreeNode(n.children[1..^1]).newPattern())
     else:
         echo n.kind
         echo n
         assert false, "notimplemented"
         Pattern()
+    result.loc = n.loc
 
 proc newTerm*(n: AstNode, scope: Scope): ref Term =
     result = case n.kind
     of akEmpty:
-        Term.Unit
+        Term.unit
     of akStmtList:
-        Term.Seq(n.children.mapIt(it.newTerm(scope)))
+        Term.Seq(n.children.filterIt(it.kind != akComment).mapIt(it.newTerm(scope)))
+    of akConstSection:
+        let ts = n.children.mapIt(
+            block:
+                assert it.kind == akIdentDef
+                assert it.children.len == 3
+                let
+                    aid = it.children[0]
+                    typ = it.children[1]
+                    default = it.children[2]
+                assert aid.kind in {akId, akTuple, akRecord}, ""
+                let id = newPattern(aid)
+                assert not default.isNil, "let section needs initialization"
+                if typ.isEmpty():
+                    Term.Const(newIdentDef(id, default=newTerm(default, scope)))
+                else:
+                    Term.Const(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
+        )
+        Term.Seq(ts)
     of akLetSection:
         let ts = n.children.mapIt(
             block:
@@ -31,50 +65,50 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
                     aid = it.children[0]
                     typ = it.children[1]
                     default = it.children[2]
-                assert aid.kind == akId, ""
-                let id = newTerm(aid, scope)
+                assert aid.kind in {akId, akTuple, akRecord}, ""
+                let pat = newPattern(aid)
                 assert not default.isNil, "let section needs initialization"
                 if typ.isEmpty():
-                    Term.Let(newIdentDef(id, default=newTerm(default, scope)))
+                    Term.Let(newIdentDef(pat, default=newTerm(default, scope)))
                 else:
-                    Term.Let(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
+                    Term.Let(newIdentDef(pat, newTerm(typ, scope), newTerm(default, scope)))
         )
         Term.Seq(ts)
-    of akVarSection:
-        let ts = n.children.mapIt(
-            block:
-                assert it.kind == akIdentDef
-                assert it.children.len == 3
-                let
-                    aid = it.children[0]
-                    typ = it.children[1]
-                    default = it.children[2]
-                assert aid.kind == akId, ""
-                let id = newTerm(aid, scope)
-                assert not default.isNil, "let section needs initialization"
-                if typ.isEmpty():
-                    Term.Var(newIdentDef(id, default=newTerm(default, scope)))
-                else:
-                    Term.Var(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
+    # of akVarSection:
+    #     let ts = n.children.mapIt(
+    #         block:
+    #             assert it.kind == akIdentDef
+    #             assert it.children.len == 3
+    #             let
+    #                 aid = it.children[0]
+    #                 typ = it.children[1]
+    #                 default = it.children[2]
+    #             assert aid.kind == akId, ""
+    #             let id = newTerm(aid, scope)
+    #             assert not default.isNil, "let section needs initialization"
+    #             if typ.isEmpty():
+    #                 Term.Var(newIdentDef(id, default=newTerm(default, scope)))
+    #             else:
+    #                 Term.Var(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
 
-        )
-        Term.Seq(ts)
-    of akAliasSection:
-        let ts = n.children.mapIt(
-            block:
-                assert it.kind == akIdentDef
-                assert it.children.len == 3
-                let
-                    aid = it.children[0]
-                    typ = it.children[1]
-                    default = it.children[2]
-                assert aid.kind == akId, ""
-                let id = newTerm(aid, scope)
-                assert typ.isEmpty(), "notimplemented type annotation"
-                assert not default.isNil, "alias section needs initialization"
-                newIdentDef(id, default=newTerm(default, scope))
-        )
-        Term.Typedef(ts)
+    #     )
+    #     Term.Seq(ts)
+    # of akAliasSection:
+    #     let ts = n.children.mapIt(
+    #         block:
+    #             assert it.kind == akIdentDef
+    #             assert it.children.len == 3
+    #             let
+    #                 aid = it.children[0]
+    #                 typ = it.children[1]
+    #                 default = it.children[2]
+    #             assert aid.kind == akId, ""
+    #             let id = newTerm(aid, scope)
+    #             assert typ.isEmpty(), "notimplemented type annotation"
+    #             assert not default.isNil, "alias section needs initialization"
+    #             newIdentDef(id, default=newTerm(default, scope))
+    #     )
+    #     Term.Typedef(ts)
     of akFuncDef:
         let
             fname = n.children[0]
@@ -91,19 +125,27 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
             assert e.children[2].isEmpty, "default value is not supported"
         let
             meta = if metadata.isEmpty: none Metadata else: some newTerm(metadata, scope).metadata
-            params = paramty.mapIt(IdentDef(id: newTerm(it.children[0], scope), typ: some newTerm(it.children[1], scope)))
+            params = paramty.mapIt(IdentDef(pat: newPattern(it.children[0]), typ: some newTerm(it.children[1], scope)))
         if meta.isSome and meta.get.kind == MetadataKind.ImportLL:
             assert body.isEmpty
         else:
             assert not body.isEmpty
         # let fn = newFunction(fname.strVal, params, newTerm(rety), newTerm(body), meta)
-        let fn = Function(id: newTerm(fname, scope), param: FunctionParam(params: params, rety: newTerm(rety, scope)), body: newBody(newTerm(body, scope), scope), metadata: meta)
+        let fn = Function(
+            id: newTerm(fname, scope),
+            param: FunctionParam(
+                params: params,
+                rety: if rety.kind == akEmpty: Term.Unit else: newTerm(rety, scope)
+            ),
+            body: newBody(newTerm(body, scope), scope),
+            metadata: meta
+        )
         Term.FuncDef(fn)
-    of akAsign:
-        let
-            pat = newTerm(n.children[0], scope)
-            val = newTerm(n.children[2], scope)
-        Term.Asign(pat, val)
+    # of akAsign:
+    #     let
+    #         pat = newTerm(n.children[0], scope)
+    #         val = newTerm(n.children[2], scope)
+    #     Term.Asign(pat, val)
     of akMetadata:
         let
             name = n.children[0]
@@ -124,42 +166,42 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
         let a = if n.children.len == 1:
             newTerm(n.children[0], scope)
         else:
-            Term.Unit
+            Term.unit
         Term.Discard(a)
-    of akIfExpr:
-        if n.children[^1].kind == akElseBranch:
-            Term.If(
-                n.children[0..^2].mapIt(
-                    (
-                        newTerm(it.children[0], scope),
-                        block:
-                            let scope = newScope(scope)
-                            newBody(newTerm(it.children[1], scope), scope)
-                    )
-                ),
-                block:
-                    let scope = newScope(scope)
-                    newBody(newTerm(n.children[^1].children[0], scope), scope)
-            )
-        else:
-            Term.If(
-                n.children[0..^1].mapIt(
-                    (newTerm(it.children[0], scope),
-                    block:
-                        let scope = newScope(scope)
-                        newBody(newTerm(it.children[1], scope), scope))
-                ),
-                block:
-                    let scope = newScope(scope)
-                    newBody(Term.Unit, scope)
-            )
-    of akLambdaDef:
-        let
-            name = n.children[0]
-            exp = n.children[1]
-            scope = newScope(scope)
-        assert name.kind == akId
-        Term.Lambda(@[newIdentDef(newTerm(name, scope))], newBody(newTerm(exp, scope), scope))
+    # of akIfExpr:
+    #     if n.children[^1].kind == akElseBranch:
+    #         Term.If(
+    #             n.children[0..^2].mapIt(
+    #                 (
+    #                     newTerm(it.children[0], scope),
+    #                     block:
+    #                         let scope = newScope(scope)
+    #                         newBody(newTerm(it.children[1], scope), scope)
+    #                 )
+    #             ),
+    #             block:
+    #                 let scope = newScope(scope)
+    #                 newBody(newTerm(n.children[^1].children[0], scope), scope)
+    #         )
+    #     else:
+    #         Term.If(
+    #             n.children[0..^1].mapIt(
+    #                 (newTerm(it.children[0], scope),
+    #                 block:
+    #                     let scope = newScope(scope)
+    #                     newBody(newTerm(it.children[1], scope), scope))
+    #             ),
+    #             block:
+    #                 let scope = newScope(scope)
+    #                 newBody(Term.unit, scope)
+    #         )
+    # of akLambdaDef:
+    #     let
+    #         name = n.children[0]
+    #         exp = n.children[1]
+    #         scope = newScope(scope)
+    #     assert name.kind == akId
+    #     Term.Lambda(@[newIdentDef(newTerm(name, scope))], newBody(newTerm(exp, scope), scope))
     of akInfix:
         assert n.children.len == 3
         let
@@ -206,9 +248,20 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
             Term.Apply(newTerm(callee, scope), args.mapIt(newTerm(it, scope)))
     of akTuple:
         if n.children.len == 0:
-            Term.Unit()
+            Term.unit()
         else:
             Term.Tuple(n.children.mapIt(it.newTerm(scope)))
+    of akRecord:
+        Term.Record(
+            n.children.mapIt(
+                block:
+                    assert it.kind == akIdentDef
+                    if it.children.len == 1:
+                        (it.children[0].newTerm(scope), it.children[0].newTerm(scope))
+                    else:
+                        (it.children[0].newTerm(scope), it.children[1].newTerm(scope))
+            )
+        )
     of akInt:
         Term.Integer(n.intVal)
     of akFloat:
@@ -216,9 +269,12 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
     of akString:
         Term.String(n.strVal)
     of akBool:
-        Term.Bool(n.boolval)
+        # Term.Bool(n.boolval)
+        Term.Id($n.boolval)
     of akId:
         Term.Id(n.strVal)
+    of akComment:
+        Term.unit()
     else:
         echo n.kind
         echo n

@@ -20,30 +20,32 @@ from llvm import Value
 
 type
     TermKind* {.pure.} = enum
-        Unit
-        Bool
+        `()`    # is term, `()`: Unit: U
+        Unit    # is type
+        U       # Universe_0 or Type_0
+        # Bool
         Integer
         Float
         Char
         String
         Id
-        Lambda
-        List
+        # Lambda
+        # List
         Tuple
-        Record
+        Record  # named tuple
         Let
-        Var
+        # Var
         Const
-        Typedef
+        # Typedef
         Funcdef
-        If
-        When
+        # If
+        # When
         Case
-        While
-        For
-        Loop
-        Block
-        Asign
+        # While
+        # For
+        # Loop
+        # Block
+        # Asign
         Typeof
         Discard
         Apply
@@ -54,15 +56,16 @@ type
     PatternKind* {.pure.} = enum
         Literal
         Ident
-        Range
-        Array
-        Tuple
-        Record
+        # Range
+        # Array
+        Pair
+        # Tuple
+        # Record
         Discard
 
     IdentDefs* = seq[IdentDef]
     IdentDef* = object
-        id*: Ident
+        pat*: Pattern
         typ*: Option[ref Term]
         default*: Option[ref Term]
     Ident* = ref Term  # suppose to be of TermKind.Id Pattern?
@@ -88,9 +91,10 @@ type
 
     Scope* = ref object
         parent*: Scope
-        syms*: Table[string, seq[PSymbol]]
-        typeOrder*: Order[ref Type]  # cumulative
-        converters*: Table[(ref Type, ref Type), Ident]
+        syms*: Table[string, seq[Symbol]]
+        consts*: Table[string, seq[Symbol]]
+        typeOrder*: Order[ref Value]  # cumulative
+        converters*: Table[(ref Value, ref Value), Ident]
 
     MetadataKind* {.pure.} = enum
         Link
@@ -108,34 +112,41 @@ type
     FunctionMetadata* = ImportLL..ImportLL
     NoBodyMetadata* = ImportLL..ImportLL
 
-    Pattern* = object
+    Pattern* = ref object
+        loc*: Location
+        typ*: ref Value
         case kind*: PatternKind
         of PatternKind.Literal:
             lit*: ref Term
         of PatternKind.Ident:
-            id*: ref Term
-        of PatternKind.Range:
-            lb*: ref Term
-            ub*: ref Term
-        of PatternKind.Array:
-            # TODO: pattern for array
-            nil
-        of PatternKind.Tuple:
-            tpl*: seq[Pattern]
-        of PatternKind.Record:
-            # TODO: pattern for record
-            nil
+            id*: Ident
+        # of PatternKind.Range:
+        #     lb*: ref Term
+        #     ub*: ref Term
+        # of PatternKind.Array:
+        #     # TODO: pattern for array
+        #     nil
+        of PatternKind.Pair:
+            first*: Pattern
+            second*: Pattern
+        # of PatternKind.Tuple:
+        #     tpl*: seq[Pattern]
+        # of PatternKind.Record:
+        #     # TODO: pattern for record
+        #     nil
         of PatternKind.Discard:
             nil
 
     Term* = object
         loc*: Location
-        typ*: ref Type
+        typ*: ref Value
         case kind*: TermKind
-        of Unit:
+        of TermKind.`()`, TermKind.Unit:
             nil
-        of Bool:
-            boolval*: bool
+        of TermKind.U:
+            nil
+        # of Bool:
+        #     boolval*: bool
         of Integer:
             intval*: BiggestInt
         of Float:
@@ -146,35 +157,37 @@ type
             strval*: string
         of TermKind.Id:
             name*: string
-        of Lambda:
-            param*: IdentDefs
-            body*: Body
-        of Seq, TermKind.Tuple, TermKind.List:
+        # of Lambda:
+        #     param*: IdentDefs
+        #     body*: Body
+        # of Seq, TermKind.Tuple, TermKind.List:
+        of Seq, TermKind.Tuple:
             terms*: seq[ref Term]
         of TermKind.Record:
-            recordval*: seq[(Term, Term)]
-        of Let, Var, Const:
+            recordval*: seq[(Ident, ref Term)]
+        # of Let, Var, Const:
+        of Let, Const:
             iddef*: IdentDef
-        of Typedef:
-            typedefs*: IdentDefs
+        # of Typedef:
+        #     typedefs*: IdentDefs
         of Funcdef:
             fn*: Function
-        of If, When:
-            `elif`*: seq[(ref Term, Body)]
-            `else`*: Body
+        # of If, When:
+        #     `elif`*: seq[(ref Term, Body)]
+        #     `else`*: Body
         of Case:
             matcher*: ref Term
-            branches*: seq[(Term, Term)]
-        of While:
-            cond*: ref Term
-            wbody*: Body
-        of Loop, Block:
-            label*: Ident
-            `block`*: Body
-        of For, Asign:
-            pat*: ref Term
-            val*: ref Term
-            forbody*: Body # for For
+            branches*: seq[(Pattern, Term)]
+        # of While:
+        #     cond*: ref Term
+        #     wbody*: Body
+        # of Loop, Block:
+        #     label*: Ident
+        #     `block`*: Body
+        # of For, Asign:
+        #     pat*: ref Term
+        #     val*: ref Term
+        #     forbody*: Body # for For
         of Typeof, TermKind.Discard:
             term*: ref Term
         of Apply:
@@ -186,71 +199,98 @@ type
         of TermKind.Meta:
             metadata*: Metadata
 
-    TypeKind* {.pure.} = enum
+    ValueKind* {.pure.} = enum
         Bottom
-        Top
+        # Top # unit Type is Top?
+        `()`
         Unit
-        Bool
+        U
+        # Bool
         Integer
         Float
         Char
         String
-        List
+        # List
         Pair
         # Tuple
-        Record
-        Arrow
-        Typedesc
-        Distinct
+        Record  # named tuple
+        # Arrow
+        Pi
+        # Sigma
+        Typedesc # singleton
+        # Distinct
         Var
         Intersection
         Link
-    PolyTypeKind* {.pure.} = enum
-        Forall
-        Intersection
+        Neutral
+    # PolyTypeKind* {.pure.} = enum
+    #     Forall
+    #     Intersection
 
     TypeVarId = int
     TypeVar* = object
         id*: TypeVarId
-        lb*: ref Type
-        ub*: ref Type
+        lb*: ref Value
+        ub*: ref Value
 
     DistinctTypeId = int
-    Type* = object
-        case kind*: TypeKind
-        of Bottom, Top, TypeKind.Unit, TypeKind.Bool, TypeKind.Integer, TypeKind.Float, TypeKind.Char, TypeKind.String:
+    Value* = object
+        # name: string # TODO:
+        case kind*: ValueKind
+        # of Bottom, Top, ValueKind.Unit, ValueKind.Bool, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
+        of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
             nil
-        of TypeKind.List:
-            elem*: ref Type
-        of TypeKind.Pair:
-            first*: ref Type
-            second*: ref Type
-        # of TypeKind.Tuple, TypeKind.Intersection:
-        of TypeKind.Intersection:
-            types*: seq[ref Type]
-        of TypeKind.Record:
-            idtypes*: seq[(Ident, ref Type)]
-        of Arrow:
-            paramty*: seq[ref Type]
-            rety*: ref Type
+        of ValueKind.U:
+            level: int
+        # of ValueKind.List:
+        #     elem*: ref Value
+        of ValueKind.Pair:
+            first*: ref Value
+            second*: ref Value
+        of ValueKind.Record:
+            members*: seq[(Ident, ref Value)]
+        # of ValueKind.Tuple, ValueKind.Intersection:
+        of ValueKind.Intersection:
+            types*: seq[ref Value]
+        # of ValueKind.Record:
+        #     idtypes*: seq[(Ident, ref Value)]
+        # of Arrow:
+        #     paramty*: seq[ref Value]
+        #     rety*: ref Value
+        of ValueKind.Pi:
+            genty*: seq[(Pattern, ref Value)]
+            paramty*: seq[ref Value]
+            rety*: ref Value
+        # of ValueKind.Sigma:
+        #     first*: ref Value
+        #     second*: ref Value
         of Typedesc:
-            typ*: ref Type
-        of Distinct:
-            base*: ref Type
-            id*: DistinctTypeId
-        of TypeKind.Var:
+            `typedesc`*: ref Value
+        # of Distinct:
+        #     base*: ref Value
+        #     id*: DistinctTypeId
+        of ValueKind.Var:
             tv*: TypeVar
-        of TypeKind.Link:
-            to*: ref Type
-        symbol*: Option[PSymbol]
+        of ValueKind.Link:
+            to*: ref Value
+        of ValueKind.Neutral:
+            neut*: ref Neutral
+        symbol*: Option[Symbol]
 
-    PolyType* = object
-        case kind*: PolyTypeKind
-        of Forall:
-            gen*: HashSet[TypeVar]
-            typ*: ref Type
-        of PolyTypeKind.Intersection:
-            types*: seq[PolyType]   # TODO: ref irukana? kanngaete
+    NuetralKind* {.pure.} = enum
+        Gen
+    Neutral* = object
+        case kind*: NuetralKind
+        of NuetralKind.Gen:
+            name: string
+
+    # PolyType* = object
+    #     case kind*: PolyTypeKind
+    #     of Forall:
+    #         gen*: HashSet[TypeVar]
+    #         typ*: ref Value
+    #     of PolyTypeKind.Intersection:
+    #         types*: seq[PolyType]   # TODO: ref irukana? kanngaete
 
     SymbolKind* {.pure.} = enum
         Var
@@ -260,39 +300,40 @@ type
         Func
 
     SymbolId = int
-    PSymbol* = ref object
+    Symbol* = ref object
         id*: SymbolId
         kind*: SymbolKind
         global*: bool
         decl*: Ident   # assume be in IdentDef or Function
-        ptyp*: PolyType
+        # ptyp*: PolyType
+        typ*: ref Value
         impl*: ref Term
         use*: seq[ref Term]
-        instances*: Table[ref Type, Symbol]
-    Symbol* = ref object
+        instances*: Table[ref Value, Impl]
+    Impl* = ref object
         lty*: llvm.Type
-        val*: Value
-
+        val*: llvm.Value
 
 suite IdentDef:
-    proc `$`*(self: ref Type): string
+    proc `$`*(self: ref Value): string
     proc `$`*(self: ref Term): string
+    proc `$`*(self: Pattern): string
     proc `$`*(self: IdentDef): string =
-        result = $self.id.name
+        result = $self.pat
         if self.typ.isSome:
             result.add fmt": {self.typ.get}"
-        elif self.id.typ.kind != TypeKind.Unit:
-            result.add fmt"(: {self.id.typ})"
+        elif self.pat.typ.kind != ValueKind.Unit:
+            result.add fmt"(: {self.pat.typ})"
         if self.default.isSome:
             result.add fmt" = {self.default.get}"
-    proc newIdentDef*(id: Ident): IdentDef =
-        IdentDef(id: id, typ: none(ref Term), default: none(ref Term))
-    proc newIdentDef*(id:Ident, typ: ref Term): IdentDef =
-        IdentDef(id: id, typ: some(typ), default: none(ref Term))
-    proc newIdentDef*(id:Ident, default: ref Term): IdentDef =
-        IdentDef(id: id, typ: none(ref Term), default: some(default))
-    proc newIdentDef*(id:Ident, typ: ref Term, default: ref Term): IdentDef =
-        IdentDef(id: id, typ: some(typ), default: some(default))
+    proc newIdentDef*(pat: Pattern): IdentDef =
+        IdentDef(pat: pat, typ: none(ref Term), default: none(ref Term))
+    proc newIdentDef*(pat: Pattern, typ: ref Term): IdentDef =
+        IdentDef(pat: pat, typ: some(typ), default: none(ref Term))
+    proc newIdentDef*(pat: Pattern, default: ref Term): IdentDef =
+        IdentDef(pat: pat, typ: none(ref Term), default: some(default))
+    proc newIdentDef*(pat: Pattern, typ: ref Term, default: ref Term): IdentDef =
+        IdentDef(pat: pat, typ: some(typ), default: some(default))
 
 suite Metadata:
     proc `$`*(self: Metadata): string =
@@ -356,270 +397,441 @@ suite TypeVar:
         result = chr(ord('a') + p) & result
         result = fmt"'{result}(ub: {self.ub}, lb: {self.lb})"
 
-suite Type:
-    proc `==`*(self, other: ref Type): bool
-    proc `==`*(self, other: Type): bool =
+suite Pattern:
+    proc Literal*(_: typedesc[Pattern], lit: ref Term): Pattern =
+        Pattern(kind: PatternKind.Literal, lit: lit)
+    proc Id*(_: typedesc[Pattern], id: ref Term): Pattern =
+        Pattern(kind: PatternKind.Ident, id: id)
+    proc Pair*(_: typedesc[Pattern], first: Pattern, second: Pattern): Pattern =
+        Pattern(kind: PatternKind.Pair, first: first, second: second)
+    proc Discard*(_: typedesc[Pattern]): Pattern =
+        Pattern(kind: PatternKind.Discard)
+    proc `==`*(self, other: Pattern): bool =
+        if self.kind == other.kind:
+            case self.kind
+            of PatternKind.Literal:
+                self.lit == other.lit
+            of PatternKind.Ident:
+                self.id == other.id
+            of PatternKind.Pair:
+                self.first == other.first and self.second == other.second
+            # of PatternKind.Tuple:
+            #     self.tpl.zip(other.tpl).mapIt(it[0] == it[1]).foldl(a and b)
+            of PatternKind.Discard:
+                true
+        else:
+            false
+    proc `$`*(self: Pattern): string =
+        case self.kind
+        of PatternKind.Literal:
+            $self.lit
+        of PatternKind.Ident:
+            $self.id
+        of PatternKind.Pair:
+            fmt"({self.first}, {self.second})"
+        # of PatternKind.Tuple:
+        #     $self.tpl
+        of PatternKind.Discard:
+            "_"
+
+suite Value:
+    proc `==`*(self, other: ref Value): bool
+    proc `==`*(self, other: Value): bool =
         ## equality as nim object
-        if self.kind == TypeKind.Link:
+        if self.kind == ValueKind.Link:
             self.to[] == other
-        elif other.kind == TypeKind.Link:
+        elif other.kind == ValueKind.Link:
             self == other.to[]
         elif self.kind == other.kind:
             case self.kind
-            of Bottom, Top, TypeKind.Unit, TypeKind.Bool, TypeKind.Integer, TypeKind.Float, TypeKind.Char, TypeKind.String:
+            # of Bottom, Top, ValueKind.Unit, ValueKind.Bool, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
+            of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
                 true
-            of TypeKind.List:
-                self.elem == other.elem
-            of TypeKind.Pair:
+            of ValueKind.U:
+                self.level == other.level
+            # of ValueKind.List:
+            #     self.elem == other.elem
+            of ValueKind.Pair:
                 self.first == other.first and self.second == other.second
-            # of TypeKind.Tuple, TypeKind.Intersection:
-            of TypeKind.Intersection:
+            of ValueKind.Record:
+                let
+                    st = self.members.mapIt((it[0].name, it[1])).toTable
+                    ot = other.members.mapIt((it[0].name, it[1])).toTable
+                if st.len == ot.len:
+                    var ret = true
+                    for member in st.keys:
+                        if member notin ot:
+                            ret = false
+                        else:
+                            ret = ret and st[member] == ot[member]
+                    ret
+                else:
+                    false
+            # of ValueKind.Tuple, ValueKind.Intersection:
+            of ValueKind.Intersection:
                 self.types.zip(other.types).mapIt(it[0] == it[1]).foldl(a and b)
-            of TypeKind.Record:
-                self.idtypes.zip(other.idtypes).mapIt(it[0] == it[1]).foldl(a and b)
-            of Arrow:
+            # of ValueKind.Record:
+            #     self.idtypes.zip(other.idtypes).mapIt(it[0] == it[1]).foldl(a and b)
+            # of Arrow:
+            #     self.paramty.zip(other.paramty).mapIt(it[0] == it[1]).foldl(a and b) and
+            #     self.rety == other.rety
+            of ValueKind.Pi:
+                self.genty.zip(other.genty).mapIt(it[0][0] == it[1][0] and it[0][1] == it[1][1]).foldl(a and b, true) and
                 self.paramty.zip(other.paramty).mapIt(it[0] == it[1]).foldl(a and b) and
                 self.rety == other.rety
+            # of ValueKind.Sigma:
+            #     self.first == other.first and
+            #     self.second == other.second
             of Typedesc:
-                self.typ == other.typ
-            of Distinct:
-                self.base == other.base and self.id == other.id
-            of TypeKind.Var:
+                self.`typedesc` == other.`typedesc`
+            # of Distinct:
+            #     self.base == other.base and self.id == other.id
+            of ValueKind.Var:
                 self.tv == other.tv
-            of TypeKind.Link:
+            of ValueKind.Link:
                 self.to == other.to
+            of ValueKind.Neutral:
+                self.neut == other.neut
         else:
             false
-    proc `==`*(self, other: ref Type): bool =
+    proc `==`*(self, other: ref Value): bool =
         ## equality as nim object
         self[] == other[]
-    proc `$`*(self: Type): string =
+    proc `$`*(self: Value): string =
         case self.kind
-        of TypeKind.Bottom:
+        of ValueKind.Bottom:
             "Bottom"
-        of TypeKind.Top:
-            "Top"
-        of TypeKind.Unit:
+        # of ValueKind.Top:
+        #     "Top"
+        of ValueKind.`()`:
             "()"
-        of TypeKind.Bool:
-            # $"bool".red
-            "bool"
-        of TypeKind.Integer:
+        of ValueKind.Unit:
+            "unit"
+        of ValueKind.U:
+            if self.level == 0:
+                "U"
+            else:
+                "U" & $self.level
+        # of ValueKind.Bool:
+        #     # $"bool".red
+        #     "bool"
+        of ValueKind.Integer:
             # $"int".red
             "int"
-        of TypeKind.Float:
+        of ValueKind.Float:
             # $"float".red
             "float"
-        of TypeKind.Char:
+        of ValueKind.Char:
             # $"char".red
             "char"
-        of TypeKind.String:
+        of ValueKind.String:
             # $"string".red
             "string"
-        of TypeKind.List:
-            fmt"[{self.base[]}]"
-        of TypeKind.Pair:
+        # of ValueKind.List:
+        #     fmt"[{self.base[]}]"
+        of ValueKind.Pair:
             fmt"({self.first}, {self.second})"
-        # of TypeKind.Tuple:
+        of ValueKind.Record:
+            let s = self.members.mapIt(fmt"{it[0]}: {it[1]}").join", "
+            fmt"({s})"
+        # of ValueKind.Tuple:
         #     "(" & self.types.mapIt($it[]).join(", ") & ")"
-        of TypeKind.Record:
-            "{" & self.idtypes.mapIt(fmt"{it[0]}: {it[1][]}").join(", ") & "}"
-        of TypeKind.Arrow:
+        # of ValueKind.Record:
+        #     "{" & self.idtypes.mapIt(fmt"{it[0]}: {it[1][]}").join(", ") & "}"
+        # of ValueKind.Arrow:
+        #     self.paramty.mapIt($it[]).join(", ") & " -> " & $self.rety[]
+        of ValueKind.Pi:
             self.paramty.mapIt($it[]).join(", ") & " -> " & $self.rety[]
-        of TypeKind.Typedesc:
+        # of ValueKind.Sigma:
+        #     fmt"({self.first}, {self.second})"
+        of ValueKind.Typedesc:
             # let t = "typedesc".red
             let t = "typedesc"
-            fmt"{t}[{self.typ[]}]"
-        of TypeKind.Var:
+            fmt"{t}[{self.`typedesc`[]}]"
+        of ValueKind.Var:
             $self.tv
-        of TypeKind.Intersection:
+        of ValueKind.Intersection:
             self.types.mapIt(
-                if it.kind == TypeKind.Arrow:
+                # if it.kind == ValueKind.Arrow:
+                #     fmt"({it[]})"
+                if it.kind == ValueKind.Pi:
                     fmt"({it[]})"
                 else:
                     $it[]
             ).join("^")
-        of TypeKind.Distinct:
-            fmt"distinct {self.base[]}"
-        of TypeKind.Link:
+        # of ValueKind.Distinct:
+        #     fmt"distinct {self.base[]}"
+        of ValueKind.Link:
             $self.to
-    proc `$`*(self: ref Type): string = $self[]
+        of ValueKind.Neutral:
+            $self.neut[]
+    proc `$`*(self: ref Value): string = $self[]
     var
         tvid: TypeVarId = -1
         dtid: DistinctTypeId = -1
 
-    proc Bottom*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Bottom)
-    proc Top*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Top)
+    proc Bottom*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Bottom)
+    # proc Top*(_: typedesc[Value]): ref Value =
+    #     result = new Value
+    #     result[] = Value(kind: ValueKind.Top)
+    proc unit*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.`()`)
+    proc Unit*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Unit)
     proc newTypeVar*(): TypeVar =
         inc tvid
         TypeVar(
             id: tvid,
-            ub: Type.Top,
-            lb: Type.Bottom
+            # ub: Value.Top,
+            ub: Value.Unit,
+            lb: Value.Bottom
         )
-    proc Unit*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Unit)
-    proc Bool*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Bool)
-    proc Integer*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Integer)
-    proc Float*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Float)
-    proc Char*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Char)
-    proc String*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.String)
-    proc List*(_: typedesc[Type], elem: ref Type): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.List, elem: elem)
-    proc Pair*(_: typedesc[Type], first, second: ref Type): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Pair, first: first, second: second)
-    # proc Tuple*(_: typedesc[Type], types: seq[ref Type]): ref Type =
-    #     result = new Type
-    #     result[] = Type(kind: TypeKind.Tuple, types: types)
-    proc Record*(_: typedesc[Type], idtypes: seq[(Ident, ref Type)]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Record, idtypes: idtypes)
-    proc Arrow*(_: typedesc[Type], params: seq[ref Type], rety: ref Type): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Arrow, paramty: params, rety: rety)
-    proc Typedesc*(_: typedesc[Type], typ: ref Type): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Typedesc, typ: typ)
-    proc Distinct*(_: typedesc[Type], base: ref Type): ref Type =
+    proc U*(_: typedesc[Value], level: int = 0): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.U, level: level)
+    proc Bool*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Bool)
+    proc Integer*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Integer)
+    proc Float*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Float)
+    proc Char*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Char)
+    proc String*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.String)
+    proc List*(_: typedesc[Value], elem: ref Value): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.List, elem: elem)
+    proc Pair*(_: typedesc[Value], first, second: ref Value): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Pair, first: first, second: second)
+    proc Sigma*(_: typedesc[Value], first, second: ref Value): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Sigma, first: first, second: second)
+    # proc Tuple*(_: typedesc[Value], types: seq[ref Value]): ref Value =
+    #     result = new Value
+    #     result[] = Value(kind: ValueKind.Tuple, types: types)
+    proc Record*(_: typedesc[Value], members: seq[(Ident, ref Value)]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Record, members: members)
+    proc Arrow*(_: typedesc[Value], params: seq[ref Value], rety: ref Value): ref Value =
+        result = new Value
+        # result[] = Value(kind: ValueKind.Arrow, paramty: params, rety: rety)
+        result[] = Value(kind: ValueKind.Pi, genty: @[], paramty: params, rety: rety)
+    proc Pi*(_: typedesc[Value], genty: seq[(Pattern, ref Value)], params: seq[ref Value], rety: ref Value): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Pi, genty: genty, paramty: params, rety: rety)
+    proc Typedesc*(_: typedesc[Value], typ: ref Value): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Typedesc, `typedesc`: typ)
+    proc Distinct*(_: typedesc[Value], base: ref Value): ref Value =
         inc dtid
-        result = new Type
-        result[] = Type(kind: TypeKind.Intersection, base: base, id: dtid)
-    proc Var*(_: typedesc[Type], tv: TypeVar): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Var, tv: tv)
-    proc Var*(_: typedesc[Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Var, tv: newTypeVar())
-    proc Intersection*(_: typedesc[Type], types: seq[ref Type]): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Intersection, types: types)
-    proc Link*(_: typedesc[Type], to: ref Type): ref Type =
-        result = new Type
-        result[] = Type(kind: TypeKind.Link, to: to)
+        result = new Value
+        result[] = Value(kind: ValueKind.Intersection, base: base, id: dtid)
+    proc Var*(_: typedesc[Value], tv: TypeVar): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Var, tv: tv)
+    proc Var*(_: typedesc[Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Var, tv: newTypeVar())
+    proc Intersection*(_: typedesc[Value], types: seq[ref Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Intersection, types: types)
+    proc Link*(_: typedesc[Value], to: ref Value): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Link, to: to)
 
-    proc hasRegion*(self: ref Type): bool =
+    proc hasRegion*(self: ref Value): bool =
         case self.kind
-        of TypeKind.Bottom..TypeKind.Char:
+        of ValueKind.Bottom..ValueKind.Char:
             false
-        of TypeKind.String:
+        of ValueKind.String:
             true
-        of TypeKind.Arrow:
-            true
-        of TypeKind.List:
-            true
-        of TypeKind.Pair:
+        # of ValueKind.Arrow:
+        #     true
+        # of ValueKind.List:
+        #     true
+        of ValueKind.Pair:
             self.first.hasRegion or self.second.hasRegion
-        # of TypeKind.Tuple, TypeKind.Intersection:
-        of TypeKind.Intersection:
+        of ValueKind.Record:
+            self.members.mapIt(it[1]).any(hasRegion)
+        # of ValueKind.Tuple, ValueKind.Intersection:
+        of ValueKind.Pi:
+            true
+        # of ValueKind.Sigma:
+        #     self.first.hasRegion or self.second.hasRegion
+        of ValueKind.Intersection:
             self.types.any(hasRegion)
-        of TypeKind.Record:
-            self.idtypes.anyIt(it[1].hasRegion)
-        of TypeKind.Distinct, TypeKind.Link:
-            self.typ.hasRegion
-        of TypeKind.Var, TypeKind.TypeDesc:
+        # of ValueKind.Record:
+        #     self.idtypes.anyIt(it[1].hasRegion)
+        # of ValueKind.Distinct, ValueKind.Link:
+        of ValueKind.Link:
+            self.`typedesc`.hasRegion
+        of ValueKind.Var, ValueKind.TypeDesc:
             assert false
+            false
+        of ValueKind.Neutral:
             false
 
-    proc compilable*(self: ref Type): bool =
+    proc compilable*(self: ref Value): bool =
         case self.kind
-        of TypeKind.Bottom:
+        of ValueKind.Bottom:
             false
-        of TypeKind.Top..TypeKind.String:
+        of ValueKind.`()`..ValueKind.String:
             true
-        of TypeKind.Arrow:
-            self.paramty.all(compilable) and self.rety.compilable
-        of TypeKind.List:
-            self.elem.compilable
-        of TypeKind.Pair:
+        # of ValueKind.Arrow:
+        #     self.paramty.all(compilable) and self.rety.compilable
+        # of ValueKind.List:
+        #     self.elem.compilable
+        of ValueKind.Pair:
             self.first.compilable and self.second.compilable
-        # of TypeKind.Tuple:
+        of ValueKind.Record:
+            self.members.mapIt(it[1]).all(compilable)
+        # of ValueKind.Tuple:
         #     self.types.all(compilable)
-        of TypeKind.Intersection:
+        of ValueKind.Pi:
+            self.paramty.all(compilable) and self.rety.compilable
+        # of ValueKind.Sigma:
+        #     self.first.compilable and self.second.compilable
+        of ValueKind.Intersection:
             false
-        of TypeKind.Record:
-            self.idtypes.anyIt(it[1].compilable)
-        of TypeKind.Distinct, TypeKind.Link:
-            self.typ.compilable
-        of TypeKind.Var, TypeKind.TypeDesc:
+        # of ValueKind.Record:
+        #     self.idtypes.anyIt(it[1].compilable)
+        # of ValueKind.Distinct, ValueKind.Link:
+        of ValueKind.Link:
+            self.`typedesc`.compilable
+        of ValueKind.Var, ValueKind.TypeDesc:
             assert false
+            false
+        of ValueKind.Neutral:
             false
 
     proc hash*(self: TypeVar): Hash =
         result = !$ self.id
-    proc hash*(self: ref Type): Hash =
+    proc hash*(self: ref Value): Hash =
         result = 0
         result = result !& self.kind.ord
-        # TODO: implement hash of Type
+        # TODO: implement hash of Value
         # case self.kind:
-        # of TypeKind.Bottom:
+        # of ValueKind.Bottom:
         #     discard
-        # of TypeKind.Top:
+        # of ValueKind.Top:
         #     discard
-        # of TypeKind.Unit:
+        # of ValueKind.Unit:
         #     discard
-        # of TypeKind.Bool:
+        # of ValueKind.Bool:
         #     discard
-        # of TypeKind.Integer:
+        # of ValueKind.Integer:
         #     discard
-        # of TypeKind.Float:
+        # of ValueKind.Float:
         #     discard
-        # of TypeKind.Char:
+        # of ValueKind.Char:
         #     discard
-        # of TypeKind.String:
+        # of ValueKind.String:
         #     discard
-        # of TypeKind.List:
+        # of ValueKind.List:
         #     discard
-        # of TypeKind.Tuple:
+        # of ValueKind.Tuple:
         #     discard
-        # of TypeKind.Record:
+        # of ValueKind.Record:
         #     discard
-        # of TypeKind.Arrow:
+        # of ValueKind.Arrow:
         #     discard
-        # of TypeKind.Typedesc:
+        # of ValueKind.Typedesc:
         #     discard
-        # of TypeKind.Var:
+        # of ValueKind.Var:
         #     discard
-        # of TypeKind.Intersection:
+        # of ValueKind.Intersection:
         #     discard
         result = !$result
-
-suite PolyType:
-    proc Forall*(_: typedesc[PolyType], gen: HashSet[TypeVar], typ: ref Type): PolyType =
-        PolyType(kind: PolyTypeKind.Forall, gen: gen, typ: typ)
-    proc Intersection*(_: typedesc[PolyType], gen: HashSet[TypeVar], types: seq[PolyType]): PolyType =
-        PolyType(kind: PolyTypeKind.Intersection, types: types)
-    proc `$`*(self: PolyType): string =
+    proc typ*(self: ref Value): ref Value =
         case self.kind
-        of PolyTypeKind.ForAll:
-            let tmp = if self.gen.len == 0: "" else: "∀" & toSeq(self.gen.items).map(`$`).join(".∀") & "."
-            fmt"{tmp}{self.typ}"
-        of PolyTypeKind.Intersection:
-            self.types.join("∧")
+        of ValueKind.Bottom:
+            Value.U
+        # of ValueKind.Top # unit Type is Top?:
+        #     nil
+        of ValueKind.`()`:
+            Value.Unit
+        of ValueKind.Unit:
+            Value.U
+        of ValueKind.U:
+            Value.U(self.level + 1)
+        # of ValueKind.Bool:
+        #     nil
+        of ValueKind.Integer:
+            Value.U
+        of ValueKind.Float:
+            Value.U
+        of ValueKind.Char:
+            Value.U
+        of ValueKind.String:
+            Value.U
+        # of ValueKind.List:
+        #     nil
+        of ValueKind.Pair:
+            let
+                ft = self.first.typ
+                st = self.second.typ
+            if ft.kind == ValueKind.U and st.kind == ValueKind.U:
+                Value.U(max(ft.level, st.level))
+            else:
+                Value.Pair(ft, st)
+        # of ValueKind.Tuple:
+        #     nil
+        of ValueKind.Record:
+            Value.U
+        # of ValueKind.Arrow:
+        #     nil
+        of ValueKind.Pi:
+            nil
+        # of ValueKind.Sigma:
+        #     nil
+        of ValueKind.Typedesc:
+            self.`typedesc`.typ
+        # of ValueKind.Distinct:
+        #     nil
+        of ValueKind.Var:
+            nil
+        of ValueKind.Intersection:
+            nil
+        of ValueKind.Link:
+            self.to.typ
+        of ValueKind.Neutral:
+            nil
+
+# suite PolyType:
+#     proc Forall*(_: typedesc[PolyType], gen: HashSet[TypeVar], typ: ref Value): PolyType =
+#         PolyType(kind: PolyTypeKind.Forall, gen: gen, typ: typ)
+#     proc Intersection*(_: typedesc[PolyType], gen: HashSet[TypeVar], types: seq[PolyType]): PolyType =
+#         PolyType(kind: PolyTypeKind.Intersection, types: types)
+#     proc `$`*(self: PolyType): string =
+#         case self.kind
+#         of PolyTypeKind.ForAll:
+#             let tmp = if self.gen.len == 0: "" else: "∀" & toSeq(self.gen.items).map(`$`).join(".∀") & "."
+#             fmt"{tmp}{self.typ}"
+#         of PolyTypeKind.Intersection:
+#             self.types.join("∧")
 
 suite Term:
     proc `$`*(self: ref Term): string =
         case self.kind
-        of TermKind.Unit:
+        of TermKind.`()`:
             "()"
-        of TermKind.Bool:
-            $self.boolval
+        of TermKind.Unit:
+            "unit"
+        of TermKind.U:
+            "U"
+        # of TermKind.Bool:
+        #     $self.boolval
         of TermKind.Integer:
             $self.intval
         of TermKind.Float:
@@ -630,49 +842,49 @@ suite Term:
             "\"" & self.strval & "\""
         of TermKind.Id:
             $self.name
-        of TermKind.Lambda:
-            fmt"λ{self.param}.{self.body}"
-        of TermKind.List:
-            let s = self.terms.map(`$`).join(", ")
-            fmt"[{s}]"
+        # of TermKind.Lambda:
+        #     fmt"λ{self.param}.{self.body}"
+        # of TermKind.List:
+        #     let s = self.terms.map(`$`).join(", ")
+        #     fmt"[{s}]"
         of TermKind.Tuple:
             let s = self.terms.map(`$`).join(", ")
             fmt"({s})"
         of TermKind.Record:
-            # TODO: implement for record
-            "not implemented"
+            let s = self.recordval.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+            fmt"({s})"
         of TermKind.Let:
             fmt"let {self.iddef}"
-        of TermKind.Var:
-            fmt"var {self.iddef}"
+        # of TermKind.Var:
+        #     fmt"var {self.iddef}"
         of TermKind.Const:
             fmt"const {self.iddef}"
-        of TermKind.Typedef:
-            let s = self.typedefs.map(`$`).join("\n")
-            &"type\n{s.indent(2)}"
+        # of TermKind.Typedef:
+        #     let s = self.typedefs.map(`$`).join("\n")
+        #     &"type\n{s.indent(2)}"
         of TermKind.Funcdef:
             $self.fn
-        of TermKind.If:
-            let
-                elift = self.`elif`.mapIt(&"elif {it[0]}:\n{($it[1]).indent(2)}").join("\n")[2..^1]
-                elset = ($self.`else`).indent(2)
-            &"{elift}\nelse:\n{elset}"
-        of TermKind.When:
-            ""
+        # of TermKind.If:
+        #     let
+        #         elift = self.`elif`.mapIt(&"elif {it[0]}:\n{($it[1]).indent(2)}").join("\n")[2..^1]
+        #         elset = ($self.`else`).indent(2)
+        #     &"{elift}\nelse:\n{elset}"
+        # of TermKind.When:
+        #     ""
         of TermKind.Case:
             ""
-        of TermKind.While:
-            ""
-        of TermKind.For:
-            ""
-        of TermKind.Loop:
-            let s = $self.body
-            &"loop {self.label}\n{s.indent(2)}"
-        of TermKind.Block:
-            let s = $self.body
-            &"block {self.label}\n{s.indent(2)}"
-        of TermKind.Asign:
-            fmt"{self.pat} = {self.val}"
+        # of TermKind.While:
+        #     ""
+        # of TermKind.For:
+        #     ""
+        # of TermKind.Loop:
+        #     let s = $self.body
+        #     &"loop {self.label}\n{s.indent(2)}"
+        # of TermKind.Block:
+        #     let s = $self.body
+        #     &"block {self.label}\n{s.indent(2)}"
+        # of TermKind.Asign:
+        #     fmt"{self.pat} = {self.val}"
         of TermKind.Typeof:
             fmt"typeof({self.term})"
         of TermKind.Discard:
@@ -687,7 +899,7 @@ suite Term:
             fmt"{self.metadata}"
         of TermKind.Seq:
             let f = proc(it: ref Term): string =
-                let tmp = if it.typ.isNil or it.typ.kind == TypeKind.Unit:
+                let tmp = if it.typ.isNil or it.typ.kind == ValueKind.Unit:
                     ""
                 else:
                     # if it.typ.region.isNil:
@@ -698,6 +910,9 @@ suite Term:
                 fmt"{it}{tmp}"
             self.terms.map(f).join("\n")
 
+    proc unit*(_: typedesc[Term]): ref Term =
+        result = new Term
+        result[] = Term(kind: TermKind.`()`)
     proc Unit*(_: typedesc[Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Unit)
@@ -728,9 +943,9 @@ suite Term:
     proc Tuple*(_: typedesc[Term], terms: seq[ref Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Tuple, terms: terms)
-    proc Record*(_: typedesc[Term]): ref Term =
+    proc Record*(_: typedesc[Term], recordval: seq[(Ident, ref Term)]): ref Term =
         result = new Term
-        result[] = Term()
+        result[] = Term(kind: TermKind.Record, recordval: recordval)
     proc Let*(_: typedesc[Term], iddef: IdentDef): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Let, iddef: iddef)
@@ -792,13 +1007,8 @@ suite Term:
     proc newIdent*(name: string): Ident =
         Term.Id(name)
 
-suite Pattern:
-    proc Literal*(_: typedesc[Pattern], lit: ref Term): Pattern =
-        Pattern(kind: PatternKind.Literal, lit: lit)
-    proc Id*(_: typedesc[Pattern], id: ref Term): Pattern =
-        Pattern(kind: PatternKind.Ident, id: id)
-suite PSymbol:
-    proc `$`*(self: PSymbol): string =
+suite Symbol:
+    proc `$`*(self: Symbol): string =
         let
             kind = if self.kind == SymbolKind.Typ:
                 "Type"
@@ -808,7 +1018,7 @@ suite PSymbol:
                 $self.decl.red
             else:
                 $self.decl.blue
-            typ = $self.ptyp
+            typ = $self.typ
             impl = if self.kind == SymbolKind.Func:
                 "..."
             else:
@@ -818,34 +1028,42 @@ suite PSymbol:
     var
         symid = 0
 
-    proc Let*(_: typedesc[PSymbol], ident: Ident, ptyp: PolyType, impl: ref Term, global: bool = false): PSymbol =
+    proc Let*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: ref Term, global: bool = false): Symbol =
         inc symid
-        result = PSymbol(
+        result = Symbol(
             kind: SymbolKind.Let, id: symid,
-            decl: ident, ptyp: ptyp, impl: impl,
+            decl: ident, typ: typ, impl: impl,
             global: global, use: @[]
         )
-        result.ptyp.typ.symbol = some result
-    proc Func*(_: typedesc[PSymbol], ident: Ident, ptyp: PolyType, impl: ref Term, global: bool = false): PSymbol =
+        result.typ.symbol = some result
+    proc Func*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: ref Term, global: bool = false): Symbol =
         inc symid
-        result = PSymbol(
+        result = Symbol(
             kind: SymbolKind.Func, id: symid,
-            decl: ident, ptyp: ptyp, impl: impl,
+            decl: ident, typ: typ, impl: impl,
             global: global, use: @[]
         )
-        result.ptyp.typ.symbol = some result
-    proc Typ*(_: typedesc[PSymbol], ident: Ident, ptyp: PolyType, impl: ref Term, global: bool = false): PSymbol =
+        result.typ.symbol = some result
+    proc Typ*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: ref Term, global: bool = false): Symbol =
         inc symid
-        result = PSymbol(
+        result = Symbol(
             kind: SymbolKind.Typ, id: symid,
-            decl: ident, ptyp: ptyp, impl: impl,
+            decl: ident, typ: typ, impl: impl,
             global: global, use: @[]
         )
-        result.ptyp.typ.symbol = some result
+        result.typ.symbol = some result
+    proc Const*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: ref Term, global: bool = false): Symbol =
+        inc symid
+        result = Symbol(
+            kind: SymbolKind.Const, id: symid,
+            decl: ident, typ: typ, impl: impl,
+            global: global, use: @[]
+        )
+        result.typ.symbol = some result
 
-suite Symbol:
-    proc `$`*(self: Symbol): string =
-        $self[]
+# suite Symbol:
+#     proc `$`*(self: Symbol): string =
+#         $self[]
 
 suite Scope:
     iterator items*(self: Scope): Scope =
@@ -863,21 +1081,33 @@ suite Scope:
     proc `$`*(self: Scope): string =
         var
             tmp = self
-            scopes: seq[Table[string, seq[PSymbol]]]
+            scopes: seq[Table[string, seq[Symbol]]]
+            consts: seq[Table[string, seq[Symbol]]]
         while not tmp.isNil:
             scopes.add tmp.syms
+            consts.add tmp.consts
             tmp = tmp.parent
-        if scopes.foldl(a + b.len, 0) == 0:
-            return "{}"
-        for scope in scopes:
-            for (key, val) in scope.pairs:
-                result &= &"\"{key}\": {val},\n"
-        result = &"{{\n{result[0..^3].indent(2)}\n}}"
+        result = if scopes.foldl(a + b.len, 0) == 0:
+            "{}"
+        else:
+            for scope in scopes:
+                for (key, val) in scope.pairs:
+                    result &= &"\"{key}\": {val},\n"
+            &"{{\n{result[0..^3].indent(2)}\n}}"
+        result.add "\n"
+        result.add if consts.foldl(a + b.len, 0) == 0:
+            "{}"
+        else:
+            var ret: string
+            for scope in consts:
+                for (key, val) in scope.pairs:
+                    ret &= &"\"{key}\" = {val},\n"
+            &"{{\n{ret[0..^3].indent(2)}\n}}"
 
     proc newScope*(parent: Scope = nil): Scope =
         Scope(
             parent: parent,
-            syms: initTable[string, seq[PSymbol]](),
-            typeOrder: if parent.isNil: newOrder[ref Type]() else: parent.typeOrder,
-            converters: initTable[(ref Type, ref Type), Ident]()
+            syms: initTable[string, seq[Symbol]](),
+            typeOrder: if parent.isNil: newOrder[ref Value]() else: parent.typeOrder,
+            converters: initTable[(ref Value, ref Value), Ident]()
         )
