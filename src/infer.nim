@@ -299,7 +299,7 @@ proc evalConst*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
         else:
             Value.Pair(self.terms[0].evalConst(env, global), Term.Tuple(self.terms[1..^1]).evalConst(env, global))
     of TermKind.Record:
-        Value.Record(self.recordval.mapIt((it[0], it[1].evalConst(env, global))))
+        Value.Record(self.members.mapIt((it[0], it[1].evalConst(env, global))))
     of TermKind.Typeof:
         self.term.typeInfer(env, global)
     else:
@@ -363,7 +363,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
             # self.terms.mapIt(it.typeInfer(env, global)).foldr(Value.Sigma(a, b))
         # Value.Tuple(self.seqval.mapIt(it.typeInfer(env, global)))
     of TermKind.Record:
-        Value.Record(self.recordval.mapIt((it[0], it[1].typeInfer(env, global))))
+        Value.Record(self.members.mapIt((it[0], it[1].typeInfer(env, global))))
     of TermKind.Let:
         proc addPat(self: var TypeEnv, pat: Pattern, impl: ref Term, global: bool) =
             case pat.kind
@@ -655,7 +655,7 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
         self.terms.mapIt(it.typeCheck(env)).flatten & self.check(self.terms.mapIt(it.typ).foldr(Value.Pair(a, b)))
         # self.terms.mapIt(it.typeCheck(env)).flatten & self.check(self.terms.mapIt(it.typ).foldr(Value.Sigma(a, b)))
     of TermKind.Record:
-        self.recordval.mapIt(it[1].typeCheck(env)).flatten & self.check(Value.Record(self.recordval.mapIt((it[0], it[1].typ))))
+        self.members.mapIt(it[1].typeCheck(env)).flatten & self.check(Value.Record(self.members.mapIt((it[0], it[1].typ))))
     of TermKind.Let:
         let
             pat = self.iddef.pat

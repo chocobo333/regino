@@ -206,7 +206,7 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
             typ = self.typ.newLType(module)
         var
             ret: LValue = typ.undef
-        for (i, term) in self.recordval.pairs:
+        for (i, term) in self.members.pairs:
             let term = term[1]
             ret = module.curBuilder.insertvalue(ret, term.codegen(module, global), i, $term)
         ret
