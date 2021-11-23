@@ -59,8 +59,9 @@ func len(a: string) -> int ![importll]
 
 let a = ("aaa", 5, 0)
 let b = (a: 1, b: 3)
-let c = (3, "f")
-let (a, b) = c
+let c = (3, "f", 0)
+let (a, b, c) = c
 echo a
 echo b
+echo c
 a-2
