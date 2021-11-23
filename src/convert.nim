@@ -1,6 +1,7 @@
 
 import sequtils
 import options
+import tables
 
 import ast
 import il
@@ -257,10 +258,10 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
                 block:
                     assert it.kind == akIdentDef
                     if it.children.len == 1:
-                        (it.children[0].newTerm(scope), it.children[0].newTerm(scope))
+                        (it.children[0].strVal, it.children[0].newTerm(scope))
                     else:
-                        (it.children[0].newTerm(scope), it.children[1].newTerm(scope))
-            )
+                        (it.children[0].strVal, it.children[1].newTerm(scope))
+            ).toTable
         )
     of akInt:
         Term.Integer(n.intVal)

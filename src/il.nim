@@ -164,7 +164,7 @@ type
         of Seq, TermKind.Tuple:
             terms*: seq[ref Term]
         of TermKind.Record:
-            members*: seq[(Ident, ref Term)]
+            members*: Table[string, ref Term]
         # of Let, Var, Const:
         of Let, Const:
             iddef*: IdentDef
@@ -848,7 +848,7 @@ suite Term:
             let s = self.terms.map(`$`).join(", ")
             fmt"({s})"
         of TermKind.Record:
-            let s = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+            let s = toSeq(self.members.pairs).mapIt(fmt"{it[0]}: {it[1]}").join(", ")
             fmt"({s})"
         of TermKind.Let:
             fmt"let {self.iddef}"
@@ -940,7 +940,7 @@ suite Term:
     proc Tuple*(_: typedesc[Term], terms: seq[ref Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Tuple, terms: terms)
-    proc Record*(_: typedesc[Term], members: seq[(Ident, ref Term)]): ref Term =
+    proc Record*(_: typedesc[Term], members: Table[string, ref Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Record, members: members)
     proc Let*(_: typedesc[Term], iddef: IdentDef): ref Term =
