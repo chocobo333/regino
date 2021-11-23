@@ -230,7 +230,7 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
                 Let(self.second, typ.second, module.curBuilder.extractvalue(val, 1, $self))
             of PatternKind.Record:
                 for (i, key) in toSeq(self.members.keys).pairs:
-                    Let(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self))
+                    Let(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self & "." & key))
             of PatternKind.Discard:
                 discard
         let
@@ -310,7 +310,7 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
                 Param(self.second, typ.second, module.curBuilder.extractvalue(val, 1, $self))
             of PatternKind.Record:
                 for (i, key) in toSeq(self.members.keys).pairs:
-                    Param(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self))
+                    Param(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self & "." & key))
             of PatternKind.Discard:
                 discard
         for i in 0..<fn.param.params.len:
