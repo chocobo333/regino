@@ -26,6 +26,17 @@ proc newPattern*(n: AstNode): Pattern =
             Pattern.Pair(n.children[0].newPattern(), n.children[1].newPattern())
         else:
             Pattern.Pair(n.children[0].newPattern(), akTuple.newTreeNode(n.children[1..^1]).newPattern())
+    of akRecord:
+        Pattern.Record(
+            n.children.mapIt(
+                block:
+                    assert it.kind == akIdentDef
+                    if it.children.len == 1:
+                        (it.children[0].strVal, it.children[0].newPattern())
+                    else:
+                        (it.children[0].strVal, it.children[1].newPattern())
+            ).toTable
+        )
     else:
         echo n.kind
         echo n

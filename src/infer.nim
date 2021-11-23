@@ -313,6 +313,8 @@ proc typeInfer(self: Pattern, env: var TypeEnv, global: bool = false): ref Value
         tv
     of PatternKind.Pair:
         Value.Pair(self.first.typeInfer(env, global), self.second.typeInfer(env, global))
+    of PatternKind.Record:
+        Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].typeInfer(env, global))).toTable)
     of PatternKind.Discard:
         Value.Var
     self.typ = result
@@ -373,6 +375,9 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
             of PatternKind.Pair:
                 self.addPat(pat.first, impl, global)
                 self.addPat(pat.second, impl, global)
+            of PatternKind.Record:
+                for pat in pat.members.values:
+                    self.addPat(pat, impl, global)
             of PatternKind.Discard:
                 discard
         let
@@ -435,9 +440,13 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
                 self.addConst(pat.id, con)
             of PatternKind.Pair:
                 assert constval.kind == ValueKind.Pair
-                self.addPat(pat.first, constval, impl, global)
-                self.addPat(pat.second, constval, impl, global)
+                self.addPat(pat.first, constval.first, impl, global)
+                self.addPat(pat.second, constval.first, impl, global)
                 pat.typ = constval.typ
+            of PatternKind.Record:
+                assert constval.kind == ValueKind.Record
+                for key in pat.members.keys:
+                    self.addPat(pat.members[key], constval.members[key], impl, global)
             of PatternKind.Discard:
                 pat.typ = constval.typ
         let
@@ -482,20 +491,22 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
             case pat.kind
             of PatternKind.Literal:
                 assert t == pat.lit.typeInfer(self, global)
-                pat.typ = t
             of PatternKind.Ident:
                 let
                     sym = Symbol.Let(pat.id, t, impl, global)
                 pat.id.typ = t
-                pat.typ = t
                 self.addIdent(pat.id, sym)
             of PatternKind.Pair:
                 assert t.kind == ValueKind.Pair
                 self.addPat(pat.first, t.first, impl, global)
                 self.addPat(pat.second, t.second, impl, global)
-                pat.typ = t
+            of PatternKind.Record:
+                assert t.kind == ValueKind.Record
+                for key in pat.members.keys:
+                    self.addPat(pat.members[key], t.members[key], impl, global)
             of PatternKind.Discard:
-                pat.typ = t
+                discard
+            pat.typ = t
         for (iddef, t) in self.fn.param.params.zip(tvs):
             env.addPat(iddef.pat, t, iddef.default.get(Term.unit), global)
         let
@@ -605,6 +616,8 @@ proc typeCheck(self: Pattern, env: var TypeEnv): seq[Error] =
         self.id.typeCheck(env)
     of PatternKind.Pair:
         self.first.typeCheck(env) & self.second.typeCheck(env)
+    of PatternKind.Record:
+        toSeq(self.members.values).mapIt(it.typeCheck(env)).flatten
     of PatternKind.Discard:
         @[]
 proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =

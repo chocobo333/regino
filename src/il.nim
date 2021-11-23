@@ -60,7 +60,7 @@ type
         # Array
         Pair
         # Tuple
-        # Record
+        Record
         Discard
 
     IdentDefs* = seq[IdentDef]
@@ -131,9 +131,8 @@ type
             second*: Pattern
         # of PatternKind.Tuple:
         #     tpl*: seq[Pattern]
-        # of PatternKind.Record:
-        #     # TODO: pattern for record
-        #     nil
+        of PatternKind.Record:
+            members*: Table[string, Pattern]
         of PatternKind.Discard:
             nil
 
@@ -404,6 +403,8 @@ suite Pattern:
         Pattern(kind: PatternKind.Ident, id: id)
     proc Pair*(_: typedesc[Pattern], first: Pattern, second: Pattern): Pattern =
         Pattern(kind: PatternKind.Pair, first: first, second: second)
+    proc Record*(_: typedesc[Pattern], members: Table[string, Pattern]): Pattern =
+        Pattern(kind: PatternKind.Record, members: members)
     proc Discard*(_: typedesc[Pattern]): Pattern =
         Pattern(kind: PatternKind.Discard)
     proc `==`*(self, other: Pattern): bool =
@@ -417,6 +418,8 @@ suite Pattern:
                 self.first == other.first and self.second == other.second
             # of PatternKind.Tuple:
             #     self.tpl.zip(other.tpl).mapIt(it[0] == it[1]).foldl(a and b)
+            of PatternKind.Record:
+                self.members == other.members
             of PatternKind.Discard:
                 true
         else:
@@ -431,6 +434,9 @@ suite Pattern:
             fmt"({self.first}, {self.second})"
         # of PatternKind.Tuple:
         #     $self.tpl
+        of PatternKind.Record:
+            let s = toSeq(self.members.pairs).mapIt(fmt"{it[0]}: {it[1]}").join", "
+            fmt"({s})"
         of PatternKind.Discard:
             "_"
 

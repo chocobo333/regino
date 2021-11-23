@@ -1,5 +1,7 @@
 
 import macros
+import tables
+import sequtils
 
 
 macro suite*(label: untyped, body: untyped): untyped =
@@ -14,3 +16,6 @@ iterator reversed*[T](s: seq[T]): T =
 proc flatten*[T](s: seq[seq[T]]): seq[T] =
     for e in s:
         result.add e
+
+template mapIt*[T, U](self: Table[T, U], f: untyped): untyped =
+    toSeq(self.pairs).mapIt((it[0], f)).toTable

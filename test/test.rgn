@@ -58,7 +58,7 @@ func len(a: string) -> int ![importll]
 #         fib(n-1) + fib(n-2)
 
 let a = (a: 1, b: 3)
-let (a: c, b) = a
+let (b, a: c) = a
 echo b
 echo c
 0
