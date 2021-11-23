@@ -98,6 +98,9 @@ proc coerceRelation(self: var TypeEnv, t1, t2: ref Value) =
         discard
     else:
         self.constraints.add (t1, t2)
+proc coerceEq(self: var TypeEnv, t1, t2: ref Value) =
+    self.coerceRelation(t1, t2)
+    self.coerceRelation(t2, t1)
 proc addTypeRelation(self: var TypeEnv, t1, t2: ref Value, fn: Ident) =
     setTypeEnv(self)
     # assert t1.kind == ValueKind.Typedesc
@@ -377,15 +380,15 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
                 discard
         let
             pat = self.iddef.pat
-            tv = if self.iddef.typ.isSome:
-                discard self.iddef.typ.get.typeInfer(env, global)
-                self.iddef.typ.get.evalConst(env, global)
-            else:
-                pat.typeInfer(env, global)
+            tv = pat.typeInfer(env, global)
             impl = self.iddef.default.get
             t1 = impl.typeInfer(env, global)
-        env.coerceRelation(t1, tv)
-        env.coerceRelation(tv, t1)
+        if self.iddef.typ.isSome:
+            let
+                _ = self.iddef.typ.get.typeInfer(env, global)
+                t = self.iddef.typ.get.evalConst(env, global)
+            env.coerceEq(tv, t)
+        env.coerceEq(tv, t1)
         env.addPat(pat, impl, global)
         Value.Unit
     # of TermKind.Var:
@@ -467,42 +470,36 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
             paramty = self.fn.param.params.mapIt(it.typ.get.evalConst(env, global))
             rety = self.fn.param.rety.evalConst(env, global)
             metadata = self.fn.metadata
-            # tvs = paramty.mapIt(Value.Var())
-            # tv = Value.Var()
-            # fnty = Value.Arrow(tvs, tv)
-            fnty = Value.Arrow(paramty, rety)
+            tvs = paramty.mapIt(Value.Var())
+            tv = Value.Var()
+            fnty = Value.Arrow(tvs, tv)
+            # fnty = Value.Arrow(paramty, rety)
             sym = Symbol.Func(self.fn.id, fnty, self, global)
         self.fn.id.typ = fnty
         env.addIdent(self.fn.id, sym)
-        # for (p, v) in paramty.zip(tvs.mapIt(Value.Typedesc(it))):
-        #     env.coerceRelation(v, p)
-        #     env.coerceRelation(p, v)
-        # if rety.kind == ValueKind.Unit:
-        #     env.coerceRelation(tv, rety)
-        #     env.coerceRelation(rety, tv)
-        # else:
-        #     env.coerceRelation(Value.TypeDesc(tv), rety)
-        #     env.coerceRelation(rety, Value.TypeDesc(tv))
+        for (p, v) in paramty.zip(tvs):
+            env.coerceEq(v, p)
+        env.coerceEq(tv, rety)
         env.pushScope self.fn.body.scope
         proc addPat(self: var TypeEnv, pat: Pattern, t: ref Value, impl: ref Term, global: bool) =
             case pat.kind
             of PatternKind.Literal:
                 assert t == pat.lit.typeInfer(self, global)
+                pat.typ = t
             of PatternKind.Ident:
                 let
                     sym = Symbol.Let(pat.id, t, impl, global)
                 pat.id.typ = t
+                pat.typ = t
                 self.addIdent(pat.id, sym)
             of PatternKind.Pair:
                 assert t.kind == ValueKind.Pair
                 self.addPat(pat.first, t.first, impl, global)
                 self.addPat(pat.second, t.second, impl, global)
+                pat.typ = t
             of PatternKind.Discard:
-                discard
-            pat.typ = t
-        for (iddef, t) in self.fn.param.params.zip(paramty):
-            echo t
-            echo t.symbol.get
+                pat.typ = t
+        for (iddef, t) in self.fn.param.params.zip(tvs):
             env.addPat(iddef.pat, t, iddef.default.get(Term.unit), global)
         let
             inferedRety = self.fn.body.term.typeInfer(env)
@@ -510,8 +507,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
         if metadata.isSome:
             case metadata.get.kind
             of MetadataKind.ImportLL:
-                env.coerceRelation(inferedRety, Value.Unit)
-                env.coerceRelation(Value.Unit, inferedRety)  # ?
+                env.coerceEq(inferedRety, Value.Unit)
             of MetadataKind.Subtype:
                 assert paramty.len == 1, "converter must take only one argument."
                 env.addTypeRelation(paramty[0], rety, self.fn.id)
@@ -586,8 +582,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
             index = self.index
             typ = Value.Pair(Value.Var, Value.Var)
             # typ = Value.Sigma(Value.Var, Value.Var)
-        env.coerceRelation(container, typ)
-        env.coerceRelation(typ, container)
+        env.coerceEq(container, typ)
         if index == 0:
             typ.first
         else:
@@ -600,8 +595,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
         let
             terms = self.terms.mapIt(it.typeInfer(env, global))
         for e in terms[0..^2]:
-            env.coerceRelation(e, Value.Unit)
-            env.coerceRelation(Value.Unit, e)
+            env.coerceEq(e, Value.Unit)
         terms[^1]
     self.typ = result
 

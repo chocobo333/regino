@@ -74,9 +74,4 @@ proc sema*(node: AstNode, module: Module): ref Term =
     # mainid.typ.symbol.get.instances[mainid.typ] = Symbol()
     echo program
     echo mainScope
-    echo program.terms[10]
-    echo program.terms[10].fn.body.scope
-    for i in 0..<program.terms[10].fn.param.params.len:
-        echo program.terms[10].fn.param.params[i].pat.id.typ
-        echo program.terms[10].fn.param.params[i].pat.id.typ.symbol.get
     main

@@ -313,8 +313,6 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
                 pat = fn.param.params[i].pat
                 typ = fn.paramty[i]
                 val = fn2.param(i)
-            echo pat.id
-            echo pat.id.typ.symbol.get
             Param(pat, typ, val)
         # for i in 0..<fn.param.params.len:
         #     let

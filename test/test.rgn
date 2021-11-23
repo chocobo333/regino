@@ -61,5 +61,6 @@ let a = ("aaa", 5, 0)
 let b = (a: 1, b: 3)
 let c = (3, "f")
 let (a, b) = c
-echo a + 1
-0
+echo a
+echo b
+a-2
