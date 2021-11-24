@@ -2,6 +2,7 @@
 import tables
 import sets
 import sequtils
+import hashes
 
 import il
 import errors
@@ -18,6 +19,11 @@ type
         t.ftv() is HashSet[TypeVar]
     Constraint* = (ref Value, ref Value)   # for t1 <= t2
 
+
+proc hash*(self: Constraint): Hash =
+    result = self[0].hash
+    result = result !& self[1].hash
+    result = !$result
 
 proc pushScope*(env: var TypeEnv, scope: Scope) =
     assert scope.parent == env.scope

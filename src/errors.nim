@@ -49,8 +49,8 @@ template `raise`*(self: Error): untyped =
         raise self.ie
 
 
-proc Undeciable*(_: typedesc[TypeError]): Error =
-    Error(kind: ErrorKind.Type, te: newException(TypeError, "Undeciable"))
+proc Undeciable*(_: typedesc[TypeError], msg: string = ""): Error =
+    Error(kind: ErrorKind.Type, te: newException(TypeError, "Undeciable: " & msg))
 proc Undefined*(_: typedesc[SemaError], id: string): Error =
     Error(kind: ErrorKind.Sema, se: newException(SemaError, fmt"Undefined variable: {id}"))
 proc new*(_: typedesc[InternalError]): Error =

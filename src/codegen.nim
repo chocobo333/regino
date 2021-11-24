@@ -141,6 +141,11 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
             i = self.intval
             intty = newLType(Value.Integer, module)
         intty.constInt(int i)
+    of TermKind.Float:
+        let
+            f = self.floatval
+            floatty = newLType(Value.Float, module)
+        floatty.constReal(f)
     of TermKind.String:
         let
             s = self.strval

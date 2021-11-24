@@ -12,38 +12,58 @@ import
     errors,
     relations,
     orders,
+    lineinfos,
     utils
 
 
 proc `<=`*(env: TypeEnv, t1, t2: ref Value): bool =
-    if t1.kind == ValueKind.Bottom:
+    if t1.kind == ValueKind.Link:
+        env.`<=`(t1.to, t2)
+    elif t2.kind == ValueKind.Link:
+        env.`<=`(t1, t2.to)
+    elif t1.kind == ValueKind.Bottom:
         true
     # elif t2.kind == ValueKind.Top:
     elif t2.kind == ValueKind.Unit:
         true
     elif t1.kind != ValueKind.Var and t1 == t2:
         true
-    elif t1.kind == ValueKind.Pair and t2.kind == ValueKind.Pair:
-        `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
+    elif t1.kind == t2.kind:
+        case t1.kind
+        of ValueKind.Pair:
+            `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
+        of ValueKind.Record:
+            toSeq(t2.members.keys).allIt(`<=`(env, t1.members.getOrDefault(it, Value.Unit), t2.members[it]))
+        of ValueKind.Pi:
+            let
+                paramty = t1.paramty.zip(t2.paramty).allIt(env.`<=`(it[1], it[0]))
+                rety = env.`<=`(t1.rety, t2.rety)
+            paramty and rety
+        else:
+            echo t1.kind
+            raise newException(TypeError, "notimplemented")
     # elif t1.kind == ValueKind.Sigma and t2.kind == ValueKind.Sigma:
     #     `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
+    elif t1.kind == ValueKind.Intersection:
+        t1.types.anyIt(env.`<=`(it, t2))
+    elif t2.kind == ValueKind.Intersection:
+        t2.types.allIt(env.`<=`(t1, it))
     else:
         # echo env.typeOrder[^1].path(t1, t2)
         # env.typeOrder.anyIt((t1, t2) in it)
         env.scope.typeOrder.path(t1, t2).isSome
 proc `<=?`*(env: TypeEnv, t1, t2: ref Value): Option[seq[Constraint]] =
-    if t1.kind == ValueKind.Bottom:
+    proc `<=`(t1, t2: ref Value): bool =
+        env.`<=`(t1, t2)
+    # if t1.kind == ValueKind.Bottom:
+    #     some newSeq[Constraint]()
+    # # elif t2.kind == ValueKind.Top:
+    # elif t2.kind == ValueKind.Unit:
+    #     some newSeq[Constraint]()
+    # elif t1.kind != ValueKind.Var and t1 == t2:
+    #     some newSeq[Constraint]()
+    if t1 <= t2:
         some newSeq[Constraint]()
-    # elif t2.kind == ValueKind.Top:
-    elif t2.kind == ValueKind.Unit:
-        some newSeq[Constraint]()
-    elif t1.kind != ValueKind.Var and t1 == t2:
-        some newSeq[Constraint]()
-    elif t2.kind == ValueKind.Var:
-        if t2 <= t1:
-            none(seq[Constraint])
-        else:
-            some @[(t1, t2)]
     elif t1.kind == t2.kind:
         case t1.kind
         # of ValueKind.Arrow:
@@ -54,6 +74,13 @@ proc `<=?`*(env: TypeEnv, t1, t2: ref Value): Option[seq[Constraint]] =
         #         some paramty.mapIt(it.get).flatten & rety.get
         #     else:
         #         none(seq[Constraint])
+        of ValueKind.Record:
+            let
+                ret = toSeq(t2.members.keys).mapIt(`<=?`(env, t1.members.getOrDefault(it, Value.Unit), t2.members[it]))
+            if ret.allIt(it.isSome):
+                some ret.mapIt(it.get).flatten
+            else:
+                none(seq[Constraint])
         of ValueKind.Pi:
             let
                 paramty = t1.paramty.zip(t2.paramty).mapIt(env.`<=?`(it[1], it[0]))
@@ -63,7 +90,28 @@ proc `<=?`*(env: TypeEnv, t1, t2: ref Value): Option[seq[Constraint]] =
             else:
                 none(seq[Constraint])
         else:
-            none(seq[Constraint])
+            raise newException(TypeError, "not implemented")
+            # none(seq[Constraint])
+    elif t2.kind == ValueKind.Var:
+        if t1 <= t2.tv.ub:
+            some @[(t1, t2)]
+        else:
+            let
+                tmp = env.`<=?`(t1, t2.tv.ub)
+            if tmp.isSome:
+                some (@[(t1, t2)] & tmp.get)
+            else:
+                none(seq[Constraint])
+    elif t1.kind == ValueKind.Var:
+        if t1.tv.lb <= t2:
+            some @[(t1, t2)]
+        else:
+            let
+                tmp = env.`<=?`(t1.tv.lb, t2)
+            if tmp.isSome:
+                some (@[(t1, t2)] & tmp.get)
+            else:
+                none(seq[Constraint])
     else:
         if env.scope.typeOrder.path(t1, t2).isSome:
             some newSeq[Constraint]()
@@ -112,7 +160,7 @@ proc addTypeRelation(self: var TypeEnv, t1, t2: ref Value, fn: Ident) =
 proc bindtv(self: TypeEnv, t1, t2: ref Value) =
     case t2.kind
     of ValueKind.Var:
-        let symbol = t1.symbol
+        let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
         t1[] = Value.Link(t2)[]
         t1.symbol = symbol
     of ValueKind.Link:
@@ -121,9 +169,41 @@ proc bindtv(self: TypeEnv, t1, t2: ref Value) =
         if t1.kind == ValueKind.Intersection:
             t1[] = t2[]
         else:
-            let symbol = t1.symbol
+            let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
             t1[] = t2[]
             t1.symbol = symbol
+proc containtv(self: ref Value): bool =
+    case self.kind
+    of ValueKind.Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.U:
+        false
+    # of ValueKind.# Bool:
+    #     false
+    of ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
+        false
+    # of ValueKind.# List:
+    #     false
+    of ValueKind.Pair:
+        self.first.containtv or self.second.containtv
+    # of ValueKind.# Tuple:
+    #     false
+    of ValueKind.Record:
+        toSeq(self.members.values).any(containtv)
+    of ValueKind.Pi:
+        self.paramty.any(containtv) or self.rety.containtv
+    # of ValueKind.# Sigma:
+    #     false
+    of ValueKind.Typedesc:
+        self.`typedesc`.containtv
+    # of ValueKind.# Distinct:
+    #     false
+    of ValueKind.Var:
+        true
+    of ValueKind.Intersection:
+        self.types.any(containtv)
+    of ValueKind.Link:
+        self.to.containtv
+    of ValueKind.Neutral:
+        false
 proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
     # implies t1 < t2
     # setTypeEnv(self)
@@ -131,11 +211,11 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
     # TODO: should change function name
     if t1.kind == ValueKind.Link:
         self.resolveRelation(t1.to, t2)
-    if t2.kind == ValueKind.Link:
+    elif t2.kind == ValueKind.Link:
         self.resolveRelation(t1, t2.to)
-    if t1 == t2:
+    elif t1 == t2:
         return
-    if t1.kind == t2.kind:
+    elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Bottom..ValueKind.String:
             return
@@ -194,6 +274,8 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
                 discard
             else:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            if t1.tv.lb.kind == ValueKind.Intersection:
+                self.bindtv(t1.tv.lb, Value.Intersection(t1.tv.lb.types.filterIt(it <= t1.tv.ub)))
             if t1.tv.lb == t2:
                 self.bindtv(t1, t2)
         elif t2.kind == ValueKind.Var:
@@ -203,6 +285,8 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
                 discard
             else:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            if t2.tv.lb.kind == ValueKind.Intersection:
+                self.bindtv(t2.tv.lb, Value.Intersection(t2.tv.lb.types.filterIt(it <= t2.tv.ub)))
             if t2.tv.ub == t1:
                 self.bindtv(t2, t1)
         elif t1.kind == ValueKind.Intersection:
@@ -214,6 +298,7 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
                 let (t3, cons) = l[0]
                 self.bindtv(t1, t3)
                 self.constraints.add cons
+                self.constraints.add (t1, t2)
                 # TODO: add opppsite constraint
                 # if t3.kind == ValueKind.Arrow and t2.kind == ValueKind.Arrow:
                 #     self.constraints.add (t2.rety, t3.rety)
@@ -221,6 +306,31 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
                     self.constraints.add (t2.rety, t3.rety)
             else:
                 self.bindtv(t1, Value.Intersection(l.mapIt(it[0])))
+                if t1.containtv or t2.containtv:
+                    if t2.kind == ValueKind.Pi:
+                        self.constraints.add (Value.Intersection(t1.types.mapIt(it.rety)), t2.rety)
+                    self.tvconstraints.add (t1, t2)
+        elif t2.kind == ValueKind.Intersection:
+            echo t1
+            echo t2
+            let l = t2.types.zip(t2.types.mapIt(t1 <=? it)).filterIt(it[1].isSome).mapIt((it[0], it[1].get))
+            case l.len
+            of 0:
+                raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            of 1:
+                let (t3, cons) = l[0]
+                self.bindtv(t2, t3)
+                self.constraints.add cons
+                self.constraints.add (t1, t2)
+                # TODO: add opppsite constraint
+                # if t3.kind == ValueKind.Arrow and t2.kind == ValueKind.Arrow:
+                #     self.constraints.add (t2.rety, t3.rety)
+                if t3.kind == ValueKind.Pi and t1.kind == ValueKind.Pi:
+                    self.constraints.add (t1.rety, t3.rety)
+            else:
+                self.bindtv(t2, Value.Intersection(l.mapIt(it[0])))
+                if t1.containtv or t2.containtv:
+                    self.tvconstraints.add (t1, t2)
         # elif t2.kind == ValueKind.Tuple:
         #     case t2.types.len
         #     of 0:
@@ -248,25 +358,43 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
             echo t2
             echo t1.symbol
             echo t2.symbol
+            echo t1.kind
+            echo t2.kind
             echo self.constraints
             raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
 proc resolveRelations(self: var TypeEnv) =
+    var tmp: seq[Constraint]
     while self.constraints.len > 0:
         self.constraints.reverse
         while self.constraints.len > 0:
             let
                 (t1, t2) = self.constraints.pop
             self.resolveRelation(t1, t2)
-        (self.constraints, self.tvconstraints) = block:
-            var
-                l1: seq[Constraint]
-                l2: seq[Constraint]
-            for (t1, t2) in self.tvconstraints:
-                if t1.kind == ValueKind.Var and t2.kind == ValueKind.Var:
-                    l2.add (t1, t2)
-                else:
-                    l1.add (t1, t2)
-            (l1, l2)
+        var
+            ord = newOrder[ref Value]()
+            f = false
+        for cons in self.tvconstraints.filterIt(it[0].kind == ValueKind.Var and it[1].kind == ValueKind.Var):
+            let
+                (t1, t2) = cons
+                path = ord.path(t2, t1)
+            if path.isSome:
+                for (t1, t2) in path.get:
+                    self.resolveRelation(t1, t2)
+                self.resolveRelation(t1, t2)
+                for t2 in path.get.mapIt(it[0]):
+                    self.bindtv(t2, t1)
+                self.constraints = self.tvconstraints
+                self.tvconstraints = @[]
+                f = true
+                break
+            else:
+                ord.add cons
+        if f: continue
+        if self.tvconstraints.len == tmp.len and self.tvconstraints.zip(tmp).allIt(it[0] == it[1]):
+            break
+        tmp = self.tvconstraints
+        self.constraints = self.tvconstraints
+        self.tvconstraints = @[]
 
 proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Value
 proc evalConst*(self: ref Term, env: var TypeEnv, global: bool = false): ref Value =
@@ -390,7 +518,12 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
                 _ = self.iddef.typ.get.typeInfer(env, global)
                 t = self.iddef.typ.get.evalConst(env, global)
             env.coerceEq(tv, t)
+        # if t1.kind != ValueKind.Intersection:
+        #     env.coerceEq(tv, t1)
+        # else:
+        #     env.coerceRelation(t1, tv)
         env.coerceEq(tv, t1)
+        # env.coerceRelation(t1, tv)
         env.addPat(pat, impl, global)
         Value.Unit
     # of TermKind.Var:
@@ -576,8 +709,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
             callee = self.callee.typeInfer(env, global)
             args = self.args.mapIt(it.typeInfer(env, global))
             tv = Value.Var()
-        # env.coerceRelation(callee, Value.Arrow(args, tv))
-        env.coerceRelation(callee, Value.Pi(@[], args, tv))
+        env.coerceRelation(callee, Value.Arrow(args, tv))
         # TODO: if callee is not of Interseciion type, add tv < callee.rety
         # if callee.kind == ValueKind.Arrow:
         #     env.coerceRelation(tv, callee.rety)
@@ -628,7 +760,13 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
         elif self.kind == TermKind.Id and self.typ.symbol.isNone:
             return @[SemaError.Undefined(self.name)]
         else:
-            return @[TypeError.Undeciable]
+            for t in self.callee.typ.types:
+                echo t
+                echo t.symbol.get
+            TypeError.Undeciable($self & " at " & $self.loc).`raise`
+            return @[TypeError.Undeciable($self)]
+    elif self.typ.kind == ValueKind.Intersection:
+        return @[TypeError.Undeciable($self)]
     proc check(self: ref Term, typ2: ref Value): seq[Error] =
         if self.typ == typ2:
             @[]
@@ -671,7 +809,7 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
             pat = self.iddef.pat
             impl = self.iddef.default.get
             ret = pat.typeCheck(env) & impl.typeCheck(env)
-        assert impl.typ == pat.typ
+        assert impl.typ == pat.typ, fmt"{impl.typ} == {pat.typ}"
         self.check(Value.Unit) & ret
     # of TermKind.Var:
     #     let
@@ -802,20 +940,33 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
             ret = self.callee.typeCheck(env) &  self.args.mapIt(it.typeCheck(env)).flatten
             callee = self.callee.typ
             args = self.args.mapIt(it.typ)
-        for i in 0..<callee.paramty.len:
-            let (argty, paramty) = (args[i], callee.paramty[i])
-            assert argty <= paramty, fmt"{argty} <= {paramty}"
-            if argty != paramty and argty <= paramty:
-                let
-                    p = env.scope.typeOrder.path(argty, paramty).get
-                var
-                    arg = self.args[i]
-                for (t1, t2) in p:
+        if callee.kind == ValueKind.Pi:
+            for i in 0..<callee.paramty.len:
+                let (argty, paramty) = (args[i], callee.paramty[i])
+                assert argty <= paramty, fmt"{argty} <= {paramty}"
+                if argty != paramty and argty <= paramty:
                     let
-                        fn = env.lookupConverter(t1, t2)
-                    arg = Term.Apply(fn, @[arg])
-                    arg.typ = t2
-                self.args[i] = arg
+                        argty = block:
+                            var
+                                tmp = argty
+                            while tmp.kind == ValueKind.Link:
+                                tmp = tmp.to
+                            tmp
+                        paramty = block:
+                            var
+                                tmp = paramty
+                            while tmp.kind == ValueKind.Link:
+                                tmp = tmp.to
+                            tmp
+                        p = env.scope.typeOrder.path(argty, paramty).get
+                    var
+                        arg = self.args[i]
+                    for (t1, t2) in p:
+                        let
+                            fn = env.lookupConverter(t1, t2)
+                        arg = Term.Apply(fn, @[arg])
+                        arg.typ = t2
+                    self.args[i] = arg
         ret
     of TermKind.Projection:
         let
@@ -860,6 +1011,7 @@ proc infer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Value =
     result = self.typeInfer(env, global)
     env.coerceRelation(result, Value.Integer)
     env.resolveRelations()
+    echo env.scope
     let errs = self.typeCheck(env)
     if errs.len > 0:
         errs[0].`raise`

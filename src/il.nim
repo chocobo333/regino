@@ -472,7 +472,7 @@ suite Value:
                     false
             # of ValueKind.Tuple, ValueKind.Intersection:
             of ValueKind.Intersection:
-                self.types.zip(other.types).mapIt(it[0] == it[1]).foldl(a and b)
+                self.types.zip(other.types).mapIt(it[0] == it[1]).foldl(a and b, true)
             # of ValueKind.Record:
             #     self.idtypes.zip(other.idtypes).mapIt(it[0] == it[1]).foldl(a and b)
             # of Arrow:
@@ -480,7 +480,7 @@ suite Value:
             #     self.rety == other.rety
             of ValueKind.Pi:
                 self.genty.zip(other.genty).mapIt(it[0][0] == it[1][0] and it[0][1] == it[1][1]).foldl(a and b, true) and
-                self.paramty.zip(other.paramty).mapIt(it[0] == it[1]).foldl(a and b) and
+                self.paramty.zip(other.paramty).mapIt(it[0] == it[1]).foldl(a and b, true) and
                 self.rety == other.rety
             # of ValueKind.Sigma:
             #     self.first == other.first and
@@ -544,7 +544,12 @@ suite Value:
         # of ValueKind.Arrow:
         #     self.paramty.mapIt($it[]).join(", ") & " -> " & $self.rety[]
         of ValueKind.Pi:
-            self.paramty.mapIt($it[]).join(", ") & " -> " & $self.rety[]
+            (
+                if self.paramty.len == 0:
+                    "()"
+                else:
+                    self.paramty.mapIt($it[]).join(", ")
+            ) & " -> " & $self.rety[]
         # of ValueKind.Sigma:
         #     fmt"({self.first}, {self.second})"
         of ValueKind.Typedesc:

@@ -34,6 +34,8 @@ func `-`(a: int, b: int) -> int:
 func `tos@string/i32`(a: int) -> string ![importll]
 func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
+func `$`(a: float) -> string ![subtype]:
+    "float"
 
 
 # func toInt(a: bool) -> int ![subtype]:
@@ -56,9 +58,16 @@ func len(a: string) -> int ![importll]
 #         1
 #     else:
 #         fib(n-1) + fib(n-2)
+func a() -> int:
+    10
+func a() -> float:
+    2.0
 
+# let a: string = 3
 let a = (a: 1, b: 3)
 let (b, a: c) = a
 echo b
 echo c
+let a = a()
+echo a
 0
