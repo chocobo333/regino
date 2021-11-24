@@ -198,7 +198,7 @@ proc containtv(self: ref Value): bool =
     #     false
     of ValueKind.Var:
         true
-    of ValueKind.Intersection:
+    of ValueKind.Intersection, ValueKind.Union:
         self.types.any(containtv)
     of ValueKind.Link:
         self.to.containtv

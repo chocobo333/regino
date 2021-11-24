@@ -220,6 +220,7 @@ type
         # Distinct
         Var
         Intersection
+        Union
         Link
         Neutral
     # PolyTypeKind* {.pure.} = enum
@@ -249,7 +250,7 @@ type
         of ValueKind.Record:
             members*: Table[string, ref Value]
         # of ValueKind.Tuple, ValueKind.Intersection:
-        of ValueKind.Intersection:
+        of ValueKind.Intersection, ValueKind.Union:
             types*: seq[ref Value]
         # of ValueKind.Record:
         #     idtypes*: seq[(Ident, ref Value)]
@@ -471,7 +472,7 @@ suite Value:
                 else:
                     false
             # of ValueKind.Tuple, ValueKind.Intersection:
-            of ValueKind.Intersection:
+            of ValueKind.Intersection, ValueKind.Union:
                 self.types.zip(other.types).mapIt(it[0] == it[1]).foldl(a and b, true)
             # of ValueKind.Record:
             #     self.idtypes.zip(other.idtypes).mapIt(it[0] == it[1]).foldl(a and b)
@@ -558,7 +559,7 @@ suite Value:
             fmt"{t}[{self.`typedesc`[]}]"
         of ValueKind.Var:
             $self.tv
-        of ValueKind.Intersection:
+        of ValueKind.Intersection, ValueKind.Union:
             self.types.mapIt(
                 # if it.kind == ValueKind.Arrow:
                 #     fmt"({it[]})"
@@ -677,7 +678,7 @@ suite Value:
             true
         # of ValueKind.Sigma:
         #     self.first.hasRegion or self.second.hasRegion
-        of ValueKind.Intersection:
+        of ValueKind.Intersection, ValueKind.Union:
             self.types.any(hasRegion)
         # of ValueKind.Record:
         #     self.idtypes.anyIt(it[1].hasRegion)
@@ -710,7 +711,7 @@ suite Value:
             self.paramty.all(compilable) and self.rety.compilable
         # of ValueKind.Sigma:
         #     self.first.compilable and self.second.compilable
-        of ValueKind.Intersection:
+        of ValueKind.Intersection, ValueKind.Union:
             false
         # of ValueKind.Record:
         #     self.idtypes.anyIt(it[1].compilable)
@@ -809,7 +810,7 @@ suite Value:
         #     nil
         of ValueKind.Var:
             nil
-        of ValueKind.Intersection:
+        of ValueKind.Intersection, ValueKind.Union:
             nil
         of ValueKind.Link:
             self.to.typ

@@ -105,7 +105,7 @@ proc apply*(self: Substitution, t: ref Value): ref Value =
         for key in t.members.keys:
             t.members[key] = self.apply t.members[key]
     # of ValueKind.Tuple, ValueKind.Intersection:
-    of ValueKind.Intersection:
+    of ValueKind.Intersection, ValueKind.Union:
         for i in 0..<t.types.len:
             t.types[i] = self.apply t.types[i]
     # of ValueKind.Record:
