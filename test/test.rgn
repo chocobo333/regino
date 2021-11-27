@@ -63,6 +63,12 @@ func a() -> int:
 func a() -> float:
     2.0
 
+func b(a: int) -> int:
+    0
+func b(a: float) -> int:
+    0
+func toInt(a: float) -> int ![subtype]:
+    0
 # let a: string = 3
 let a = (a: 1, b: 3)
 let (b, a: c) = a
@@ -70,4 +76,6 @@ echo b
 echo c
 let a = a()
 echo a
+let b = b(1.0)
+echo b
 0

@@ -5,6 +5,7 @@ import options
 import sets
 import tables
 import algorithm
+import sugar
 
 import
     il,
@@ -220,11 +221,21 @@ proc containtv(self: ref Value): bool =
     of ValueKind.Var:
         true
     of ValueKind.Intersection, ValueKind.Union:
-        self.types.any(containtv)
+        toSeq(self.types.items).any(containtv)
     of ValueKind.Link:
         self.to.containtv
     of ValueKind.Neutral:
         false
+proc likelihoodimpl*(t1, t2: ref Value): int =
+    case t1.kind
+    of ValueKind.Pi:
+        discard
+    else:
+        assert false, "notimplemented"
+proc likelihood*(t1, t2: ref Value): seq[int] =
+    assert t1.kind == ValueKind.Intersection
+    assert t2.kind != ValueKind.Intersection
+    t1.types.mapIt(likelihoodimpl(it, t2))
 proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
     # implies t1 < t2
     # setTypeEnv(self)
@@ -296,7 +307,7 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
             else:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
             if t1.tv.lb.kind == ValueKind.Intersection:
-                self.bindtv(t1.tv.lb, Value.Intersection(t1.tv.lb.types.filterIt(it <= t1.tv.ub)))
+                self.bindtv(t1.tv.lb, Value.Intersection(toSeq(t1.tv.lb.types.items).filterIt(it <= t1.tv.ub).toHashSet))
             if t1.tv.lb == t2:
                 self.bindtv(t1, t2)
         elif t2.kind == ValueKind.Var:
@@ -307,11 +318,13 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
             else:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
             if t2.tv.lb.kind == ValueKind.Intersection:
-                self.bindtv(t2.tv.lb, Value.Intersection(t2.tv.lb.types.filterIt(it <= t2.tv.ub)))
+                self.bindtv(t2.tv.lb, Value.Intersection(toSeq(t2.tv.lb.types.items).filterIt(it <= t2.tv.ub).toHashSet))
             if t2.tv.ub == t1:
                 self.bindtv(t2, t1)
         elif t1.kind == ValueKind.Intersection:
-            let l = t1.types.zip(t1.types.mapIt(it <=? t2)).filterIt(it[1].isSome).mapIt((it[0], it[1].get))
+            let
+                tmp = toSeq(t1.types.items)
+                l = tmp.zip(tmp.mapIt(it <=? t2)).filterIt(it[1].isSome).mapIt((it[0], it[1].get))
             case l.len
             of 0:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
@@ -326,13 +339,15 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
                 if t3.kind == ValueKind.Pi and t2.kind == ValueKind.Pi:
                     self.constraints.add (t2.rety, t3.rety)
             else:
-                self.bindtv(t1, Value.Intersection(l.mapIt(it[0])))
+                self.bindtv(t1, Value.Intersection(l.mapIt(it[0]).toHashSet))
                 # if t1.containtv or t2.containtv:
                 if t2.kind == ValueKind.Pi:
-                    self.constraints.add (Value.Intersection(t1.types.mapIt(it.rety)), t2.rety)
+                    self.constraints.add (Value.Intersection(t1.types.map(it => it.rety)), t2.rety)
                 self.interconstraints.add (t1, t2)
         elif t2.kind == ValueKind.Intersection:
-            let l = t2.types.zip(t2.types.mapIt(t1 <=? it)).filterIt(it[1].isSome).mapIt((it[0], it[1].get))
+            let
+                tmp = toSeq(t2.types.items)
+                l = tmp.zip(tmp.mapIt(t1 <=? it)).filterIt(it[1].isSome).mapIt((it[0], it[1].get))
             case l.len
             of 0:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
@@ -347,7 +362,7 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
                 if t3.kind == ValueKind.Pi and t1.kind == ValueKind.Pi:
                     self.constraints.add (t1.rety, t3.rety)
             else:
-                self.bindtv(t2, Value.Intersection(l.mapIt(it[0])))
+                self.bindtv(t2, Value.Intersection(l.mapIt(it[0]).toHashSet))
                 # if t1.containtv or t2.containtv:
                 self.interconstraints.add (t1, t2)
         # elif t2.kind == ValueKind.Tuple:
@@ -419,6 +434,7 @@ proc resolveRelations(self: var TypeEnv) =
             assert cons[0].kind == ValueKind.Intersection
             assert cons[1].kind != ValueKind.Intersection
             echo cons
+        if f: continue
 
         self.constraints = self.tvconstraints & self.interconstraints
         self.tvconstraints = @[]
@@ -446,7 +462,7 @@ proc evalConst*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
         of 1:
             syms[0].typ.inst
         else:
-            Value.Intersection(syms.mapIt(it.typ.inst))
+            Value.Intersection(syms.mapIt(it.typ.inst).toHashSet)
     of TermKind.Tuple:
         case self.terms.len
         of 0:
@@ -507,7 +523,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
         of 1:
             syms[0].typ.inst
         else:
-            Value.Intersection(syms.mapIt(it.typ.inst))
+            Value.Intersection(syms.mapIt(it.typ.inst).toHashSet)
     # of TermKind.Lambda:
     #     Value.Unit
     # of TermKind.List:

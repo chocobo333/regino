@@ -107,8 +107,7 @@ proc apply*(self: Substitution, t: ref Value): ref Value =
             t.members[key] = self.apply t.members[key]
     # of ValueKind.Tuple, ValueKind.Intersection:
     of ValueKind.Intersection, ValueKind.Union:
-        for i in 0..<t.types.len:
-            t.types[i] = self.apply t.types[i]
+        t.types = toSeq(t.types.items).mapIt(self.apply it).toHashSet
     # of ValueKind.Record:
     #     for i in 0..<t.idtypes.len:
     #         t.idtypes[i] = (t.idtypes[i][0], self.apply t.idtypes[i][1])

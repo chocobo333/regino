@@ -251,7 +251,7 @@ type
             members*: Table[string, ref Value]
         # of ValueKind.Tuple, ValueKind.Intersection:
         of ValueKind.Intersection, ValueKind.Union:
-            types*: seq[ref Value]
+            types*: HashSet[ref Value]
         # of ValueKind.Record:
         #     idtypes*: seq[(Ident, ref Value)]
         # of Arrow:
@@ -442,6 +442,44 @@ suite Pattern:
             "_"
 
 suite Value:
+    proc hash*(self: TypeVar): Hash =
+        result = !$ self.id
+    proc hash*(self: ref Value): Hash =
+        result = 0
+        result = result !& self.kind.ord
+        # TODO: implement hash of Value
+        # case self.kind:
+        # of ValueKind.Bottom:
+        #     discard
+        # of ValueKind.Top:
+        #     discard
+        # of ValueKind.Unit:
+        #     discard
+        # of ValueKind.Bool:
+        #     discard
+        # of ValueKind.Integer:
+        #     discard
+        # of ValueKind.Float:
+        #     discard
+        # of ValueKind.Char:
+        #     discard
+        # of ValueKind.String:
+        #     discard
+        # of ValueKind.List:
+        #     discard
+        # of ValueKind.Tuple:
+        #     discard
+        # of ValueKind.Record:
+        #     discard
+        # of ValueKind.Arrow:
+        #     discard
+        # of ValueKind.Typedesc:
+        #     discard
+        # of ValueKind.Var:
+        #     discard
+        # of ValueKind.Intersection:
+        #     discard
+        result = !$result
     proc `==`*(self, other: ref Value): bool
     proc `==`*(self, other: Value): bool =
         ## equality as nim object
@@ -473,7 +511,7 @@ suite Value:
                     false
             # of ValueKind.Tuple, ValueKind.Intersection:
             of ValueKind.Intersection, ValueKind.Union:
-                self.types.zip(other.types).mapIt(it[0] == it[1]).foldl(a and b, true)
+                self.types == other.types
             # of ValueKind.Record:
             #     self.idtypes.zip(other.idtypes).mapIt(it[0] == it[1]).foldl(a and b)
             # of Arrow:
@@ -652,7 +690,7 @@ suite Value:
     proc Var*(_: typedesc[Value]): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Var, tv: newTypeVar())
-    proc Intersection*(_: typedesc[Value], types: seq[ref Value]): ref Value =
+    proc Intersection*(_: typedesc[Value], types: HashSet[ref Value]): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Intersection, types: types)
     proc Link*(_: typedesc[Value], to: ref Value): ref Value =
@@ -679,7 +717,7 @@ suite Value:
         # of ValueKind.Sigma:
         #     self.first.hasRegion or self.second.hasRegion
         of ValueKind.Intersection, ValueKind.Union:
-            self.types.any(hasRegion)
+            toSeq(self.types.items).any(hasRegion)
         # of ValueKind.Record:
         #     self.idtypes.anyIt(it[1].hasRegion)
         # of ValueKind.Distinct, ValueKind.Link:
@@ -724,44 +762,6 @@ suite Value:
         of ValueKind.Neutral:
             false
 
-    proc hash*(self: TypeVar): Hash =
-        result = !$ self.id
-    proc hash*(self: ref Value): Hash =
-        result = 0
-        result = result !& self.kind.ord
-        # TODO: implement hash of Value
-        # case self.kind:
-        # of ValueKind.Bottom:
-        #     discard
-        # of ValueKind.Top:
-        #     discard
-        # of ValueKind.Unit:
-        #     discard
-        # of ValueKind.Bool:
-        #     discard
-        # of ValueKind.Integer:
-        #     discard
-        # of ValueKind.Float:
-        #     discard
-        # of ValueKind.Char:
-        #     discard
-        # of ValueKind.String:
-        #     discard
-        # of ValueKind.List:
-        #     discard
-        # of ValueKind.Tuple:
-        #     discard
-        # of ValueKind.Record:
-        #     discard
-        # of ValueKind.Arrow:
-        #     discard
-        # of ValueKind.Typedesc:
-        #     discard
-        # of ValueKind.Var:
-        #     discard
-        # of ValueKind.Intersection:
-        #     discard
-        result = !$result
     proc typ*(self: ref Value): ref Value =
         case self.kind
         of ValueKind.Bottom:
