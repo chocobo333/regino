@@ -3,6 +3,7 @@
 * Pi Type
 * remove projection
 * tuple, list, record and distinct type, object
+* var type
 * Unable symbol declared in let secion to be asigned twice
 * module system, use opaque type?
 * type classes; trait
