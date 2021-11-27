@@ -235,11 +235,11 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
             of "typeof":
                 assert args.len == 1
                 return Term.TypeOf(newTerm(args[0], scope))
-        if callee.kind == akInt:
-            assert callee.intval in 0..1, "projection"
-            Term.Projection(args[0].newTerm(scope), callee.intval)
-        else:
-            Term.Apply(newTerm(callee, scope), args.mapIt(newTerm(it, scope)))
+        # if callee.kind == akInt:
+        #     assert callee.intval in 0..1, "projection"
+        #     Term.Projection(args[0].newTerm(scope), callee.intval)
+        # else:
+        Term.Apply(newTerm(callee, scope), args.mapIt(newTerm(it, scope)))
     of akBracketExpr:
         let
             callee = Term.Id("[]")

@@ -834,17 +834,17 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
         else:
             env.coerceRelation(tv, callee.rety)
         tv
-    of TermKind.Projection:
-        let
-            container = self.container.typeInfer(env, global)
-            index = self.index
-            typ = Value.Pair(Value.Var, Value.Var)
-            # typ = Value.Sigma(Value.Var, Value.Var)
-        env.coerceEq(container, typ)
-        if index == 0:
-            typ.first
-        else:
-            typ.second
+    # of TermKind.Projection:
+    #     let
+    #         container = self.container.typeInfer(env, global)
+    #         index = self.index
+    #         typ = Value.Pair(Value.Var, Value.Var)
+    #         # typ = Value.Sigma(Value.Var, Value.Var)
+    #     env.coerceEq(container, typ)
+    #     if index == 0:
+    #         typ.first
+    #     else:
+    #         typ.second
     of TermKind.Meta:
         if not self.metadata.param.isNil:
             discard self.metadata.param.typeInfer(env, global)
@@ -1088,18 +1088,18 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
                         arg.typ = t2
                     self.args[i] = arg
         ret
-    of TermKind.Projection:
-        let
-            ret = self.container.typeCheck(env)
-            container = self.container.typ
-            index = self.index
-        # assert container.kind == ValueKind.Tuple
-        assert container.kind == ValueKind.Pair
-        # assert container.kind == ValueKind.Sigma
-        ret & (if index == 0:
-            self.check(container.first)
-        else:
-            self.check(container.second))
+    # of TermKind.Projection:
+    #     let
+    #         ret = self.container.typeCheck(env)
+    #         container = self.container.typ
+    #         index = self.index
+    #     # assert container.kind == ValueKind.Tuple
+    #     assert container.kind == ValueKind.Pair
+    #     # assert container.kind == ValueKind.Sigma
+    #     ret & (if index == 0:
+    #         self.check(container.first)
+    #     else:
+    #         self.check(container.second))
     of TermKind.Meta:
         # if not self.metadata.param.isNil:
         #     discard self.metadata.param.typeInfer(env, global)

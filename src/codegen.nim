@@ -361,11 +361,11 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
             module.curBuilder.load(rety, ret, $self)
         else:
             module.curBuilder.call(callee2, args2)
-    of TermKind.Projection:
-        let
-            container = self.container
-            index = self.index
-        module.curBuilder.extractvalue(container.codegen(module), index, $self)
+    # of TermKind.Projection:
+    #     let
+    #         container = self.container
+    #         index = self.index
+    #     module.curBuilder.extractvalue(container.codegen(module), index, $self)
     # of TermKind.If:
     #     var
     #         thenbs = self.`elif`.mapIt(module.curFun.appendBasicBlock("then"))
