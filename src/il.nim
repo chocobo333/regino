@@ -241,7 +241,7 @@ type
         of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
             nil
         of ValueKind.U:
-            level: int
+            level*: int
         # of ValueKind.List:
         #     elem*: ref Value
         of ValueKind.Pair:
@@ -796,6 +796,7 @@ suite Value:
                 Value.Pair(ft, st)
         # of ValueKind.Tuple:
         #     nil
+        # TODO: implement below
         of ValueKind.Record:
             Value.U
         # of ValueKind.Arrow:

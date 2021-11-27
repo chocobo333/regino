@@ -14,6 +14,7 @@ type
         scope*: Scope
         constraints*: seq[Constraint]
         tvconstraints*: seq[Constraint]
+        interconstraints*: seq[Constraint]
     Substituable* = concept T, var t
         apply(Substitution, T)
         t.ftv() is HashSet[TypeVar]
