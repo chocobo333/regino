@@ -67,9 +67,9 @@ func b(a: int) -> int:
     0
 func b(a: float) -> int:
     1
-# func toInt(a: float) -> int ![subtype]:
-#     0
-# let a: string = 3
+
+let a: string = 3
+echo a
 let a = (a: 1, b: 3)
 let (b, a: c) = a
 echo b

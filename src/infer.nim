@@ -642,7 +642,10 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
             env.coerceRelation(t1, tv)
             env.coerceRelation(tv, Value.Union(t1.types))
         else:
-            env.coerceEq(tv, t1)
+            if self.iddef.typ.isSome:
+                env.coerceRelation(t1, tv)
+            else:
+                env.coerceEq(tv, t1)
         env.addPat(pat, impl, global)
         Value.Unit
     # of TermKind.Var:
@@ -929,7 +932,20 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
             pat = self.iddef.pat
             impl = self.iddef.default.get
             ret = pat.typeCheck(env) & impl.typeCheck(env)
-        assert impl.typ == pat.typ, fmt"{impl.typ} == {pat.typ}"
+        if self.iddef.typ.isSome:
+            assert impl.typ <= pat.typ, fmt"{impl.typ} <= {pat.typ}"
+            var imp = impl
+            if impl.typ != pat.typ and impl.typ <= pat.typ:
+                let
+                    p = env.scope.typeOrder.path(impl.typ, pat.typ).get
+                for (t1, t2) in p:
+                    let
+                        fn = env.lookupConverter(t1, t2)
+                    imp = Term.Apply(fn, @[imp])
+                    imp.typ = t2
+                self.iddef.default = some imp
+        else:
+            assert impl.typ == pat.typ, fmt"{impl.typ} == {pat.typ}"
         self.check(Value.Unit) & ret
     # of TermKind.Var:
     #     let
@@ -1066,18 +1082,6 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
                 assert argty <= paramty, fmt"{argty} <= {paramty}"
                 if argty != paramty and argty <= paramty:
                     let
-                        # argty = block:
-                        #     var
-                        #         tmp = argty
-                        #     while tmp.kind == ValueKind.Link:
-                        #         tmp = tmp.to
-                        #     tmp
-                        # paramty = block:
-                        #     var
-                        #         tmp = paramty
-                        #     while tmp.kind == ValueKind.Link:
-                        #         tmp = tmp.to
-                        #     tmp
                         p = env.scope.typeOrder.path(argty, paramty).get
                     var
                         arg = self.args[i]
