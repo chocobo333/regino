@@ -49,7 +49,7 @@ type
         Typeof
         Discard
         Apply
-        Projection
+        # Projection
         Meta
         Seq
 
