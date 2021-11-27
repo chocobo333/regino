@@ -597,7 +597,7 @@ suite Value:
             fmt"{t}[{self.`typedesc`[]}]"
         of ValueKind.Var:
             $self.tv
-        of ValueKind.Intersection, ValueKind.Union:
+        of ValueKind.Intersection:
             self.types.mapIt(
                 # if it.kind == ValueKind.Arrow:
                 #     fmt"({it[]})"
@@ -606,6 +606,15 @@ suite Value:
                 else:
                     $it[]
             ).join("^")
+        of ValueKind.Union:
+            self.types.mapIt(
+                # if it.kind == ValueKind.Arrow:
+                #     fmt"({it[]})"
+                if it.kind == ValueKind.Pi:
+                    fmt"({it[]})"
+                else:
+                    $it[]
+            ).join("\\/")
         # of ValueKind.Distinct:
         #     fmt"distinct {self.base[]}"
         of ValueKind.Link:
@@ -690,12 +699,50 @@ suite Value:
     proc Var*(_: typedesc[Value]): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Var, tv: newTypeVar())
+    proc Intersection*(_: typedesc[Value], types: seq[ref Value]): ref Value =
+        result = case types.len
+        of 0:
+            assert false, ""
+            Value.Unit
+        of 1:
+            types[0]
+        else:
+            var tmp = new Value
+            tmp[] = Value(kind: ValueKind.Intersection, types: types.toHashSet)
+            tmp
     proc Intersection*(_: typedesc[Value], types: HashSet[ref Value]): ref Value =
-        result = new Value
-        result[] = Value(kind: ValueKind.Intersection, types: types)
+        result = case types.len
+        of 0:
+            assert false, ""
+            Value.Unit
+        of 1:
+            toSeq(types.items)[0]
+        else:
+            var tmp = new Value
+            tmp[] = Value(kind: ValueKind.Intersection, types: types)
+            tmp
+    proc Union*(_: typedesc[Value], types: seq[ref Value]): ref Value =
+        result = case types.len
+        of 0:
+            assert false, ""
+            Value.Bottom
+        of 1:
+            types[0]
+        else:
+            var tmp = new Value
+            tmp[] = Value(kind: ValueKind.Union, types: types.toHashSet)
+            tmp
     proc Union*(_: typedesc[Value], types: HashSet[ref Value]): ref Value =
-        result = new Value
-        result[] = Value(kind: ValueKind.Union, types: types)
+        result = case types.len
+        of 0:
+            assert false, ""
+            Value.Bottom
+        of 1:
+            toSeq(types.items)[0]
+        else:
+            var tmp = new Value
+            tmp[] = Value(kind: ValueKind.Union, types: types)
+            tmp
     proc Link*(_: typedesc[Value], to: ref Value): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Link, to: to)
@@ -1077,6 +1124,9 @@ suite Symbol:
 # suite Symbol:
 #     proc `$`*(self: Symbol): string =
 #         $self[]
+
+suite Impl:
+    proc `$`*(self: Impl): string = $self[]
 
 suite Scope:
     iterator items*(self: Scope): Scope =

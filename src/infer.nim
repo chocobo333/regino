@@ -153,7 +153,13 @@ proc lub(self: TypeEnv, t1, t2: ref Value): ref Value =
     elif t2 <= t1:
         t2
     else:
-        raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+        case t1.kind
+        of ValueKind.Union:
+            let
+                tmp = toSeq(t1.types.items).filterIt(it <= t2)
+            Value.Union(tmp)
+        else:
+            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
 proc glb(self: TypeEnv, t1, t2: ref Value): ref Value =
     setTypeEnv(self)
     if t1 <= t2:
@@ -161,6 +167,9 @@ proc glb(self: TypeEnv, t1, t2: ref Value): ref Value =
     elif t2 <= t1:
         t1
     else:
+        # case t1.kind
+
+        # else:
         raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
 
 proc coerceRelation(self: var TypeEnv, t1, t2: ref Value) =
@@ -188,7 +197,7 @@ proc bindtv(self: TypeEnv, t1, t2: ref Value) =
     of ValueKind.Link:
         self.bindtv(t1, t2.to)
     else:
-        if t1.kind == ValueKind.Intersection:
+        if t1.kind in {ValueKind.Intersection, ValueKind.Union}:
             t1[] = t2[]
         else:
             let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
@@ -226,16 +235,58 @@ proc containtv(self: ref Value): bool =
         self.to.containtv
     of ValueKind.Neutral:
         false
-proc likelihoodimpl*(t1, t2: ref Value): int =
-    case t1.kind
-    of ValueKind.Pi:
-        discard
+const
+    cvar = 1000
+    undeciable = 10000
+proc likelihoodimpl*(self: TypeEnv, t1, t2: ref Value): int =
+    setTypeEnv(self)
+    if t1 == t2:
+        0
+    elif t1.kind == t2.kind:
+        case t1.kind
+        of ValueKind.Var:
+            undeciable
+        of ValueKind.Pi:
+            var ret = 0
+            if t1.paramty.len != t2.paramty.len:
+                undeciable
+            else:
+                for (t1, t2) in t1.paramty.zip(t2.paramty):
+                    ret = self.likelihoodimpl(t2, t1)
+                ret += self.likelihoodimpl(t1.rety, t2.rety)
+                ret
+        else:
+            echo t1
+            echo t2
+            assert false, "notimplemented"
+            0
+    elif t1.kind == ValueKind.Var:
+        if t1.tv.ub <= t2:
+            cvar
+        elif t1.tv.lb <= t2:
+            cvar + 10
+        else:
+            undeciable
+    elif t2.kind == ValueKind.Var:
+        if t1 <= t2.tv.lb:
+            cvar
+        elif t1 <= t2.tv.ub:
+            cvar + 10
+        else:
+            undeciable
+    elif t1 <= t2:
+        let
+            tmp = self.scope.typeOrder.path(t1, t2)
+        tmp.get(@[]).len * 10
     else:
+        echo t1
+        echo t2
         assert false, "notimplemented"
-proc likelihood*(t1, t2: ref Value): seq[int] =
+        0
+proc likelihood*(self: TypeEnv, t1, t2: ref Value): seq[(ref Value, int)] =
     assert t1.kind == ValueKind.Intersection
     assert t2.kind != ValueKind.Intersection
-    t1.types.mapIt(likelihoodimpl(it, t2))
+    t1.types.mapIt((it, self.likelihoodimpl(it, t2)))
 proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
     # implies t1 < t2
     # setTypeEnv(self)
@@ -271,10 +322,6 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
         # of ValueKind.Record:
         #     # TODO: implment for record
         #     raise newException(TypeError, "notimplemented")
-        # of ValueKind.Arrow:
-        #     for (t1, t2) in t1.paramty.zip(t2.paramty):
-        #         self.resolveRelation(t2, t1)
-        #     self.resolveRelation(t1.rety, t2.rety)
         of ValueKind.Pi:
             for (t1, t2) in t1.paramty.zip(t2.paramty):
                 self.resolveRelation(t2, t1)
@@ -300,25 +347,41 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
     else:
         if t1.kind == ValueKind.Var:
             # TODO: if lb >= t2
-            if t1.tv.lb <= t2 and t2 <= t1.tv.ub:
-                t1.tv.ub = t2
-            elif t1.tv.ub <= t2:
-                discard
+            # if t1.tv.lb <= t2 and t2 <= t1.tv.ub:
+            #     t1.tv.ub = t2
+            if t1.tv.lb <= t2:
+                t1.tv.ub = self.lub(t1.tv.ub, t2)
+            # elif t1.tv.ub <= t2:
+            #     discard
             else:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
             if t1.tv.lb.kind == ValueKind.Intersection:
-                self.bindtv(t1.tv.lb, Value.Intersection(toSeq(t1.tv.lb.types.items).filterIt(it <= t1.tv.ub).toHashSet))
+                let
+                    tmp = toSeq(t1.tv.lb.types.items).filterIt(it <= t1.tv.ub)
+                self.bindtv(t1.tv.lb, Value.Intersection(tmp))
+            if t1.tv.ub.kind == ValueKind.Union:
+                let
+                    tmp = toSeq(t1.tv.ub.types.items).filterIt(t1.tv.lb <= it)
+                self.bindtv(t1.tv.ub, Value.Union(tmp))
             if t1.tv.lb == t2:
                 self.bindtv(t1, t2)
         elif t2.kind == ValueKind.Var:
-            if t2.tv.lb <= t1 and t1 <= t2.tv.ub:
-                t2.tv.lb = t1
-            elif t1 <= t2.tv.lb:
-                discard
+            # if t2.tv.lb <= t1 and t1 <= t2.tv.ub:
+            #     t2.tv.lb = t1
+            if t1 <= t2.tv.ub:
+                t2.tv.lb = self.glb(t1, t2.tv.lb)
+            # elif t1 <= t2.tv.lb:
+            #     discard
             else:
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
             if t2.tv.lb.kind == ValueKind.Intersection:
-                self.bindtv(t2.tv.lb, Value.Intersection(toSeq(t2.tv.lb.types.items).filterIt(it <= t2.tv.ub).toHashSet))
+                let
+                    tmp = toSeq(t2.tv.lb.types.items).filterIt(it <= t2.tv.ub)
+                self.bindtv(t2.tv.lb, Value.Intersection(tmp))
+            if t2.tv.ub.kind == ValueKind.Union:
+                let
+                    tmp = toSeq(t2.tv.ub.types.items).filterIt(t2.tv.lb <= it)
+                self.bindtv(t2.tv.ub, Value.Union(tmp))
             if t2.tv.ub == t1:
                 self.bindtv(t2, t1)
         elif t1.kind == ValueKind.Intersection:
@@ -339,12 +402,25 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
                 if t3.kind == ValueKind.Pi and t2.kind == ValueKind.Pi:
                     self.constraints.add (t2.rety, t3.rety)
             else:
-                self.bindtv(t1, Value.Intersection(l.mapIt(it[0]).toHashSet))
-                # if t1.containtv or t2.containtv:
+                self.bindtv(t1, Value.Intersection(l.mapIt(it[0])))
                 if t2.kind == ValueKind.Pi:
-                    self.constraints.add (Value.Intersection(t1.types.map(it => it.rety)), t2.rety)
-                self.interconstraints.add (t1, t2)
-        elif t2.kind == ValueKind.Intersection:
+                    let
+                        tmp = Value.Intersection(t1.types.map(it => it.rety))
+                    if not (tmp <= t2.rety):
+                        self.interconstraints.add (tmp, t2.rety)
+                let
+                    likeli = self.likelihood(t1, t2)
+                if likeli.anyIt(it[1] >= cvar):
+                    self.interconstraints.add (t1, t2)
+                else:
+                    let
+                        min = likeli.filterIt(it[1] == likeli.mapIt(it[1]).min)
+                    if min.len == 1:
+                        self.bindtv(t1, min[0][0])
+                    else:
+                        self.interconstraints.add (t1, t2)
+
+        elif t2.kind == ValueKind.Union:
             let
                 tmp = toSeq(t2.types.items)
                 l = tmp.zip(tmp.mapIt(t1 <=? it)).filterIt(it[1].isSome).mapIt((it[0], it[1].get))
@@ -362,8 +438,7 @@ proc resolveRelation(self: var TypeEnv, t1, t2: ref Value) =
                 if t3.kind == ValueKind.Pi and t1.kind == ValueKind.Pi:
                     self.constraints.add (t1.rety, t3.rety)
             else:
-                self.bindtv(t2, Value.Intersection(l.mapIt(it[0]).toHashSet))
-                # if t1.containtv or t2.containtv:
+                self.bindtv(t2, Value.Union(l.mapIt(it[0]).toHashSet))
                 self.interconstraints.add (t1, t2)
         # elif t2.kind == ValueKind.Tuple:
         #     case t2.types.len
@@ -430,11 +505,6 @@ proc resolveRelations(self: var TypeEnv) =
             else:
                 ord.add cons
         if f: continue
-        for cons in self.interconstraints:
-            assert cons[0].kind == ValueKind.Intersection
-            assert cons[1].kind != ValueKind.Intersection
-            echo cons
-        if f: continue
 
         self.constraints = self.tvconstraints & self.interconstraints
         self.tvconstraints = @[]
@@ -462,7 +532,7 @@ proc evalConst*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
         of 1:
             syms[0].typ.inst
         else:
-            Value.Intersection(syms.mapIt(it.typ.inst).toHashSet)
+            Value.Intersection(syms.mapIt(it.typ.inst))
     of TermKind.Tuple:
         case self.terms.len
         of 0:
@@ -523,7 +593,7 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
         of 1:
             syms[0].typ.inst
         else:
-            Value.Intersection(syms.mapIt(it.typ.inst).toHashSet)
+            Value.Intersection(syms.mapIt(it.typ.inst))
     # of TermKind.Lambda:
     #     Value.Unit
     # of TermKind.List:
@@ -568,12 +638,11 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
                 _ = self.iddef.typ.get.typeInfer(env, global)
                 t = self.iddef.typ.get.evalConst(env, global)
             env.coerceEq(tv, t)
-        # if t1.kind != ValueKind.Intersection:
-        #     env.coerceEq(tv, t1)
-        # else:
-        #     env.coerceRelation(t1, tv)
-        env.coerceEq(tv, t1)
-        # env.coerceRelation(t1, tv)
+        if t1.kind == ValueKind.Intersection:
+            env.coerceRelation(t1, tv)
+            env.coerceRelation(tv, Value.Union(t1.types))
+        else:
+            env.coerceEq(tv, t1)
         env.addPat(pat, impl, global)
         Value.Unit
     # of TermKind.Var:
@@ -760,10 +829,9 @@ proc typeInfer*(self: ref Term, env: var TypeEnv, global: bool = false): ref Val
             args = self.args.mapIt(it.typeInfer(env, global))
             tv = Value.Var()
         env.coerceRelation(callee, Value.Arrow(args, tv))
-        # TODO: if callee is not of Interseciion type, add tv < callee.rety
-        # if callee.kind == ValueKind.Arrow:
-        #     env.coerceRelation(tv, callee.rety)
-        if callee.kind == ValueKind.Pi:
+        if callee.kind == ValueKind.Intersection:
+            env.coerceRelation(tv, Value.Union(toSeq(callee.types.items).filterIt(it.kind == ValueKind.Pi).mapIt(it.rety).toHashSet))
+        else:
             env.coerceRelation(tv, callee.rety)
         tv
     of TermKind.Projection:
@@ -804,6 +872,8 @@ proc typeCheck(self: Pattern, env: var TypeEnv): seq[Error] =
         @[]
 proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
     setTypeEnv(env)
+    if self.typ.kind == ValueKind.Link:
+        env.bindtv(self.typ, self.typ.to)
     if self.typ.kind == ValueKind.Var:
         if self.typ.tv.lb.compilable:
             env.bindtv(self.typ, self.typ.tv.lb)
@@ -996,18 +1066,18 @@ proc typeCheck(self: ref Term, env: var TypeEnv): seq[Error] =
                 assert argty <= paramty, fmt"{argty} <= {paramty}"
                 if argty != paramty and argty <= paramty:
                     let
-                        argty = block:
-                            var
-                                tmp = argty
-                            while tmp.kind == ValueKind.Link:
-                                tmp = tmp.to
-                            tmp
-                        paramty = block:
-                            var
-                                tmp = paramty
-                            while tmp.kind == ValueKind.Link:
-                                tmp = tmp.to
-                            tmp
+                        # argty = block:
+                        #     var
+                        #         tmp = argty
+                        #     while tmp.kind == ValueKind.Link:
+                        #         tmp = tmp.to
+                        #     tmp
+                        # paramty = block:
+                        #     var
+                        #         tmp = paramty
+                        #     while tmp.kind == ValueKind.Link:
+                        #         tmp = tmp.to
+                        #     tmp
                         p = env.scope.typeOrder.path(argty, paramty).get
                     var
                         arg = self.args[i]
