@@ -693,6 +693,9 @@ suite Value:
     proc Intersection*(_: typedesc[Value], types: HashSet[ref Value]): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Intersection, types: types)
+    proc Union*(_: typedesc[Value], types: HashSet[ref Value]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Union, types: types)
     proc Link*(_: typedesc[Value], to: ref Value): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Link, to: to)
