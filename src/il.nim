@@ -192,9 +192,9 @@ type
         of Apply:
             callee*: ref Term
             args*: seq[ref Term]
-        of Projection:
-            container*: ref Term
-            index*: range[0..1]
+        # of Projection:
+        #     container*: ref Term
+        #     index*: range[0..1]
         of TermKind.Meta:
             metadata*: Metadata
 
