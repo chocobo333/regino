@@ -953,8 +953,8 @@ suite Term:
             let
                 args = self.args.join(", ")
             fmt"{self.callee}({args})"
-        of TermKind.Projection:
-            fmt"{self.container}.{self.index}"
+        # of TermKind.Projection:
+        #     fmt"{self.container}.{self.index}"
         of TermKind.Meta:
             fmt"{self.metadata}"
         of TermKind.Seq:
@@ -1054,9 +1054,9 @@ suite Term:
     proc Apply*(_: typedesc[Term], callee: ref Term, args: seq[ref Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Apply, callee: callee, args: args)
-    proc Projection*(_: typedesc[Term], container: ref Term, index: range[0..1]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Projection, container: container, index: index)
+    # proc Projection*(_: typedesc[Term], container: ref Term, index: range[0..1]): ref Term =
+    #     result = new Term
+    #     result[] = Term(kind: TermKind.Projection, container: container, index: index)
     proc Meta*(_: typedesc[Term], meta: Metadata): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Meta, metadata: meta)
