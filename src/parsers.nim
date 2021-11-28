@@ -192,34 +192,37 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         Asign,
         Expr,
     )
-    IdentDef: AstNode = Pattern + alt(
-        ?preceded(colon ^ sp0, Expr) +
-        preceded(eq ^ sp0, Expr)            @ ((it: (Option[AstNode], AstNode)) =>
-                                                    (
-                                                        block:
-                                                            let
-                                                                kind = if it[0].isSome:
-                                                                    it[0].get
-                                                                else:
-                                                                    newEmptyNode()
-                                                                default = it[1]
-                                                            @[kind, default]
+    IdentDef: AstNode = alt(
+        Pattern + alt(
+            ?preceded(colon ^ sp0, Expr) +
+            preceded(eq ^ sp0, Expr)            @ ((it: (Option[AstNode], AstNode)) =>
+                                                        (
+                                                            block:
+                                                                let
+                                                                    kind = if it[0].isSome:
+                                                                        it[0].get
+                                                                    else:
+                                                                        newEmptyNode()
+                                                                    default = it[1]
+                                                                @[kind, default]
+                                                        )
+                                                    ),
+            preceded(colon ^ sp0, Expr) +
+            ?preceded(eq ^ sp0, Expr)           @ ((it: (AstNode, Option[AstNode])) =>
+                                                        (
+                                                            block:
+                                                                let
+                                                                    kind = it[0]
+                                                                    default = if it[1].isSome:
+                                                                        it[1].get
+                                                                    else:
+                                                                        newEmptyNode()
+                                                                @[kind, default]
+                                                        )
                                                     )
-                                                ),
-        preceded(colon ^ sp0, Expr) +
-        ?preceded(eq ^ sp0, Expr)           @ ((it: (AstNode, Option[AstNode])) =>
-                                                    (
-                                                        block:
-                                                            let
-                                                                kind = it[0]
-                                                                default = if it[1].isSome:
-                                                                    it[1].get
-                                                                else:
-                                                                    newEmptyNode()
-                                                            @[kind, default]
-                                                    )
-                                                )
-    )                                                   @ (it => akIdentDef.newTreeNode(it[0] & it[1]))
+        )                                                   @ (it => akIdentDef.newTreeNode(it[0] & it[1])),
+        Pattern
+    )
     Section = alt(
         preceded(sp1, IdentDef)                 @ boxing,
         delimited(Indent, IdentDef ^+ Nodent, Dedent)
@@ -232,10 +235,15 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         IdentDef,
         comma
     )
+    GenParams = delimited(
+        lbra,
+        ParamList,
+        rbra
+    )   @ (it => akParams.newTreeNode(it))
     Params: AstNode = delimited(
-            lpar ^ sp0,
+            lpar,
             ParamList,
-            rpar ^ sp0
+            rpar
         ) + ?(preceded(arr, Expr))                      @ proc(it: (seq[AstNode], Option[AstNode])): AstNode =
                                                             let
                                                                 rety = if it[1].isSome: it[1].get else: newEmptyNode()
@@ -264,15 +272,16 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     NoBody = sp0 + &NewLine @ proc(it: auto): AstNode = newEmptyNode()
     FuncDef: AstNode = preceded(
         fun > sp1,
-        Id > Params
-    ) + (?Metadata + alt(NoBody, Suite))                    @ proc(it: auto): AstNode =
-                                                                let
-                                                                    id = it[0][0]
-                                                                    params = it[0][1]
-                                                                    meta = if it[1][0].isSome: it[1][0].get else: newEmptyNode()
-                                                                    # body = if it[1][1].isSome: it[1][1].get else: newEmptyNode()
-                                                                    body = it[1][1]
-                                                                akFuncDef.newTreeNode(@[id, params, meta, body])
+        Id + ?GenParams + Params + ?Metadata + alt(NoBody, Suite)
+    )   @ proc(it: ((((AstNode, Option[AstNode]), AstNode), Option[AstNode]), AstNode)): AstNode =
+            let
+                id = it[0][0][0][0]
+                genparams = if it[0][0][0][1].isSome: it[0][0][0][1].get else: newEmptyNode()
+                params = it[0][0][1]
+                meta = if it[0][1].isSome: it[0][1].get else: newEmptyNode()
+                # body = if it[1][1].isSome: it[1][1].get else: newEmptyNode()
+                body = it[1]
+            akFuncDef.newTreeNode(@[id, params, meta, body])
 
     # epression
     asop = p"[\p{Sm}*/\\?!%&$^@-]*="                    @ (it => newIdNode(it.fragment))

@@ -15,9 +15,8 @@ const
     B = (a: int, b: int)
 #    a = (3, "f")
 
-func f(a: int) -> int:
-    a
-func f(a: float) -> float:
+
+func id[T](a: T) -> T:
     a
 # func f(a: bool) -> bool:
 #    a
@@ -68,14 +67,6 @@ func b(a: int) -> int:
 func b(a: float) -> int:
     1
 
-let a: string = 3
-echo a
-let a = (a: 1, b: 3)
-let (b, a: c) = a
-echo b
-echo c
-let a = a()
-echo a
-let b = b(1.0)
-echo b
+let (a, b) = (1, 2)
+echo a + b
 0

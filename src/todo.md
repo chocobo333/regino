@@ -1,5 +1,8 @@
 ## 
+* literal pattern
 * Sum type
+* Sum pattern
+* pattern exaustivity
 * Pi Type
 * tuple, list, record and distinct type, object
 * var type
