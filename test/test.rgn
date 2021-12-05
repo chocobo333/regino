@@ -16,8 +16,7 @@ const
 
 func id[T](a: T) -> T:
     a
-func swap[T, U](a: (T, U)) -> (U, T):
-    let (a, b) = a
+func swap[T, U]((a, b): (T, U)) -> (U, T):
     (b, a)
 # func f(a: bool) -> bool:
 #    a

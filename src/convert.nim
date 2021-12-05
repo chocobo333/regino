@@ -134,7 +134,7 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
         assert fname.kind == akId
         assert rety.kind in @[akId, akTuple, akEmpty]
         for e in paramty:
-            assert e.children[0].kind == akId
+            assert e.children[0].kind in {akId, akTuple}
             assert e.children[2].isEmpty, "default value is not supported"
         let
             meta = if metadata.isEmpty: none Metadata else: some newTerm(metadata, scope).metadata

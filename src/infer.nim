@@ -642,6 +642,8 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
                 pat.id.typ = t
                 self.addIdent(pat.id, sym)
             of PatternKind.Pair:
+                echo t
+                echo t.kind
                 assert t.kind == ValueKind.Pair
                 self.addPatFuncDef(pat.first, t.first, impl, global)
                 self.addPatFuncDef(pat.second, t.second, impl, global)
