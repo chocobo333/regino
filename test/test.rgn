@@ -11,13 +11,14 @@ const
     int = typeof(0)
     float = typeof(0.0)
     string = typeof("")
-    A = (int, string)
-    B = (a: int, b: int)
 #    a = (3, "f")
 
 
 func id[T](a: T) -> T:
     a
+func swap[T, U](a: (T, U)) -> (U, T):
+    let (a, b) = a
+    (b, a)
 # func f(a: bool) -> bool:
 #    a
 func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
@@ -33,9 +34,11 @@ func `-`(a: int, b: int) -> int:
 func `tos@string/i32`(a: int) -> string ![importll]
 func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
-# func `$`(a: float) -> string ![subtype]:
-#     "float"
-
+func `$`(a: float) -> string ![subtype]:
+    "float"
+# func `$`[T, U](a: (T, U)) -> string:
+#     let (a, b) = a
+#     $a
 
 # func toInt(a: bool) -> int ![subtype]:
 #     if a:
@@ -57,16 +60,17 @@ func len(a: string) -> int ![importll]
 #         1
 #     else:
 #         fib(n-1) + fib(n-2)
-func a() -> int:
-    10
-func a() -> float:
-    2.0
 
-func b(a: int) -> int:
-    0
-func b(a: float) -> int:
-    1
-
-let (a, b) = (1, 2)
-echo a + b
+let a = (1, 2.0)
+echo id(3.0)
+echo id(3)
+echo id(3)
+let (l, m) = a
+echo l
+echo m
+let b = swap(a)
+let (l, m) = b
+echo l
+echo m
+# let b = swap(b)
 0

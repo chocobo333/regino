@@ -124,19 +124,21 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
     of akFuncDef:
         let
             fname = n.children[0]
-            funty = n.children[1]
+            genty = n.children[1]
+            funty = n.children[2]
             rety = funty.children[0]
             paramty = funty.children[1..^1]
-            metadata = n.children[2]
-            body = n.children[3]
+            metadata = n.children[3]
+            body = n.children[4]
             scope = newScope(scope)
         assert fname.kind == akId
-        assert rety.kind in @[akId, akEmpty]
+        assert rety.kind in @[akId, akTuple, akEmpty]
         for e in paramty:
             assert e.children[0].kind == akId
             assert e.children[2].isEmpty, "default value is not supported"
         let
             meta = if metadata.isEmpty: none Metadata else: some newTerm(metadata, scope).metadata
+            gen = genty.children.mapIt(newIdentDef(newPattern(it), Term.U, Term.Unit))
             params = paramty.mapIt(IdentDef(pat: newPattern(it.children[0]), typ: some newTerm(it.children[1], scope)))
         if meta.isSome and meta.get.kind == MetadataKind.ImportLL:
             assert body.isEmpty
@@ -146,6 +148,7 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
         let fn = Function(
             id: newTerm(fname, scope),
             param: FunctionParam(
+                gen: gen,
                 params: params,
                 rety: if rety.kind == akEmpty: Term.Unit else: newTerm(rety, scope)
             ),

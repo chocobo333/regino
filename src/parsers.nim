@@ -281,7 +281,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
                 meta = if it[0][1].isSome: it[0][1].get else: newEmptyNode()
                 # body = if it[1][1].isSome: it[1][1].get else: newEmptyNode()
                 body = it[1]
-            akFuncDef.newTreeNode(@[id, params, meta, body])
+            akFuncDef.newTreeNode(@[id, genparams, params, meta, body])
 
     # epression
     asop = p"[\p{Sm}*/\\?!%&$^@-]*="                    @ (it => newIdNode(it.fragment))

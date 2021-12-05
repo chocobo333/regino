@@ -38,6 +38,7 @@ type
         Const
         # Typedef
         Funcdef
+        FuncdefInst
         # If
         # When
         Case
@@ -143,7 +144,7 @@ type
         of TermKind.`()`, TermKind.Unit:
             nil
         of TermKind.U:
-            nil
+            level*: int
         # of Bool:
         #     boolval*: bool
         of Integer:
@@ -169,7 +170,7 @@ type
             iddef*: IdentDef
         # of Typedef:
         #     typedefs*: IdentDefs
-        of Funcdef:
+        of Funcdef, FuncdefInst:
             fn*: Function
         # of If, When:
         #     `elif`*: seq[(ref Term, Body)]
@@ -222,7 +223,7 @@ type
         Intersection
         Union
         Link
-        Neutral
+        Gen
     # PolyTypeKind* {.pure.} = enum
     #     Forall
     #     Intersection
@@ -259,6 +260,7 @@ type
         #     rety*: ref Value
         of ValueKind.Pi:
             genty*: seq[(Pattern, ref Value)]
+            gentyinst*: seq[ref Value] # for type inference
             paramty*: seq[ref Value]
             rety*: ref Value
         # of ValueKind.Sigma:
@@ -273,16 +275,14 @@ type
             tv*: TypeVar
         of ValueKind.Link:
             to*: ref Value
-        of ValueKind.Neutral:
-            neut*: ref Neutral
+        of ValueKind.Gen:
+            gen*: GenType
         symbol*: Option[Symbol]
 
-    NuetralKind* {.pure.} = enum
-        Gen
-    Neutral* = object
-        case kind*: NuetralKind
-        of NuetralKind.Gen:
-            name: string
+    GenType* = object
+        name*: string
+        ub*: ref Value
+        typ*: ref Value
 
     # PolyType* = object
     #     case kind*: PolyTypeKind
@@ -311,6 +311,7 @@ type
         use*: seq[ref Term]
         instances*: Table[ref Value, Impl]
     Impl* = ref object
+        instance*: ref Term
         lty*: llvm.Type
         val*: llvm.Value
 
@@ -444,6 +445,8 @@ suite Pattern:
 suite Value:
     proc hash*(self: TypeVar): Hash =
         result = !$ self.id
+    proc hash*(self: GenType): Hash =
+        result = !$ self.name.hash
     proc hash*(self: ref Value): Hash =
         result = 0
         result = result !& self.kind.ord
@@ -532,8 +535,8 @@ suite Value:
                 self.tv == other.tv
             of ValueKind.Link:
                 self.to == other.to
-            of ValueKind.Neutral:
-                self.neut == other.neut
+            of ValueKind.Gen:
+                self.gen.name == other.gen.name
         else:
             false
     proc `==`*(self, other: ref Value): bool =
@@ -584,6 +587,12 @@ suite Value:
         #     self.paramty.mapIt($it[]).join(", ") & " -> " & $self.rety[]
         of ValueKind.Pi:
             (
+                if self.genty.len == 0:
+                    ""
+                else:
+                    self.genty.mapIt(fmt"∀{it[0]}").join(", ") & " "
+            ) &
+            (
                 if self.paramty.len == 0:
                     "()"
                 else:
@@ -619,8 +628,8 @@ suite Value:
         #     fmt"distinct {self.base[]}"
         of ValueKind.Link:
             $self.to
-        of ValueKind.Neutral:
-            $self.neut[]
+        of ValueKind.Gen:
+            fmt"{self.gen.name} (<: {self.gen.ub})"
     proc `$`*(self: ref Value): string = $self[]
     var
         tvid: TypeVarId = -1
@@ -676,6 +685,9 @@ suite Value:
     # proc Tuple*(_: typedesc[Value], types: seq[ref Value]): ref Value =
     #     result = new Value
     #     result[] = Value(kind: ValueKind.Tuple, types: types)
+    proc Record*(_: typedesc[Value], members: seq[(string, ref Value)]): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Record, members: members.toTable)
     proc Record*(_: typedesc[Value], members: Table[string, ref Value]): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Record, members: members)
@@ -693,12 +705,9 @@ suite Value:
         inc dtid
         result = new Value
         result[] = Value(kind: ValueKind.Intersection, base: base, id: dtid)
-    proc Var*(_: typedesc[Value], tv: TypeVar): ref Value =
-        result = new Value
-        result[] = Value(kind: ValueKind.Var, tv: tv)
-    proc Var*(_: typedesc[Value]): ref Value =
-        result = new Value
-        result[] = Value(kind: ValueKind.Var, tv: newTypeVar())
+    # proc Var*(_: typedesc[Value]): ref Value =
+    #     result = new Value
+    #     result[] = Value(kind: ValueKind.Var, tv: newTypeVar())
     proc Intersection*(_: typedesc[Value], types: seq[ref Value]): ref Value =
         result = case types.len
         of 0:
@@ -746,6 +755,9 @@ suite Value:
     proc Link*(_: typedesc[Value], to: ref Value): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Link, to: to)
+    proc Gen*(_: typedesc[Value], name: string, ub: ref Value, typ: ref Value): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Gen, gen: GenType(name: name, ub: ub, typ: typ))
 
     proc hasRegion*(self: ref Value): bool =
         case self.kind
@@ -776,7 +788,8 @@ suite Value:
         of ValueKind.Var, ValueKind.TypeDesc:
             assert false
             false
-        of ValueKind.Neutral:
+        of ValueKind.Gen:
+            assert false, ""
             false
 
     proc compilable*(self: ref Value): bool =
@@ -809,7 +822,7 @@ suite Value:
         of ValueKind.Var, ValueKind.TypeDesc:
             assert false
             false
-        of ValueKind.Neutral:
+        of ValueKind.Gen:
             false
 
     proc typ*(self: ref Value): ref Value =
@@ -865,8 +878,8 @@ suite Value:
             nil
         of ValueKind.Link:
             self.to.typ
-        of ValueKind.Neutral:
-            nil
+        of ValueKind.Gen:
+            self.gen.typ
 
 # suite PolyType:
 #     proc Forall*(_: typedesc[PolyType], gen: HashSet[TypeVar], typ: ref Value): PolyType =
@@ -922,7 +935,7 @@ suite Term:
         # of TermKind.Typedef:
         #     let s = self.typedefs.map(`$`).join("\n")
         #     &"type\n{s.indent(2)}"
-        of TermKind.Funcdef:
+        of TermKind.Funcdef, TermKind.FuncdefInst:
             $self.fn
         # of TermKind.If:
         #     let
@@ -976,6 +989,9 @@ suite Term:
     proc Unit*(_: typedesc[Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Unit)
+    proc U*(_: typedesc[Term], level: int = 0): ref Term =
+        result = new Term
+        result[] = Term(kind: TermKind.U, level: level)
     proc Bool*(_: typedesc[Term], boolval: bool): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.Bool, boolval: boolval)

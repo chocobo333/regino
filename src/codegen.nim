@@ -97,8 +97,11 @@ proc newLType(typ: ref Value, module: Module): LType =
     #         paramty = typ.paramty.mapIt(it.newLType(module))
     #         rety = typ.rety.newLType(module)
     #     pointerType(functionType(rety, paramty))
+    of il.ValueKind.Link:
+        newLType(typ.to, module)
     else:
         echo typ
+        echo typ.kind
         assert false, "notimplemnted"
         nil
 
@@ -257,7 +260,12 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
     #     nil
     of TermKind.Const:
         nil
-    of TermKind.FuncDef:
+    of TermKind.FuncDef, TermKind.FuncdefInst:
+        if self.fn.param.gen.len > 0:
+            for val in self.fn.id.typ.symbol.get.instances.keys:
+                self.fn.id.typ.symbol.get.instances[val].val = self.fn.id.typ.symbol.get.instances[val].instance.codegen(module)
+                self.fn.id.typ.symbol.get.instances[val].lty = newLType(val, module)
+            return nil
         let
             fn = self.fn
             id = fn.id
@@ -345,7 +353,10 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
         module.curFun = tmpFun
         if not tmpBB.isNil:
             module.curBuilder.atEndOf(tmpBB)
-        nil
+        if self.kind == TermKind.Funcdef:
+            nil
+        else:
+            fn2
     of TermKind.Apply:
         let
             callee = self.callee

@@ -2,6 +2,8 @@
 import macros
 import tables
 import sequtils
+import sets
+import sugar
 
 
 macro suite*(label: untyped, body: untyped): untyped =
@@ -17,5 +19,23 @@ proc flatten*[T](s: seq[seq[T]]): seq[T] =
     for e in s:
         result.add e
 
-template mapIt*[T, U](self: Table[T, U], f: untyped): untyped =
-    toSeq(self.pairs).mapIt((it[0], f)).toTable
+proc map*[T, U, V](self: Table[T, U], f: U -> V): Table[T, V] =
+    result = initTable[T, V]()
+    for (key, val) in self.pairs:
+        result[key] = f(val)
+
+proc filter*[T](self: HashSet[T], f: T -> bool): HashSet[T] =
+    result = initHashSet[T]()
+    for e in self:
+        if f(e):
+            result.incl(e)
+proc any*[T](self: HashSet[T], f: T -> bool): bool =
+    for e in self:
+        if f(e):
+            return true
+    false
+proc all*[T](self: HashSet[T], f: T -> bool): bool =
+    for e in self:
+        if not f(e):
+            return false
+    true
