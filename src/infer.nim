@@ -791,10 +791,6 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
             # fnty = Value.Pi(genty, paramty, rety)
             fnty = Value.Pi(genty, tvs, tv)
             sym = Symbol.Func(self.fn.id, fnty, self, global)
-        # for (iddef, t) in self.fn.param.params.zip(paramty):
-        #     env.addPatFuncDef(iddef.pat, t, iddef.default.get(Term.unit), global)
-        for (iddef, t) in self.fn.param.params.zip(tvs):
-            env.addPatFuncDef(iddef.pat, t, iddef.default.get(Term.unit), global)
         # for (p, v) in paramty.zip(tvs):
         #     env.coerceEq(v, p)
         # env.coerceEq(tv, rety)
@@ -803,6 +799,10 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
         for (p, v) in paramty.zip(tvs):
             env.bindtv(v, p)
         env.bindtv(tv, rety)
+        # for (iddef, t) in self.fn.param.params.zip(paramty):
+        #     env.addPatFuncDef(iddef.pat, t, iddef.default.get(Term.unit), global)
+        for (iddef, t) in self.fn.param.params.zip(tvs):
+            env.addPatFuncDef(iddef.pat, t, iddef.default.get(Term.unit), global)
         let
             inferedRety = self.fn.body.term.typeInfer(env)
         env.popScope
