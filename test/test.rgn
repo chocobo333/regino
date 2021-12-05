@@ -35,8 +35,7 @@ func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
 func `$`(a: float) -> string ![subtype]:
     "float"
-func `$`[T <: string, U <: string](a: (T, U)) -> string:
-    let (a, b) = a
+func `$`[T <: string, U <: string]((a, b): (T, U)) -> string:
     let a: string = a
     a
 
