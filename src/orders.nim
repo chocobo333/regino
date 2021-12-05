@@ -3,6 +3,11 @@ import relations
 import strformat
 import sequtils
 import options
+import tables
+import algorithm
+import sugar
+
+import utils
 
 
 type
@@ -31,6 +36,22 @@ proc `$`*[T](self: Order[T]): string =
                 result.add fmt"{key} < {val}, "
         result = result[0..^3]
         result.add("}")
+proc sort*[T](self: Order[T]): seq[T] =
+    var indegree = initTable[T, int]()
+    for key in self.primal.keys:
+        indegree[key] = 0
+    for key in self.dual.keys:
+        indegree[key] = self.dual[key].len
+
+    while indegree.len > 0:
+        for e in indegree.filter(it => it == 0).keys:
+            result.add e
+            if e in self.primal:
+                for ee in self.primal[e]:
+                    indegree[ee] = indegree[ee] - 1
+            indegree.del(e)
+
+
 
 proc path*[T](self: Order[T], t1, t2: T): Option[seq[(T, T)]] =
     if (t1, t2) in self:

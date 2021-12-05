@@ -503,7 +503,6 @@ proc resolveRelations(self: TypeEnv) =
             else:
                 ord.add cons
         if f: continue
-        if ord.primal.len > 0: echo ord
         self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var).map(it => self.simplify(it))
         for e in self.tvs:
             if e notin ord.primal and e notin ord.dual:
@@ -515,6 +514,11 @@ proc resolveRelations(self: TypeEnv) =
             self.tvconstraints = @[]
             self.interconstraints = @[]
             continue
+        for e in ord.sort:
+            if e.tv.lb.compilable:
+                self.bindtv(e, e.tv.lb)
+            else:
+                break
 
         self.constraints = self.tvconstraints & self.interconstraints
         self.tvconstraints = @[]

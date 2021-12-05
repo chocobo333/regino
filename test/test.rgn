@@ -72,5 +72,8 @@ let b = swap(a)
 let (l, m) = b
 echo l
 echo m
-# let b = swap(b)
+let b = swap(b)
+let (l, m) = b
+echo l
+echo m
 0

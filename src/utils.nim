@@ -23,6 +23,11 @@ proc map*[T, U, V](self: Table[T, U], f: U -> V): Table[T, V] =
     result = initTable[T, V]()
     for (key, val) in self.pairs:
         result[key] = f(val)
+proc filter*[T, U](self: Table[T, U], f: U -> bool): Table[T, U] =
+    result = initTable[T, U]()
+    for (key, val) in self.pairs:
+        if f(val):
+            result[key] = val
 
 proc filter*[T](self: HashSet[T], f: T -> bool): HashSet[T] =
     result = initHashSet[T]()
