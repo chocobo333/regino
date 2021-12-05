@@ -28,6 +28,8 @@ proc `<=`*(env: TypeEnv, t1, t2: ref Value): bool =
         true
     elif t1 == t2:
         true
+    elif t1.kind == ValueKind.Gen:
+        env.`<=`(t1.gen.ub, t2)
     elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Bottom:
@@ -86,24 +88,6 @@ proc `<=?`*(env: TypeEnv, t1, t2: ref Value): Option[seq[Constraint]] =
         env.`<=`(t1, t2)
     if t1 <= t2:
         some newSeq[Constraint]()
-    elif t2.kind == ValueKind.Var:
-        # if t2.tv.ub != t1 and t2.tv.ub <= t1:
-        #     none(seq[Constraint])
-        # else:
-        #     some @[(t1, t2)]
-        if t1 <= t2.tv.ub:
-            some @[(t1, t2)]
-        else:
-            none(seq[Constraint])
-    elif t1.kind == ValueKind.Var:
-        # if t2 != t1.tv.lb and t2 <= t1.tv.lb:
-        #     none(seq[Constraint])
-        # else:
-        #     some @[(t1, t2)]
-        if t1.tv.lb <= t2:
-            some @[(t1, t2)]
-        else:
-            none(seq[Constraint])
     elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.U, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
@@ -131,9 +115,32 @@ proc `<=?`*(env: TypeEnv, t1, t2: ref Value): Option[seq[Constraint]] =
                 some paramty.mapIt(it.get).flatten & rety.get
             else:
                 none(seq[Constraint])
+        of ValueKind.Var:
+            if t1.tv.lb <= t2.tv.ub:
+                some @[(t1, t2)]
+            else:
+                none(seq[Constraint])
         else:
             raise newException(TypeError, "not implemented")
             # none(seq[Constraint])
+    elif t2.kind == ValueKind.Var:
+        # if t2.tv.ub != t1 and t2.tv.ub <= t1:
+        #     none(seq[Constraint])
+        # else:
+        #     some @[(t1, t2)]
+        if t1 <= t2.tv.ub:
+            some @[(t1, t2)]
+        else:
+            none(seq[Constraint])
+    elif t1.kind == ValueKind.Var:
+        # if t2 != t1.tv.lb and t2 <= t1.tv.lb:
+        #     none(seq[Constraint])
+        # else:
+        #     some @[(t1, t2)]
+        if t1.tv.lb <= t2:
+            some @[(t1, t2)]
+        else:
+            none(seq[Constraint])
     else:
         if env.scope.typeOrder.path(t1, t2).isSome:
             some newSeq[Constraint]()
@@ -317,6 +324,10 @@ proc resolveRelation(self: TypeEnv, t1, t2: ref Value) =
         self.resolveRelation(t1, t2.to)
     elif t1 == t2:
         return
+    # elif t1.kind == ValueKind.Gen:
+    #     self.resolveRelation(t1.gen.ub, t2)
+    # elif t2.kind == ValueKind.Gen:
+    #     self.resolveRelation(t1, t2.gen.ub)
     elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Bottom..ValueKind.String:
@@ -381,6 +392,9 @@ proc resolveRelation(self: TypeEnv, t1, t2: ref Value) =
             # elif t1 <= t2.tv.lb:
             #     discard
             else:
+                echo t1
+                echo t2.tv.ub
+                echo t1 <= t2.tv.ub
                 raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
             self.simplify(t2)
         elif t1.kind == ValueKind.Intersection:
@@ -886,7 +900,7 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
         terms[^1]
     self.typ = result
 
-proc typeCheck(self: ref Term, env: TypeEnv): seq[Error]
+proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error]
 proc typeCheck(self: Pattern, env: TypeEnv): seq[Error] =
     case self.kind
     of PatternKind.Literal:
@@ -899,7 +913,7 @@ proc typeCheck(self: Pattern, env: TypeEnv): seq[Error] =
         toSeq(self.members.values).mapIt(it.typeCheck(env)).flatten
     of PatternKind.Discard:
         @[]
-proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
+proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
     setTypeEnv(env)
     if self.typ.kind == ValueKind.Link:
         env.bindtv(self.typ, self.typ.to)
@@ -963,7 +977,8 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
         if self.iddef.typ.isSome:
             assert impl.typ <= pat.typ, fmt"{impl.typ} <= {pat.typ}"
             var imp = impl
-            if impl.typ != pat.typ and impl.typ <= pat.typ:
+            if impl.typ != pat.typ and impl.typ <= pat.typ and (not gen):
+                echo self
                 let
                     p = env.scope.typeOrder.path(impl.typ, pat.typ).get
                 for (t1, t2) in p:
@@ -1004,11 +1019,12 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
         var
             # paramty = self.fn.param.params.mapIt(it.typ.get.typeInfer(env, global))
             # rety = self.fn.param.rety.typeInfer(env, global)
+            gen = self.fn.param.gen.len > 0
             ret = self.fn.param.params.mapIt(it.typ.get.typeCheck(env)).flatten &
                 self.fn.param.params.mapIt(it.pat.typeCheck(env)).flatten &
                 self.fn.id.typeCheck(env) & self.fn.param.rety.typeCheck(env)
         env.pushScope self.fn.body.scope
-        ret.add self.fn.body.term.typeCheck(env)
+        ret.add self.fn.body.term.typeCheck(env, gen)
         env.popScope
         #     metadata = self.fn.metadata
         #     tvs = paramty.mapIt(Value.Var())
@@ -1123,6 +1139,7 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
                 env.resolveRelations()
                 ret &= inst.typeCheck(env) # must be a empty list
                 calleety.symbol.get.instances[calleety] = Impl(instance: inst)
+                echo inst
         if calleety.kind == ValueKind.Pi:
             for i in 0..<calleety.paramty.len:
                 let (argty, paramty) = (args[i], calleety.paramty[i])
@@ -1157,7 +1174,7 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
         self.check(Value.Unit)
     of TermKind.Seq:
         if self.terms.len > 1:
-            var ret = self.terms.mapIt(it.typeCheck(env)).flatten
+            var ret = self.terms.mapIt(it.typeCheck(env, gen)).flatten
             var check: bool = true
             let
                 types = self.terms.mapIt(it.typ)
@@ -1168,7 +1185,7 @@ proc typeCheck(self: ref Term, env: TypeEnv): seq[Error] =
             ret
         else:
             var
-                ret = self.terms[0].typeCheck(env)
+                ret = self.terms[0].typeCheck(env, gen)
             let
                 typ = self.terms[0].typ
             ret.add if self.typ.kind != ValueKind.Var and typ.kind != ValueKind.Var:

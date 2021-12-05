@@ -138,7 +138,21 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
             assert e.children[2].isEmpty, "default value is not supported"
         let
             meta = if metadata.isEmpty: none Metadata else: some newTerm(metadata, scope).metadata
-            gen = genty.children.mapIt(newIdentDef(newPattern(it), Term.U, Term.Unit))
+            gen = genty.children.mapIt(block:
+                if it.kind == akIdentDef:
+                    newIdentDef(
+                        newPattern(it.children[0]),
+                        # TODO: change code
+                        (if it.children[1].isEmpty: Term.U else: it.children[1].newTerm(scope)),
+                        (if it.children[2].isEmpty: Term.Unit else: it.children[2].newTerm(scope)),
+                    )
+                else:
+                    newIdentDef(
+                        newPattern(it),
+                        Term.U,
+                        Term.Unit
+                    )
+            )
             params = paramty.mapIt(IdentDef(pat: newPattern(it.children[0]), typ: some newTerm(it.children[1], scope)))
         if meta.isSome and meta.get.kind == MetadataKind.ImportLL:
             assert body.isEmpty
