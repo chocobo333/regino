@@ -71,6 +71,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     dq      = s("\"")
     strlit  = p("\"(([^\"]|(\\.))*)\"")
     arr     = s"->" ^ sp(0)
+    tlt     = s"<:" ^ sp(0)
 
     arrowop = p"[\p{Sm}*/\\?!%&$^@-]*"              @@ proc(it: PResult[Spanned]): PResult[AstNode] =
                                                         if it.isErr:
@@ -194,8 +195,8 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     )
     IdentDef: AstNode = alt(
         Pattern + alt(
-            ?preceded(colon ^ sp0, Expr) +
-            preceded(eq ^ sp0, Expr)            @ ((it: (Option[AstNode], AstNode)) =>
+            ?preceded(colon, Expr) +
+            preceded(eq, Expr)                      @ ((it: (Option[AstNode], AstNode)) =>
                                                         (
                                                             block:
                                                                 let
@@ -207,8 +208,39 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
                                                                 @[kind, default]
                                                         )
                                                     ),
-            preceded(colon ^ sp0, Expr) +
-            ?preceded(eq ^ sp0, Expr)           @ ((it: (AstNode, Option[AstNode])) =>
+            preceded(colon, Expr) +
+            ?preceded(eq, Expr)                     @ ((it: (AstNode, Option[AstNode])) =>
+                                                        (
+                                                            block:
+                                                                let
+                                                                    kind = it[0]
+                                                                    default = if it[1].isSome:
+                                                                        it[1].get
+                                                                    else:
+                                                                        newEmptyNode()
+                                                                @[kind, default]
+                                                        )
+                                                    )
+        )                                                   @ (it => akIdentDef.newTreeNode(it[0] & it[1])),
+        Pattern
+    )
+    GenIdentDef: AstNode = alt(
+        Pattern + alt(
+            ?preceded(colon, Expr) +
+            preceded(tlt, Expr)                     @ ((it: (Option[AstNode], AstNode)) =>
+                                                        (
+                                                            block:
+                                                                let
+                                                                    kind = if it[0].isSome:
+                                                                        it[0].get
+                                                                    else:
+                                                                        newEmptyNode()
+                                                                    default = it[1]
+                                                                @[kind, default]
+                                                        )
+                                                    ),
+            preceded(colon, Expr) +
+            ?preceded(eq, Expr)                     @ ((it: (AstNode, Option[AstNode])) =>
                                                         (
                                                             block:
                                                                 let
@@ -230,14 +262,18 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     LetSection = s"let" + Section                       @ (it => akLetSection.newTreeNode(it[1]).seta(it[0].pos))
     VarSection = s"var" + Section                       @ (it => akVarSection.newTreeNode(it[1]).seta(it[0].pos))
     ConstSection = s"const" + Section                   @ (it => akConstSection.newTreeNode(it[1]).seta(it[0].pos))
-    AliasSection = s"type" + Section                   @ (it => akAliasSection.newTreeNode(it[1]).seta(it[0].pos))
+    AliasSection = s"type" + Section                    @ (it => akAliasSection.newTreeNode(it[1]).seta(it[0].pos))
+    GenParamList: seq[AstNode] = separated0(
+        GenIdentDef,
+        comma
+    )
     ParamList: seq[AstNode] = separated0(
         IdentDef,
         comma
     )
     GenParams = delimited(
         lbra,
-        ParamList,
+        GenParamList,
         rbra
     )   @ (it => akParams.newTreeNode(it))
     Params: AstNode = delimited(
@@ -312,7 +348,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     ) > *preceded(Nodent, ElifBranch)) + ?preceded(Nodent, ElseBranch) @ (it => akWhenExpr.newTreeNode(it[0] & (if it[1].isSome: @[it[1].get] else: @[])))
 
     LoopExpr = preceded(
-        loop > colon ^ sp0,
+        loop > colon,
         alt(
             delimited(
                 Indent,
@@ -358,15 +394,15 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     )
     Trailer: (AstKind, seq[AstNode]) = alt(
         delimited(!sp1, Operators, !(Atom ^ sp0))       @ (it => (akPostfix, @[it])),
-        preceded(dot ^ sp0, Int)                       @ (it => (akDot, @[it])),
-        preceded(dot ^ sp0, Atom)                       @ (it => (akDot, @[it])),
+        preceded(dot, Int)                       @ (it => (akDot, @[it])),
+        preceded(dot, Atom)                       @ (it => (akDot, @[it])),
         preceded(sp1 + !terminated(Operators, sp1), ArgList1) @ (it => (akCommand, it)),
         delimited(lpar, ArgList, rpar)                  @ (it => (akCall, it)),
         delimited(lbra, ArgList, rbra)                  @ (it => (akBracketExpr, it)),
     )
     TrailerNotCommand: (AstKind, seq[AstNode]) = alt(
         delimited(!sp1, Operators, !(Atom ^ sp0))       @ (it => (akPostfix, @[it])),
-        preceded(dot ^ sp0, Atom)                       @ (it => (akDot, @[it])),
+        preceded(dot, Atom)                       @ (it => (akDot, @[it])),
         delimited(lpar, ArgList, rpar)                  @ (it => (akCall, it)),
         delimited(lbra, ArgList, rbra)                  @ (it => (akBracketExpr, it)),
     )
