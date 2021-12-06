@@ -4,7 +4,6 @@ import strformat
 import sequtils
 import options
 import tables
-import algorithm
 import sugar
 
 import utils
