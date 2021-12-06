@@ -558,6 +558,8 @@ proc `params`(self: RequestMessage or NotificationMessage): JsonNode =
 
 proc response(self: RequestMessage, n: JsonNode): JsonNode =
     ResponseMessage.create(jsonrpc, self.id, some n, none ResponseError).JsonNode
+proc respond(s: Stream, msg: RequestMessage, n: JsonNode) =
+    s.sendMessage msg.response(n)
 proc notify(s: Stream, `method`: string) =
     s.sendMessage NotificationMessage.create(jsonrpc, `method`, none JsonNode).JsonNode
 proc notify(s: Stream, `method`: string, params: JsonNode) =
@@ -589,6 +591,25 @@ proc showMessage(window: Window, msg: string, msgtype: MessageType = MessageType
 proc logMessage(window: Window, msg: string, msgtype: MessageType = MessageType.Log) =
     window.s.notify `window/logMessage`("[regino]: " & msg, msgtype)
 
+proc initilize(s: Stream, msg: RequestMessage) =
+    if msg.params.isValid(InitializeParams, allowExtra=true):
+        let
+            params = InitializeParams(msg.params)
+            semanticTokens = params["capabilities"]["textDocument"]["semanticTokens"]
+            tokenTypes = semanticTokens["tokenTypes"]
+            tokenModifiers = semanticTokens["tokenModifiers"]
+        s.window.logMessage($tokenTypes.JsonNode)
+        s.window.logMessage($tokenModifiers.JsonNode)
+        s.window.logMessage("Got initilize request")
+        s.respond(msg):
+            InitializeResult.create(
+                ServerCapabilities.create(
+                    some TextDocumentSyncOptions.create(
+                        some true,
+                        some TextDocumentSyncKind.Full.int
+                    )
+                )
+            ).JsonNode
 proc `textDocument/didOpen`(s: Stream, params: JsonNode) =
     if params.isValid(DidOpenTextDocumentParams):
         let
@@ -642,25 +663,12 @@ proc Lsp*(): int =
             let
                 msg = RequestMessage(msg)
                 `method` = msg.`method`
-            proc respond(s: Stream, n: JsonNode) =
-                s.sendMessage msg.response(n)
             case `method`
             of "initialize":
-                assert msg.params.isValid(InitializeParams, allowExtra=true)
-                let
-                    params = InitializeParams(msg.params)
-                outstream.window.logMessage($params.JsonNode)
-                outstream.window.logMessage("Got initilize request")
-                outstream.respond InitializeResult.create(
-                    ServerCapabilities.create(
-                        some TextDocumentSyncOptions.create(
-                            some true,
-                            some TextDocumentSyncKind.Full.int
-                        )
-                    )
-                ).JsonNode
+                outstream.initilize(msg)
             of "shutdown":
-                outstream.respond newJNull()
+                outstream.respond(msg):
+                    newJNull()
         elif msg.isValid(NotificationMessage):
             let
                 msg = NotificationMessage(msg)
