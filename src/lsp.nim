@@ -91,6 +91,9 @@ jsonSchema:
     ShowMessageParams:
         "type": int # MessageType
         message: string
+    LogMessageParams:
+        "type": int # MessageType
+        message: string
     DidOpenTextDocumentParams:
         textDocument: TextDocumentItem
     DidChangeTextDocumentParams:
@@ -224,8 +227,18 @@ proc `window/showMessage`(msg: string, msgtype: MessageType = MessageType.Log): 
             msg
         ).JsonNode
     )
+proc `window/logMessage`(msg: string, msgtype: MessageType = MessageType.Log): (string, JsonNode) =
+    (
+        "window/logMessage",
+        ShowMessageParams.create(
+            msgtype.int,
+            msg
+        ).JsonNode
+    )
 proc showMessage(window: Window, msg: string, msgtype: MessageType = MessageType.Log) =
     window.s.notify `window/showMessage`("[regino]: " & msg, msgtype)
+proc logMessage(window: Window, msg: string, msgtype: MessageType = MessageType.Log) =
+    window.s.notify `window/logMessage`("[regino]: " & msg, msgtype)
 
 proc `textDocument/didOpen`(s: Stream, params: JsonNode) =
     if params.isValid(DidOpenTextDocumentParams):
@@ -302,7 +315,7 @@ proc Lsp*(): int =
                 params = msg.params
             case `method`
             of "initialized":
-                discard
+                outstream.window.logMessage("initilized.")
             of "exit":
                 break
             of "textDocument/didOpen":
