@@ -141,6 +141,7 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode, buffers: var Buffers) =
             (term, errs) = res.sema(module)
         buffers.astbuf[uri] = res
         buffers.termbuf[uri] = term
+        buffers.modbuf[uri] = module
 
         var diags = parser.errs.toDiags
         s.textDocument(uri).publishDiagnostics(diags)
@@ -152,15 +153,18 @@ proc `textDocument/didChange`(s: Stream, params: JsonNode, buffers: var Buffers)
             textDocument = params["textDocument"]
             uri = textDocument["uri"].getStr
             text = contentChanges[0]["text"].getStr
-            parser = newParser()
-            res = parser.parse(uri, text)
         s.window.logMessage(fmt"Got didChange notificfation: {uri}")
-        s.window.logMessage($contentChanges.JsonNode)
-        buffers.astbuf[uri] = res
         let
-            diags = parser.errs.toDiags
-        if diags.len > 0:
-            s.textDocument(uri).publishDiagnostics(diags)
+            parser = newParser()
+            module = newModule()
+            res = parser.parse(uri, text)
+            (term, errs) = res.sema(module)
+        buffers.astbuf[uri] = res
+        buffers.termbuf[uri] = term
+        buffers.modbuf[uri] = module
+
+        var diags = parser.errs.toDiags
+        s.textDocument(uri).publishDiagnostics(diags)
 proc Lsp*(): int =
     let
         instream = stdin.newFileStream

@@ -32,12 +32,9 @@ type
 #         vars: initTable[string, (LType, LValue)]()
 #     )
 proc newModule*(name: string = "main"): Module =
-    # let cxt = newContext()
-    let
-        module = llvm.newModule(name)
-        cxt = module.context
+    let cxt = newContext()
     Module(
-        module: module,
+        module: llvm.newModule(name, cxt),
         cxt: cxt,
         curBuilder: newBuilder(cxt),
         type2llvmType: initTable[ref Value, LType](),
