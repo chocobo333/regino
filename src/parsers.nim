@@ -312,12 +312,12 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         ),
         preceded(
             sp0,
-            alt(
-                Statement @ (it => akStmtList.newTreeNode(@[it])) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it)),
-                delimited(Indent, StmtList, Dedent) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it)),
-                terminated(Fail, delimited(Indent, oneline ^* Nodent, Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it)),
-                terminated(Fail, alt(&Nodent, Eof @ (it => 0), Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it))
-            )
+            Fail + alt(
+                Statement @ (it => akStmtList.newTreeNode(@[it])),
+                delimited(Indent, StmtList, Dedent),
+                terminated(Fail, delimited(Indent, oneline ^* Nodent, Dedent)),
+                terminated(Fail, alt(&Nodent, Eof @ (it => 0), Dedent))
+            ) @ (it => (errs.add ParseError(loc: it[0].loc, msg: @["\":\""]);it[1]))
         ),
     )
     NoBody = sp0 + &NewLine @ proc(it: auto): AstNode = newEmptyNode()
