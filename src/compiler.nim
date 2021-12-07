@@ -40,7 +40,9 @@ proc compile*(filename: string) =
         module = newModule()
         parser = newParser()
 
-    discard parser.parse(filename).sema(module).codegen(module)
+    let (main, err) = parser.parse(filename).sema(module)
+    if err.len == 0:
+        discard main.codegen(module)
     for e in module.linkModules:
         discard module.module.link(e)
     # module = module.optimize

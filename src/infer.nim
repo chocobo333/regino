@@ -1197,11 +1197,9 @@ proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
             ret
 
 
-proc infer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
-    result = self.typeInfer(env, global)
-    env.coerceRelation(result, Value.Integer)
+proc infer*(self: ref Term, env: TypeEnv, global: bool = false): (ref Value, seq[Error]) =
+    result[0] = self.typeInfer(env, global)
+    env.coerceRelation(result[0], Value.Integer)
     env.resolveRelations()
-    let errs = self.typeCheck(env)
-    if errs.len > 0:
-        errs[0].`raise`
+    result[1] = self.typeCheck(env)
 

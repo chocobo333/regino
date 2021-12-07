@@ -8,7 +8,8 @@ import lineInfos
 import
     infer,
     il,
-    typeenvs
+    typeenvs,
+    errors
 import convert
 
 import codegen
@@ -48,12 +49,12 @@ proc globalMetadada(self: ref Term, module: Module) =
             else:
                 assert false
 
-proc sema*(node: AstNode, module: Module): ref Term =
+proc sema*(node: AstNode, module: Module): (ref Term, seq[Error]) =
     var
         mainScope = newScope(nil)
         tenv = newTypeEnv(mainScope)
         program = newTerm(node, mainScope)
-        rety = program.infer(tenv, true)
+        (rety, err) = program.infer(tenv, true)
     program.globalMetadada(module)
     let
         tmp = case rety.kind
@@ -72,6 +73,6 @@ proc sema*(node: AstNode, module: Module): ref Term =
     mainid.typ = mainty
     mainid.typ.symbol = some sym
     # mainid.typ.symbol.get.instances[mainid.typ] = Symbol()
-    echo program
+    # echo program
     # echo mainScope
-    main
+    (main, err)

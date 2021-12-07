@@ -571,7 +571,11 @@ proc notify(s: Stream, p: (string, JsonNode)) =
 type
     Window = object
         s: Stream
+    TextDocument = object
+        s: Stream
+        uri: string
 proc window(s: Stream): Window = Window(s: s)
+proc textDocument(s: Stream, uri: string): TextDocument = TextDocument(s: s, uri: uri)
 proc `window/showMessage`(msg: string, msgtype: MessageType = MessageType.Log): (string, JsonNode) =
     (
         "window/showMessage",
@@ -593,6 +597,18 @@ proc showMessage(window: Window, msg: string, msgtype: MessageType = MessageType
 proc logMessage(window: Window, msg: string, msgtype: MessageType = MessageType.Log) =
     window.s.notify `window/logMessage`("[regino]: " & msg, msgtype)
 
+proc `textDocument/publishDiagnostics`(uri: string, diags: seq[Diagnostic]): (string, JsonNode) =
+    (
+        "textDocument/publishDiagnostics",
+        PublishDiagnosticsParams.create(
+            uri,
+            none int,
+            diags
+        ).JsonNode
+    )
+proc publishDiagnostics(textDocument: TextDocument, diags: seq[Diagnostic]) =
+    textDocument.s.notify `textDocument/publishDiagnostics`(textDocument.uri, diags)
+
 proc initilize(s: Stream, msg: RequestMessage) =
     if msg.params.isValid(InitializeParams, allowExtra=true):
         let
@@ -610,6 +626,23 @@ proc initilize(s: Stream, msg: RequestMessage) =
                     )
                 )
             ).JsonNode
+proc toDiags(errs: seq[ParseError]): seq[Diagnostic] =
+    errs.mapIt(
+        Diagnostic.create(
+            Range.create(
+                Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character),
+                Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character+1)
+            ),
+            some DiagnosticSeverity.Error.int,
+            none int,
+            none CodeDescription,
+            none string,
+            $it,
+            none seq[int],
+            none seq[DiagnosticRelatedInformation],
+            none JsonNode
+        )
+    )
 proc `textDocument/didOpen`(s: Stream, params: JsonNode, buffers: Buffers) =
     if params.isValid(DidOpenTextDocumentParams):
         let
@@ -622,30 +655,8 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode, buffers: Buffers) =
         s.window.showMessage(fmt"Got didOpen notificfation {uri}")
         buffers.astbuf[uri] = res
         let
-            diags = parser.errs.mapIt(
-                Diagnostic.create(
-                    Range.create(
-                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character),
-                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character+1)
-                    ),
-                    some DiagnosticSeverity.Error.int,
-                    none int,
-                    none CodeDescription,
-                    none string,
-                    $it,
-                    none seq[int],
-                    none seq[DiagnosticRelatedInformation],
-                    none JsonNode
-                )
-            )
-        s.notify(
-            "textDocument/publishDiagnostics",
-            PublishDiagnosticsParams.create(
-                uri,
-                none int,
-                diags
-            ).JsonNode
-        )
+            diags = parser.errs.toDiags
+        s.textDocument(uri).publishDiagnostics(diags)
 proc `textDocument/didChange`(s: Stream, params: JsonNode, buffers: Buffers) =
     if params.isValid(DidChangeTextDocumentParams):
         let
@@ -660,30 +671,8 @@ proc `textDocument/didChange`(s: Stream, params: JsonNode, buffers: Buffers) =
         s.window.logMessage($contentChanges.JsonNode)
         buffers.astbuf[uri] = res
         let
-            diags = parser.errs.mapIt(
-                Diagnostic.create(
-                    Range.create(
-                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character),
-                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character+1)
-                    ),
-                    some DiagnosticSeverity.Error.int,
-                    none int,
-                    none CodeDescription,
-                    none string,
-                    $it,
-                    none seq[int],
-                    none seq[DiagnosticRelatedInformation],
-                    none JsonNode
-                )
-            )
-        s.notify(
-            "textDocument/publishDiagnostics",
-            PublishDiagnosticsParams.create(
-                uri,
-                none int,
-                diags
-            ).JsonNode
-        )
+            diags = parser.errs.toDiags
+        s.textDocument(uri).publishDiagnostics(diags)
 proc Lsp*(): int =
     let
         instream = stdin.newFileStream
