@@ -5,18 +5,14 @@ import ast
 
 
 type
-    Buffer[T] = ref object
-        impl: Table[string, T]
-    Buffers* = ref object
+    Buffer[T] = Table[string, T]
+    Buffers* = object
         termbuf*: Buffer[ref Term]
         astbuf*: Buffer[AstNode]
 
 proc newBuffer[T](): Buffer[T] =
-    Buffer[T](
-        impl: initTable[string, T]()
-    )
-proc `[]=`*[T](self: Buffer[T], uri: string, val: T) =
-    self.impl[uri] = val
+    initTable[string, T]()
+
 proc newBuffers*(): Buffers =
     Buffers(
         termbuf: newBuffer[ref Term](),
