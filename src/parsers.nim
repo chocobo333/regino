@@ -24,16 +24,21 @@ proc newTreeNode(kind: range[akFailed..akPatterns]): proc(a: seq[AstNode]): AstN
 type
     ParseErrorKind = enum
         Expected
+        InvalidIndentation
     ParseError* = object
         loc*: Location
         msg: seq[string]
         kind: ParseErrorKind
+
+proc empty(self: typedesc[int]): int = -1
 
 proc `$`*(self: ParseError): string =
     result = fmt"{self.loc} "
     result.add case self.kind
     of Expected:
         fmt"expected: {self.msg[0]}"
+    of InvalidIndentation:
+        "invalid indentation"
 ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     uri = initUri()
     indent = @[0]
@@ -173,12 +178,21 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
                                                                     err it.getSrc, "invalid indentation"
 
     Comment = s"#" > sp(0) > p".*"                      @ (it => akComment.newTreeNode(@[newStrNode(it[2].fragment)]))
-    Program: AstNode = delimited(
-        ?Nodent,
-        StmtList,
-        preceded(?Nodent, Eof)
+    Program: AstNode = alt(
+        delimited(
+            ?Nodent,
+            StmtList,
+            preceded(?Nodent, Eof)
+        ),
+        Fail @ (it => (errs.add ParseError(loc: it.loc, msg: @["program"]);it))
     )
-    StmtList: AstNode = separated1(Statement, Nodent)   @ akStmtList.newTreeNode
+    StmtList: AstNode = separated1(
+        Statement,
+        alt(
+            Nodent,
+            preceded(!Dedent, Newline + Fail) @ (it => (errs.add ParseError(kind: InvalidIndentation, loc: it[1].loc);it[0]))
+        )
+    ) @ akStmtList.newTreeNode
 
     # statement
     Statement: AstNode = alt(
@@ -192,6 +206,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         Metadata,
         Asign,
         Expr,
+        terminated(Fail, oneline) @ (it => (errs.add ParseError(loc: it.loc, msg: @["statement"]);it))
     )
     IdentDef: AstNode = alt(
         Pattern + alt(
@@ -298,9 +313,9 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         preceded(
             sp0,
             alt(
-                Statement @ (it => akStmtList.newTreeNode(@[it])),
-                delimited(Indent, StmtList, Dedent),
-                terminated(Fail, delimited(Indent, oneline ^* Nodent, Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]); it)),
+                Statement @ (it => akStmtList.newTreeNode(@[it])) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it)),
+                delimited(Indent, StmtList, Dedent) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it)),
+                terminated(Fail, delimited(Indent, oneline ^* Nodent, Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it)),
                 terminated(Fail, alt(&Nodent, Eof @ (it => 0), Dedent)) @ (it => (errs.add ParseError(loc: it.loc, msg: @["\":\""]);it))
             )
         ),

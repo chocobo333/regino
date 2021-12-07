@@ -6,11 +6,13 @@ import streams
 import options
 import sugar
 import json
+import tables
 
 import jsonschema
 
 import eat
 import parsers
+import buffers
 
 
 type
@@ -598,8 +600,6 @@ proc initilize(s: Stream, msg: RequestMessage) =
             semanticTokens = params["capabilities"]["textDocument"]["semanticTokens"]
             tokenTypes = semanticTokens["tokenTypes"]
             tokenModifiers = semanticTokens["tokenModifiers"]
-        s.window.logMessage($tokenTypes.JsonNode)
-        s.window.logMessage($tokenModifiers.JsonNode)
         s.window.logMessage("Got initilize request")
         s.respond(msg):
             InitializeResult.create(
@@ -610,7 +610,7 @@ proc initilize(s: Stream, msg: RequestMessage) =
                     )
                 )
             ).JsonNode
-proc `textDocument/didOpen`(s: Stream, params: JsonNode) =
+proc `textDocument/didOpen`(s: Stream, params: JsonNode, buffers: Buffers) =
     if params.isValid(DidOpenTextDocumentParams):
         let
             params = DidOpenTextDocumentParams(params)
@@ -620,6 +620,7 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode) =
             parser = newParser()
             res = parser.parse(uri, text)
         s.window.showMessage(fmt"Got didOpen notificfation {uri}")
+        buffers.astbuf[uri] = res
         let
             diags = parser.errs.mapIt(
                 Diagnostic.create(
@@ -645,17 +646,49 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode) =
                 diags
             ).JsonNode
         )
-proc `textDocument/didChange`(s: Stream, params: JsonNode) =
+proc `textDocument/didChange`(s: Stream, params: JsonNode, buffers: Buffers) =
     if params.isValid(DidChangeTextDocumentParams):
         let
             params = DidChangeTextDocumentParams(params)
+            contentChanges = params["contentChanges"]
             textDocument = params["textDocument"]
             uri = textDocument["uri"].getStr
+            text = contentChanges[0]["text"].getStr
+            parser = newParser()
+            res = parser.parse(uri, text)
         s.window.showMessage(fmt"Got didChange notificfation: {uri}")
+        s.window.logMessage($contentChanges.JsonNode)
+        buffers.astbuf[uri] = res
+        let
+            diags = parser.errs.mapIt(
+                Diagnostic.create(
+                    Range.create(
+                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character),
+                        Position.create(it.loc.`range`.a.line, it.loc.`range`.a.character+1)
+                    ),
+                    some DiagnosticSeverity.Error.int,
+                    none int,
+                    none CodeDescription,
+                    none string,
+                    $it,
+                    none seq[int],
+                    none seq[DiagnosticRelatedInformation],
+                    none JsonNode
+                )
+            )
+        s.notify(
+            "textDocument/publishDiagnostics",
+            PublishDiagnosticsParams.create(
+                uri,
+                none int,
+                diags
+            ).JsonNode
+        )
 proc Lsp*(): int =
     let
         instream = stdin.newFileStream
         outstream = stdout.newFileStream
+        buffers = newBuffers()
     while true:
         let
             msg = instream.readMessage
@@ -680,9 +713,9 @@ proc Lsp*(): int =
             of "exit":
                 break
             of "textDocument/didOpen":
-                outstream.`textDocument/didOpen`(params)
+                outstream.`textDocument/didOpen`(params, buffers)
             of "textDocument/didChange":
-                outstream.`textDocument/didChange`(params)
+                outstream.`textDocument/didChange`(params, buffers)
 
     0
 
