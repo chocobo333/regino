@@ -540,7 +540,6 @@ proc resolveRelations(self: TypeEnv) =
         if self.constraints.len == 0:
             break
         if self.constraints.len == tmp.len and self.constraints.zip(tmp).allIt(it[0] == it[1]):
-            echo self.constraints
             break
         tmp = self.constraints
 
@@ -642,8 +641,6 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
                 pat.id.typ = t
                 self.addIdent(pat.id, sym)
             of PatternKind.Pair:
-                echo t
-                echo t.kind
                 assert t.kind == ValueKind.Pair
                 self.addPatFuncDef(pat.first, t.first, impl, global)
                 self.addPatFuncDef(pat.second, t.second, impl, global)
@@ -655,6 +652,8 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
                 discard
             pat.typ = t
     result = case self.kind
+    of TermKind.Failed:
+        Value.Unit
     of TermKind.bottom:
         Value.Bottom
     of TermKind.`()`:
@@ -920,20 +919,18 @@ proc typeCheck(self: Pattern, env: TypeEnv): seq[Error] =
 proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
     setTypeEnv(env)
     if self.typ.kind == ValueKind.Link:
-        env.bindtv(self.typ, self.typ.to)
+        # env.bindtv(self.typ, self.typ.to)
+        let symbol = if self.typ.symbol.isSome: self.typ.symbol else: self.typ.to.symbol
+        self.typ[] = self.typ.to[]
+        self.typ.symbol = symbol
         return self.typeCheck(env)
     if self.typ.kind == ValueKind.Var:
         if self.typ.tv.lb.compilable:
             env.bindtv(self.typ, self.typ.tv.lb)
         elif self.kind == TermKind.Id and self.typ.symbol.isNone:
-            echo self.typ
             return @[SemaError.Undefined(self.name)]
         else:
-            for t in self.callee.typ.types:
-                echo t
-                echo t.symbol.get
-            TypeError.Undeciable($self & " at " & $self.loc).`raise`
-            return @[TypeError.Undeciable($self)]
+            return @[TypeError.Undeciable($self & " at " & $self.loc)]
     elif self.typ.kind == ValueKind.Intersection:
         return @[TypeError.Undeciable($self)]
     proc check(self: ref Term, typ2: ref Value): seq[Error] =
@@ -942,6 +939,8 @@ proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
         else:
             @[InternalError.new]
     case self.kind
+    of TermKind.Failed:
+        self.check(Value.Unit)
     of TermKind.bottom:
         self.check(Value.Bottom)
     of TermKind.`()`:
@@ -984,7 +983,6 @@ proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
             assert impl.typ <= pat.typ, fmt"{impl.typ} <= {pat.typ}"
             var imp = impl
             if impl.typ != pat.typ and impl.typ <= pat.typ and (not gen):
-                echo self
                 let
                     p = env.scope.typeOrder.path(impl.typ, pat.typ).get
                 for (t1, t2) in p:
@@ -1145,7 +1143,6 @@ proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
                 env.resolveRelations()
                 ret &= inst.typeCheck(env) # must be a empty list
                 calleety.symbol.get.instances[calleety] = Impl(instance: inst)
-                echo inst
         if calleety.kind == ValueKind.Pi:
             for i in 0..<calleety.paramty.len:
                 let (argty, paramty) = (args[i], calleety.paramty[i])
@@ -1206,4 +1203,3 @@ proc infer*(self: ref Term, env: TypeEnv, global: bool = false): (ref Value, seq
     env.coerceRelation(result[0], Value.Integer)
     env.resolveRelations()
     result[1] = self.typeCheck(env)
-

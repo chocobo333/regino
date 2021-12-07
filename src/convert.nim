@@ -156,8 +156,6 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
             params = paramty.mapIt(IdentDef(pat: newPattern(it.children[0]), typ: some newTerm(it.children[1], scope)))
         if meta.isSome and meta.get.kind == MetadataKind.ImportLL:
             assert body.isEmpty
-        else:
-            assert not body.isEmpty
         # let fn = newFunction(fname.strVal, params, newTerm(rety), newTerm(body), meta)
         let fn = Function(
             id: newTerm(fname, scope),
@@ -166,7 +164,7 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
                 params: params,
                 rety: if rety.kind == akEmpty: Term.Unit else: newTerm(rety, scope)
             ),
-            body: newBody(newTerm(body, scope), scope),
+            body: newBody(if body.isEmpty: Term.unit() else: newTerm(body, scope), scope),
             metadata: meta
         )
         Term.FuncDef(fn)
@@ -303,6 +301,8 @@ proc newTerm*(n: AstNode, scope: Scope): ref Term =
     of akId:
         Term.Id(n.strVal)
     of akComment:
+        Term.unit()
+    of akFailed:
         Term.unit()
     else:
         echo n.kind

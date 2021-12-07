@@ -11,7 +11,10 @@ import tables
 import jsonschema
 
 import eat
-import parsers
+import
+    parsers,
+    sema,
+    codegen
 import buffers
 
 
@@ -650,12 +653,18 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode, buffers: Buffers) =
             textDocument = params["textDocument"]
             uri = textDocument["uri"].getStr
             text = textDocument["text"].getStr
-            parser = newParser()
-            res = parser.parse(uri, text)
         s.window.showMessage(fmt"Got didOpen notificfation {uri}")
-        buffers.astbuf[uri] = res
         let
-            diags = parser.errs.toDiags
+            parser = newParser()
+            module = newModule()
+            res = parser.parse(uri, text)
+            (term, errs) = res.sema(module)
+        buffers.astbuf[uri] = res
+        buffers.termbuf[uri] = term
+
+        var
+            diags: seq[Diagnostic]
+        diags.add parser.errs.toDiags
         s.textDocument(uri).publishDiagnostics(diags)
 proc `textDocument/didChange`(s: Stream, params: JsonNode, buffers: Buffers) =
     if params.isValid(DidChangeTextDocumentParams):
