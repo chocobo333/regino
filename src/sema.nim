@@ -1,6 +1,5 @@
 
 from os import `/`, splitPath, absolutePath
-import options
 
 import ast
 import lineInfos
@@ -9,7 +8,8 @@ import
     infer,
     il,
     typeenvs,
-    errors
+    errors,
+    utils
 import convert
 
 import codegen

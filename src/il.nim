@@ -1,6 +1,5 @@
 
 import sets
-import options
 import strformat
 import strutils
 import sequtils

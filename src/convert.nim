@@ -1,10 +1,10 @@
 
 import sequtils
-import options
 import tables
 
 import ast
 import il
+import utils
 
 
 proc newPattern*(n: AstNode): Pattern =

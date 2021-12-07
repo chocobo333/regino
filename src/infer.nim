@@ -1,7 +1,6 @@
 
 import strformat
 import sequtils
-import options
 import sets
 import tables
 import algorithm
@@ -368,7 +367,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: ref Value) =
         else:
             echo t1
             echo t2
-            echo t1.symbol
+            echo $t1.symbol
             echo t2.symbol
             echo self.constraints
             raise newException(TypeError, fmt"{t1} and {t2} can not be unified")

@@ -4,7 +4,6 @@ import sets
 import sequtils
 import hashes
 import sugar
-import options
 
 import il
 import errors

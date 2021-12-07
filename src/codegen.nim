@@ -1,10 +1,10 @@
 
 import sequtils
 import tables
-import options
 
 import
-    il
+    il,
+    utils
 
 import llvm except Value, ValueKind, Type, Module
 
@@ -33,8 +33,7 @@ type
 #         vars: initTable[string, (LType, LValue)]()
 #     )
 proc newModule*(name: string = "main"): Module =
-    let
-        cxt = newContext()
+    let cxt = newContext()
     Module(
         module: llvm.newModule(name, cxt),
         cxt: cxt,
