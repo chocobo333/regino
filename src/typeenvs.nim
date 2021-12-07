@@ -240,6 +240,8 @@ proc inst*(fn: Function): Function =
 
 proc inst*(t: ref Term): ref Term =
     result = case t.kind
+    of TermKind.bottom:
+        Term.bottom
     of TermKind.`()`:
         Term.unit
     of TermKind.Unit:

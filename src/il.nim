@@ -20,6 +20,7 @@ from llvm import Value
 
 type
     TermKind* {.pure.} = enum
+        bottom
         `()`    # is term, `()`: Unit: U
         Unit    # is type
         U       # Universe_0 or Type_0
@@ -141,6 +142,8 @@ type
         loc*: Location
         typ*: ref Value
         case kind*: TermKind
+        of TermKind.bottom:
+            nil
         of TermKind.`()`, TermKind.Unit:
             nil
         of TermKind.U:
@@ -897,6 +900,8 @@ suite Value:
 suite Term:
     proc `$`*(self: ref Term): string =
         case self.kind
+        of TermKind.bottom:
+            "⊥"
         of TermKind.`()`:
             "()"
         of TermKind.Unit:
@@ -983,6 +988,9 @@ suite Term:
                 fmt"{it}{tmp}"
             self.terms.map(f).join("\n")
 
+    proc bottom*(_: typedesc[Term]): ref Term =
+        result = new Term
+        result[] = Term(kind: TermKind.bottom)
     proc unit*(_: typedesc[Term]): ref Term =
         result = new Term
         result[] = Term(kind: TermKind.`()`)

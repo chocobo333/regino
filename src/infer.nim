@@ -655,6 +655,8 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
                 discard
             pat.typ = t
     result = case self.kind
+    of TermKind.bottom:
+        Value.Bottom
     of TermKind.`()`:
         Value.Unit
     of TermKind.Unit:
@@ -940,6 +942,8 @@ proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
         else:
             @[InternalError.new]
     case self.kind
+    of TermKind.bottom:
+        self.check(Value.Bottom)
     of TermKind.`()`:
         self.check(Value.Unit)
     of TermKind.Unit:
