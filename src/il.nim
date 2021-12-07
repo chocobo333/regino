@@ -17,6 +17,8 @@ import utils
 
 from llvm import Value
 
+{.experimental: "notnil".}
+
 
 type
     TermKind* {.pure.} = enum
@@ -71,7 +73,7 @@ type
         pat*: Pattern
         typ*: Option[Term]
         default*: Option[Term]
-    Ident* = Term  # suppose to be of TermKind.Id Pattern?
+    Ident* = ref TermObject not nil  # suppose to be of TermKind.Id Pattern?
     # Ident* = object
     #     name*: string
     #     decl*: Term
@@ -110,7 +112,7 @@ type
             nil
         of Userdef:
             name*: string
-        param*: Term
+        param*: seq[Term]
     BuildInMetadata* = Link..ImportLL
     FunctionMetadata* = ImportLL..ImportLL
     NoBodyMetadata* = ImportLL..ImportLL
@@ -139,7 +141,7 @@ type
         of PatternKind.Discard:
             nil
 
-    Term* = ref TermObject
+    Term* = ref TermObject not nil
     TermObject = object
         loc*: Location
         typ*: ref Value
@@ -318,7 +320,7 @@ type
         use*: seq[Term]
         instances*: Table[ref Value, Impl]
     Impl* = ref object
-        instance*: Term
+        instance*: Option[Term]
         lty*: llvm.Type
         val*: llvm.Value
 
@@ -354,15 +356,15 @@ suite Metadata:
             "subtype"
         of MetadataKind.Userdef:
             self.name
-        let param = if self.param.isNil: "" else: fmt": {self.param}"
+        let param = if self.param.len == 0: "" else: ": " & self.param.map(`$`).join", "
         fmt"![{name}{param}]"
-    proc Link*(_: typedesc[Metadata], param: Term): Metadata =
+    proc Link*(_: typedesc[Metadata], param: seq[Term]): Metadata =
         Metadata(kind: MetadataKind.Link, param: param)
-    proc ImportLL*(_: typedesc[Metadata], param: Term): Metadata =
+    proc ImportLL*(_: typedesc[Metadata], param: seq[Term]): Metadata =
         Metadata(kind: MetadataKind.ImportLL, param: param)
     proc Subtype*(_: typedesc[Metadata]): Metadata =
         Metadata(kind: MetadataKind.Subtype)
-    proc Userdef*(_: typedesc[Metadata], name: string, param: Term): Metadata =
+    proc Userdef*(_: typedesc[Metadata], name: string, param: seq[Term]): Metadata =
         Metadata(kind: MetadataKind.Userdef, param: param, name: name)
 
 suite Body:
@@ -1075,9 +1077,9 @@ suite Symbol:
             else:
                 $self.kind
             id = if self.global:
-                $self.decl.red
+                $self.decl
             else:
-                $self.decl.blue
+                $self.decl
             typ = $self.typ
             impl = if self.kind == SymbolKind.Func:
                 "..."

@@ -222,9 +222,9 @@ proc inst*(param: FunctionParam): FunctionParam =
 proc inst*(metadata: Metadata): Metadata =
     case metadata.kind
     of MetadataKind.Link..MetadataKind.Subtype:
-        Metadata(kind: metadata.kind, param: if metadata.param.isNil: nil else: metadata.param.inst)
+        Metadata(kind: metadata.kind, param: metadata.param.map(inst))
     of MetadataKind.Userdef:
-        Metadata(kind: MetadataKind.Userdef, name: metadata.name, param: metadata.param.inst)
+        Metadata(kind: MetadataKind.Userdef, name: metadata.name, param: metadata.param.map(inst))
 proc inst*(body: Body): Body =
     Body(
         term: body.term.inst,

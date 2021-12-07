@@ -892,8 +892,7 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     #     else:
     #         typ.second
     of TermKind.Meta:
-        if not self.metadata.param.isNil:
-            discard self.metadata.param.typeInfer(env, global)
+        discard self.metadata.param.mapIt(it.typeInfer(env, global))
         Value.Unit
     of TermKind.Seq:
         let
@@ -1142,7 +1141,7 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
                 discard inst.typeInfer(env)
                 env.resolveRelations()
                 ret &= inst.typeCheck(env) # must be a empty list
-                calleety.symbol.get.instances[calleety] = Impl(instance: inst)
+                calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
         if calleety.kind == ValueKind.Pi:
             for i in 0..<calleety.paramty.len:
                 let (argty, paramty) = (args[i], calleety.paramty[i])

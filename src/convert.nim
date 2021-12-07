@@ -19,7 +19,7 @@ proc newPattern*(n: AstNode): Pattern =
             echo n.kind
             echo n
             assert false, "notimplemented"
-            Pattern()
+            Pattern.Discard
         of 1:
             Pattern.Pair(n.children[0].newPattern(), Pattern.Discard)
         of 2:
@@ -41,7 +41,7 @@ proc newPattern*(n: AstNode): Pattern =
         echo n.kind
         echo n
         assert false, "notimplemented"
-        Pattern()
+        Pattern.Discard
     result.loc = n.loc
 
 proc newTerm*(n: AstNode, scope: Scope): Term =
@@ -176,7 +176,7 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
     of akMetadata:
         let
             name = n.children[0]
-            param = if n.children.len == 1: nil else: newTerm(n.children[1], scope)
+            param = if n.children.len == 1: @[] else: n.children[1..^1].mapIt(newTerm(it, scope))
         assert name.kind == akId
         let metadata = case name.strVal
         of "link":
@@ -308,5 +308,5 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
         echo n.kind
         echo n
         assert false, "notimplemented"
-        nil
+        Term.Failed
     result.loc = n.loc

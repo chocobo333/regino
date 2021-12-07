@@ -120,7 +120,7 @@ proc sym(self: Term): Impl =
     if self.typ in self.typ.symbol.get.instances:
         result = self.typ.symbol.get.instances[self.typ]
     else:
-        result = Impl()
+        result = Impl(instance: none(Term))
         self.typ.symbol.get.instances[self.typ] = result
 proc `sym=`*(self: Term, sym: Impl) =
     self.typ.symbol.get.instances[self.typ] = sym
@@ -263,7 +263,8 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
     of TermKind.FuncDef, TermKind.FuncdefInst:
         if self.fn.param.gen.len > 0:
             for val in self.fn.id.typ.symbol.get.instances.keys:
-                self.fn.id.typ.symbol.get.instances[val].val = self.fn.id.typ.symbol.get.instances[val].instance.codegen(module)
+                assert self.fn.id.typ.symbol.get.instances[val].instance.isSome
+                self.fn.id.typ.symbol.get.instances[val].val = self.fn.id.typ.symbol.get.instances[val].instance.get.codegen(module)
                 self.fn.id.typ.symbol.get.instances[val].lty = newLType(val, module)
             return nil
         let

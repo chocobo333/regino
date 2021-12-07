@@ -18,7 +18,7 @@ import llvm except Value, Type, Module
 
 
 proc link(self: Metadata, module: Module) =
-    let param = self.param
+    let param = self.param[0]
     assert param.kind == TermKind.String
     let
         path = param.loc.uri.path.splitPath.head.absolutePath / param.strval
@@ -64,7 +64,7 @@ proc sema*(node: AstNode, module: Module): (Term, seq[Error]) =
             Term.TypeOf(Term.Integer(0))
         else:
             assert rety.kind notin @[il.ValueKind.Unit, il.ValueKind.Integer]
-            nil
+            Term.Failed
         mainid = newIdent("main")
         main = Term.Funcdef(newFunction(mainid, @[], tmp, newBody(program, mainScope)))
         mainty = Value.Pi(@[], @[], rety)
