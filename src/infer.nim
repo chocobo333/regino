@@ -543,8 +543,8 @@ proc resolveRelations(self: TypeEnv) =
             break
         tmp = self.constraints
 
-proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value
-proc evalConst*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
+proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value
+proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     case self.kind
     of TermKind.`()`:
         Value.unit
@@ -595,7 +595,7 @@ proc typeInfer(self: Pattern, env: TypeEnv, global: bool = false): ref Value =
     of PatternKind.Discard:
         Value.Var(env)
     self.typ = result
-proc addPatConst(self: TypeEnv, pat: Pattern, constval: ref Value, impl: ref Term, global: bool) =
+proc addPatConst(self: TypeEnv, pat: Pattern, constval: ref Value, impl: Term, global: bool) =
     case pat.kind
     of PatternKind.Literal:
         assert constval.typ == pat.lit.typeInfer(self, global)
@@ -628,10 +628,10 @@ proc addPatConst(self: TypeEnv, pat: Pattern, constval: ref Value, impl: ref Ter
             self.addPatConst(pat.members[key], constval.members[key], impl, global)
     of PatternKind.Discard:
         pat.typ = constval.typ
-proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
+proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     if not self.typ.isNil:
         return self.typ
-    proc addPatFuncDef(self: TypeEnv, pat: Pattern, t: ref Value, impl: ref Term, global: bool) =
+    proc addPatFuncDef(self: TypeEnv, pat: Pattern, t: ref Value, impl: Term, global: bool) =
             case pat.kind
             of PatternKind.Literal:
                 assert t == pat.lit.typeInfer(self, global)
@@ -700,7 +700,7 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
     of TermKind.Record:
         Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].typeInfer(env, global))).toTable)
     of TermKind.Let:
-        proc addPat(self: TypeEnv, pat: Pattern, impl: ref Term, global: bool) =
+        proc addPat(self: TypeEnv, pat: Pattern, impl: Term, global: bool) =
             case pat.kind
             of PatternKind.Literal:
                 discard
@@ -903,7 +903,7 @@ proc typeInfer*(self: ref Term, env: TypeEnv, global: bool = false): ref Value =
         terms[^1]
     self.typ = result
 
-proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error]
+proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error]
 proc typeCheck(self: Pattern, env: TypeEnv): seq[Error] =
     case self.kind
     of PatternKind.Literal:
@@ -916,7 +916,7 @@ proc typeCheck(self: Pattern, env: TypeEnv): seq[Error] =
         toSeq(self.members.values).mapIt(it.typeCheck(env)).flatten
     of PatternKind.Discard:
         @[]
-proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
+proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
     setTypeEnv(env)
     if self.typ.kind == ValueKind.Link:
         # env.bindtv(self.typ, self.typ.to)
@@ -933,7 +933,7 @@ proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
             return @[TypeError.Undeciable($self & " at " & $self.loc)]
     elif self.typ.kind == ValueKind.Intersection:
         return @[TypeError.Undeciable($self)]
-    proc check(self: ref Term, typ2: ref Value): seq[Error] =
+    proc check(self: Term, typ2: ref Value): seq[Error] =
         if self.typ == typ2:
             @[]
         else:
@@ -1198,7 +1198,7 @@ proc typeCheck(self: ref Term, env: TypeEnv, gen: bool = false): seq[Error] =
             ret
 
 
-proc infer*(self: ref Term, env: TypeEnv, global: bool = false): (ref Value, seq[Error]) =
+proc infer*(self: Term, env: TypeEnv, global: bool = false): (ref Value, seq[Error]) =
     result[0] = self.typeInfer(env, global)
     env.coerceRelation(result[0], Value.Integer)
     env.resolveRelations()

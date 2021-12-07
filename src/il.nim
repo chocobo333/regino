@@ -69,19 +69,19 @@ type
     IdentDefs* = seq[IdentDef]
     IdentDef* = object
         pat*: Pattern
-        typ*: Option[ref Term]
-        default*: Option[ref Term]
-    Ident* = ref Term  # suppose to be of TermKind.Id Pattern?
+        typ*: Option[Term]
+        default*: Option[Term]
+    Ident* = Term  # suppose to be of TermKind.Id Pattern?
     # Ident* = object
     #     name*: string
-    #     decl*: ref Term
+    #     decl*: Term
         # typ*: ref Type
         # symbol*: Option[PSymbol]
 
     FunctionParam* = object
         gen*: IdentDefs
         params*: IdentDefs
-        rety*: ref Term
+        rety*: Term
     Function* = object
         id*: Ident  # string?
         param*: FunctionParam
@@ -89,7 +89,7 @@ type
         body*: Body
 
     Body* = object
-        term*: ref Term
+        term*: Term
         scope*: Scope
 
     Scope* = ref object
@@ -110,7 +110,7 @@ type
             nil
         of Userdef:
             name*: string
-        param*: ref Term
+        param*: Term
     BuildInMetadata* = Link..ImportLL
     FunctionMetadata* = ImportLL..ImportLL
     NoBodyMetadata* = ImportLL..ImportLL
@@ -120,12 +120,12 @@ type
         typ*: ref Value
         case kind*: PatternKind
         of PatternKind.Literal:
-            lit*: ref Term
+            lit*: Term
         of PatternKind.Ident:
             id*: Ident
         # of PatternKind.Range:
-        #     lb*: ref Term
-        #     ub*: ref Term
+        #     lb*: Term
+        #     ub*: Term
         # of PatternKind.Array:
         #     # TODO: pattern for array
         #     nil
@@ -139,7 +139,8 @@ type
         of PatternKind.Discard:
             nil
 
-    Term* = object
+    Term* = ref TermObject
+    TermObject = object
         loc*: Location
         typ*: ref Value
         case kind*: TermKind
@@ -168,9 +169,9 @@ type
         #     body*: Body
         # of Seq, TermKind.Tuple, TermKind.List:
         of Seq, TermKind.Tuple:
-            terms*: seq[ref Term]
+            terms*: seq[Term]
         of TermKind.Record:
-            members*: Table[string, ref Term]
+            members*: Table[string, Term]
         # of Let, Var, Const:
         of Let, Const:
             iddef*: IdentDef
@@ -179,28 +180,28 @@ type
         of Funcdef, FuncdefInst:
             fn*: Function
         # of If, When:
-        #     `elif`*: seq[(ref Term, Body)]
+        #     `elif`*: seq[(Term, Body)]
         #     `else`*: Body
         of Case:
-            matcher*: ref Term
+            matcher*: Term
             branches*: seq[(Pattern, Term)]
         # of While:
-        #     cond*: ref Term
+        #     cond*: Term
         #     wbody*: Body
         # of Loop, Block:
         #     label*: Ident
         #     `block`*: Body
         # of For, Asign:
-        #     pat*: ref Term
-        #     val*: ref Term
+        #     pat*: Term
+        #     val*: Term
         #     forbody*: Body # for For
         of Typeof, TermKind.Discard:
-            term*: ref Term
+            term*: Term
         of Apply:
-            callee*: ref Term
-            args*: seq[ref Term]
+            callee*: Term
+            args*: seq[Term]
         # of Projection:
-        #     container*: ref Term
+        #     container*: Term
         #     index*: range[0..1]
         of TermKind.Meta:
             metadata*: Metadata
@@ -313,17 +314,17 @@ type
         decl*: Ident   # assume be in IdentDef or Function
         # ptyp*: PolyType
         typ*: ref Value
-        impl*: ref Term
-        use*: seq[ref Term]
+        impl*: Term
+        use*: seq[Term]
         instances*: Table[ref Value, Impl]
     Impl* = ref object
-        instance*: ref Term
+        instance*: Term
         lty*: llvm.Type
         val*: llvm.Value
 
 suite IdentDef:
     proc `$`*(self: ref Value): string
-    proc `$`*(self: ref Term): string
+    proc `$`*(self: Term): string
     proc `$`*(self: Pattern): string
     proc `$`*(self: IdentDef): string =
         result = $self.pat
@@ -334,12 +335,12 @@ suite IdentDef:
         if self.default.isSome:
             result.add fmt" = {self.default.get}"
     proc newIdentDef*(pat: Pattern): IdentDef =
-        IdentDef(pat: pat, typ: none(ref Term), default: none(ref Term))
-    proc newIdentDef*(pat: Pattern, typ: ref Term): IdentDef =
-        IdentDef(pat: pat, typ: some(typ), default: none(ref Term))
-    proc newIdentDef*(pat: Pattern, default: ref Term): IdentDef =
-        IdentDef(pat: pat, typ: none(ref Term), default: some(default))
-    proc newIdentDef*(pat: Pattern, typ: ref Term, default: ref Term): IdentDef =
+        IdentDef(pat: pat, typ: none(Term), default: none(Term))
+    proc newIdentDef*(pat: Pattern, typ: Term): IdentDef =
+        IdentDef(pat: pat, typ: some(typ), default: none(Term))
+    proc newIdentDef*(pat: Pattern, default: Term): IdentDef =
+        IdentDef(pat: pat, typ: none(Term), default: some(default))
+    proc newIdentDef*(pat: Pattern, typ: Term, default: Term): IdentDef =
         IdentDef(pat: pat, typ: some(typ), default: some(default))
 
 suite Metadata:
@@ -355,19 +356,19 @@ suite Metadata:
             self.name
         let param = if self.param.isNil: "" else: fmt": {self.param}"
         fmt"![{name}{param}]"
-    proc Link*(_: typedesc[Metadata], param: ref Term): Metadata =
+    proc Link*(_: typedesc[Metadata], param: Term): Metadata =
         Metadata(kind: MetadataKind.Link, param: param)
-    proc ImportLL*(_: typedesc[Metadata], param: ref Term): Metadata =
+    proc ImportLL*(_: typedesc[Metadata], param: Term): Metadata =
         Metadata(kind: MetadataKind.ImportLL, param: param)
     proc Subtype*(_: typedesc[Metadata]): Metadata =
         Metadata(kind: MetadataKind.Subtype)
-    proc Userdef*(_: typedesc[Metadata], name: string, param: ref Term): Metadata =
+    proc Userdef*(_: typedesc[Metadata], name: string, param: Term): Metadata =
         Metadata(kind: MetadataKind.Userdef, param: param, name: name)
 
 suite Body:
     proc `$`*(self: Body): string =
         $self.term
-    proc newBody*(term: ref Term, scope: Scope): Body =
+    proc newBody*(term: Term, scope: Scope): Body =
         Body(
             term: term,
             scope: scope
@@ -390,7 +391,7 @@ suite Function:
             meta = if self.metadata.isSome: fmt" {self.metadata.get}" else: ""
             body = $self.body
         &"func {self.id.name}{self.param}{meta}:\n{body.indent(2)}"
-    proc newFunction*(id: Ident, paramty: IdentDefs, rety: ref Term, body: Body, metadata: Option[Metadata] = none Metadata): Function =
+    proc newFunction*(id: Ident, paramty: IdentDefs, rety: Term, body: Body, metadata: Option[Metadata] = none Metadata): Function =
         Function(id: id, param: FunctionParam(params: paramty, rety: rety), body: body, metadata: metadata)
 
 suite TypeVar:
@@ -405,9 +406,9 @@ suite TypeVar:
         result = fmt"'{result}(ub: {self.ub}, lb: {self.lb})"
 
 suite Pattern:
-    proc Literal*(_: typedesc[Pattern], lit: ref Term): Pattern =
+    proc Literal*(_: typedesc[Pattern], lit: Term): Pattern =
         Pattern(kind: PatternKind.Literal, lit: lit)
-    proc Id*(_: typedesc[Pattern], id: ref Term): Pattern =
+    proc Id*(_: typedesc[Pattern], id: Term): Pattern =
         Pattern(kind: PatternKind.Ident, id: id)
     proc Pair*(_: typedesc[Pattern], first: Pattern, second: Pattern): Pattern =
         Pattern(kind: PatternKind.Pair, first: first, second: second)
@@ -901,7 +902,7 @@ suite Value:
 #             self.types.join("∧")
 
 suite Term:
-    proc `$`*(self: ref Term): string =
+    proc `$`*(self: Term): string =
         case self.kind
         of TermKind.Failed:
             "failed term"
@@ -981,7 +982,7 @@ suite Term:
         of TermKind.Meta:
             fmt"{self.metadata}"
         of TermKind.Seq:
-            let f = proc(it: ref Term): string =
+            let f = proc(it: Term): string =
                 let tmp = if it.typ.isNil or it.typ.kind == ValueKind.Unit:
                     ""
                 else:
@@ -993,108 +994,75 @@ suite Term:
                 fmt"{it}{tmp}"
             self.terms.map(f).join("\n")
 
-    proc Failed*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Failed)
-    proc bottom*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.bottom)
-    proc unit*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.`()`)
-    proc Unit*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Unit)
-    proc U*(_: typedesc[Term], level: int = 0): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.U, level: level)
-    proc Bool*(_: typedesc[Term], boolval: bool): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Bool, boolval: boolval)
-    proc Integer*(_: typedesc[Term], intval: BiggestInt): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Integer, intval: intval)
-    proc Float*(_: typedesc[Term], floatval: float): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Float, floatval: floatval)
-    proc Char*(_: typedesc[Term], charval: char): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Char, charval: charval)
-    proc String*(_: typedesc[Term], strval: string): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.String, strval: strval)
-    proc Id*(_: typedesc[Term], name: string): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Id, name: name)
-    proc Lambda*(_: typedesc[Term], param: IdentDefs, body: Body): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Lambda, param: param, body: body)
-    proc List*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term()
-    proc Tuple*(_: typedesc[Term], terms: seq[ref Term]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Tuple, terms: terms)
-    proc Record*(_: typedesc[Term], members: Table[string, ref Term]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Record, members: members)
-    proc Let*(_: typedesc[Term], iddef: IdentDef): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Let, iddef: iddef)
-    proc Var*(_: typedesc[Term], iddef: IdentDef): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Var, iddef: iddef)
-    proc Const*(_: typedesc[Term], iddef: IdentDef): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Const, iddef: iddef)
-    proc Typedef*(_: typedesc[Term], iddefs: IdentDefs): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Typedef, typedefs: iddefs)
-    proc Funcdef*(_: typedesc[Term], fn: Function): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Funcdef, fn: fn)
-    proc If*(_: typedesc[Term], `elif`: seq[(ref Term, Body)], `else`: Body): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.If, `elif`: `elif`, `else`: `else`)
-    proc When*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term()
-    proc Case*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term()
-    proc While*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term()
-    proc For*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term()
-    proc Loop*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term()
-    proc Block*(_: typedesc[Term]): ref Term =
-        result = new Term
-        result[] = Term()
-    proc Asign*(_: typedesc[Term], pat: ref Term, val: ref Term): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Asign, pat: pat, val: val)
-    proc Typeof*(_: typedesc[Term], term: ref Term): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Typeof, term: term)
-    proc Discard*(_: typedesc[Term], term: ref Term): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Discard, term: term)
-    proc Apply*(_: typedesc[Term], callee: ref Term, args: seq[ref Term]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Apply, callee: callee, args: args)
-    # proc Projection*(_: typedesc[Term], container: ref Term, index: range[0..1]): ref Term =
+    proc Failed*(_: typedesc[Term]): Term =
+        Term(kind: TermKind.Failed)
+    proc bottom*(_: typedesc[Term]): Term =
+        Term(kind: TermKind.bottom)
+    proc unit*(_: typedesc[Term]): Term =
+        Term(kind: TermKind.`()`)
+    proc Unit*(_: typedesc[Term]): Term =
+        Term(kind: TermKind.Unit)
+    proc U*(_: typedesc[Term], level: int = 0): Term =
+        Term(kind: TermKind.U, level: level)
+    proc Bool*(_: typedesc[Term], boolval: bool): Term =
+        Term(kind: TermKind.Bool, boolval: boolval)
+    proc Integer*(_: typedesc[Term], intval: BiggestInt): Term =
+        Term(kind: TermKind.Integer, intval: intval)
+    proc Float*(_: typedesc[Term], floatval: float): Term =
+        Term(kind: TermKind.Float, floatval: floatval)
+    proc Char*(_: typedesc[Term], charval: char): Term =
+        Term(kind: TermKind.Char, charval: charval)
+    proc String*(_: typedesc[Term], strval: string): Term =
+        Term(kind: TermKind.String, strval: strval)
+    proc Id*(_: typedesc[Term], name: string): Term =
+        Term(kind: TermKind.Id, name: name)
+    proc Lambda*(_: typedesc[Term], param: IdentDefs, body: Body): Term =
+        Term(kind: TermKind.Lambda, param: param, body: body)
+    proc List*(_: typedesc[Term]): Term =
+        Term()
+    proc Tuple*(_: typedesc[Term], terms: seq[Term]): Term =
+        Term(kind: TermKind.Tuple, terms: terms)
+    proc Record*(_: typedesc[Term], members: Table[string, Term]): Term =
+        Term(kind: TermKind.Record, members: members)
+    proc Let*(_: typedesc[Term], iddef: IdentDef): Term =
+        Term(kind: TermKind.Let, iddef: iddef)
+    proc Var*(_: typedesc[Term], iddef: IdentDef): Term =
+        Term(kind: TermKind.Var, iddef: iddef)
+    proc Const*(_: typedesc[Term], iddef: IdentDef): Term =
+        Term(kind: TermKind.Const, iddef: iddef)
+    proc Typedef*(_: typedesc[Term], iddefs: IdentDefs): Term =
+        Term(kind: TermKind.Typedef, typedefs: iddefs)
+    proc Funcdef*(_: typedesc[Term], fn: Function): Term =
+        Term(kind: TermKind.Funcdef, fn: fn)
+    proc If*(_: typedesc[Term], `elif`: seq[(Term, Body)], `else`: Body): Term =
+        Term(kind: TermKind.If, `elif`: `elif`, `else`: `else`)
+    proc When*(_: typedesc[Term]): Term =
+        Term()
+    proc Case*(_: typedesc[Term]): Term =
+        Term()
+    proc While*(_: typedesc[Term]): Term =
+        Term()
+    proc For*(_: typedesc[Term]): Term =
+        Term()
+    proc Loop*(_: typedesc[Term]): Term =
+        Term()
+    proc Block*(_: typedesc[Term]): Term =
+        Term()
+    proc Asign*(_: typedesc[Term], pat: Term, val: Term): Term =
+        Term(kind: TermKind.Asign, pat: pat, val: val)
+    proc Typeof*(_: typedesc[Term], term: Term): Term =
+        Term(kind: TermKind.Typeof, term: term)
+    proc Discard*(_: typedesc[Term], term: Term): Term =
+        Term(kind: TermKind.Discard, term: term)
+    proc Apply*(_: typedesc[Term], callee: Term, args: seq[Term]): Term =
+        Term(kind: TermKind.Apply, callee: callee, args: args)
+    # proc Projection*(_: typedesc[Term], container: Term, index: range[0..1]): Term =
     #     result = new Term
     #     result[] = Term(kind: TermKind.Projection, container: container, index: index)
-    proc Meta*(_: typedesc[Term], meta: Metadata): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Meta, metadata: meta)
-    proc Seq*(_: typedesc[Term], terms: seq[ref Term]): ref Term =
-        result = new Term
-        result[] = Term(kind: TermKind.Seq, terms: terms)
+    proc Meta*(_: typedesc[Term], meta: Metadata): Term =
+        Term(kind: TermKind.Meta, metadata: meta)
+    proc Seq*(_: typedesc[Term], terms: seq[Term]): Term =
+        Term(kind: TermKind.Seq, terms: terms)
 
     proc newIdent*(name: string): Ident =
         Term.Id(name)
@@ -1120,7 +1088,7 @@ suite Symbol:
     var
         symid = 0
 
-    proc Let*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: ref Term, global: bool = false): Symbol =
+    proc Let*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: Term, global: bool = false): Symbol =
         inc symid
         result = Symbol(
             kind: SymbolKind.Let, id: symid,
@@ -1128,7 +1096,7 @@ suite Symbol:
             global: global, use: @[]
         )
         result.typ.symbol = some result
-    proc Func*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: ref Term, global: bool = false): Symbol =
+    proc Func*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: Term, global: bool = false): Symbol =
         inc symid
         result = Symbol(
             kind: SymbolKind.Func, id: symid,
@@ -1136,7 +1104,7 @@ suite Symbol:
             global: global, use: @[]
         )
         result.typ.symbol = some result
-    proc Typ*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: ref Term, global: bool = false): Symbol =
+    proc Typ*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: Term, global: bool = false): Symbol =
         inc symid
         result = Symbol(
             kind: SymbolKind.Typ, id: symid,
@@ -1144,7 +1112,7 @@ suite Symbol:
             global: global, use: @[]
         )
         result.typ.symbol = some result
-    proc Const*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: ref Term, global: bool = false): Symbol =
+    proc Const*(_: typedesc[Symbol], ident: Ident, typ: ref Value, impl: Term, global: bool = false): Symbol =
         inc symid
         result = Symbol(
             kind: SymbolKind.Const, id: symid,

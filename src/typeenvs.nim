@@ -202,11 +202,11 @@ proc inst*(typ: ref Value, env: TypeEnv, subs: Table[GenType, ref Value] = initT
             typ
     result.symbol = sym
 
-proc impl*(self: ref Term): ref Term =
+proc impl*(self: Term): Term =
     self.typ.symbol.get.impl
-proc genty*(self: ref Term): seq[ref Value] =
+proc genty*(self: Term): seq[ref Value] =
     self.typ.gentyinst
-proc inst*(t: ref Term): ref Term
+proc inst*(t: Term): Term
 proc inst*(iddef: IdentDef): IdentDef =
     IdentDef(
         pat: iddef.pat.deepCopy,
@@ -238,7 +238,7 @@ proc inst*(fn: Function): Function =
         body: fn.body.inst
     )
 
-proc inst*(t: ref Term): ref Term =
+proc inst*(t: Term): Term =
     result = case t.kind
     of TermKind.Failed:
         Term.Failed
@@ -317,14 +317,14 @@ proc inst*(t: ref Term): ref Term =
         Term.Seq(t.terms.mapIt(it.inst))
     result.typ = nil
 
-proc implInst*(self: ref Term): ref Term =
+proc implInst*(self: Term): Term =
     assert self.kind == TermKind.Id
     let
         gentyinst = self.genty
         impl = self.impl
     result = impl.inst
     assert result.kind == TermKind.Funcdef
-    result[] = Term(kind: TermKind.FuncdefInst, fn: result.fn)
+    result = Term(kind: TermKind.FuncdefInst, fn: result.fn)
     result.fn.param.gen = @[]
 # proc compose(a, b: Substitution): Substitution =
 #     result = initTable[TypeVar, ref Value]()

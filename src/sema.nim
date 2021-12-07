@@ -35,7 +35,7 @@ proc link(self: Metadata, module: Module) =
         assert false
     f.close()
 
-proc globalMetadada(self: ref Term, module: Module) =
+proc globalMetadada(self: Term, module: Module) =
     assert self.kind == TermKind.Seq
     for e in self.terms:
         # TODO: remove it
@@ -49,7 +49,7 @@ proc globalMetadada(self: ref Term, module: Module) =
             else:
                 assert false
 
-proc sema*(node: AstNode, module: Module): (ref Term, seq[Error]) =
+proc sema*(node: AstNode, module: Module): (Term, seq[Error]) =
     var
         mainScope = newScope(nil)
         tenv = newTypeEnv(mainScope)

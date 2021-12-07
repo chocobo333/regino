@@ -44,7 +44,7 @@ proc newPattern*(n: AstNode): Pattern =
         Pattern()
     result.loc = n.loc
 
-proc newTerm*(n: AstNode, scope: Scope): ref Term =
+proc newTerm*(n: AstNode, scope: Scope): Term =
     result = case n.kind
     of akEmpty:
         Term.unit

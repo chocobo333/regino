@@ -116,19 +116,19 @@ converter toFunctionValue(self: LValue): FunctionValue =
 proc builtin*(self: Module) =
     discard
 
-proc sym(self: ref Term): Impl =
+proc sym(self: Term): Impl =
     if self.typ in self.typ.symbol.get.instances:
         result = self.typ.symbol.get.instances[self.typ]
     else:
         result = Impl()
         self.typ.symbol.get.instances[self.typ] = result
-proc `sym=`*(self: ref Term, sym: Impl) =
+proc `sym=`*(self: Term, sym: Impl) =
     self.typ.symbol.get.instances[self.typ] = sym
 proc paramty(self: Function): seq[ref Value] =
     self.id.typ.paramty
 proc rety(self: Function): ref Value =
     self.id.typ.rety
-proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool = false): LValue =
+proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = false): LValue =
     case self.kind
     of TermKind.`()`:
         nil
@@ -182,7 +182,7 @@ proc codegen*(self: ref Term, module: Module, global: bool = false, lval: bool =
         else:
             module.curBuilder.load(ty, val, name)
     of TermKind.Tuple:
-        proc makeTuple(typ: ref Value, terms: seq[ref Term]): LValue =
+        proc makeTuple(typ: ref Value, terms: seq[Term]): LValue =
             if typ.second.kind == il.ValueKind.Pair:
             # if typ.second.kind == il.ValueKind.Sigma:
                 var ret = module.curBuilder.insertvalue(typ.newLType(module).undef, makeTuple(typ.second, terms[1..^1]), 1, $terms[1..^1])

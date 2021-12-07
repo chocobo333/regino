@@ -60,7 +60,7 @@ func len(a: string) -> int ![importll]
 #     else:
 #         fib(n-1) + fib(n-2)
 
-let a = (1, 2.0)
+let a = (2, 2.0)
 echo $a
 let b = swap(a)
 echo $b

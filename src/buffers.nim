@@ -7,7 +7,7 @@ import ast
 type
     Buffer[T] = Table[string, T]
     Buffers* = object
-        termbuf*: Buffer[ref Term]
+        termbuf*: Buffer[Term]
         astbuf*: Buffer[AstNode]
 
 proc newBuffer[T](): Buffer[T] =
@@ -15,6 +15,6 @@ proc newBuffer[T](): Buffer[T] =
 
 proc newBuffers*(): Buffers =
     Buffers(
-        termbuf: newBuffer[ref Term](),
+        termbuf: newBuffer[Term](),
         astbuf: newBuffer[AstNode]()
     )
