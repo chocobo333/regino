@@ -5,6 +5,7 @@ import strutils
 import sequtils
 import hashes
 import tables
+import options
 
 import coloredString
 
@@ -16,7 +17,7 @@ import utils
 
 from llvm import Value
 
-{.experimental: "notnil".}
+# {.experimental: "notnil".}
 
 
 type
@@ -72,7 +73,7 @@ type
         pat*: Pattern
         typ*: Option[Term]
         default*: Option[Term]
-    Ident* = ref TermObject not nil  # suppose to be of TermKind.Id Pattern?
+    Ident* = ref TermObject # not nil  # suppose to be of TermKind.Id Pattern?
     # Ident* = object
     #     name*: string
     #     decl*: Term
@@ -140,7 +141,7 @@ type
         of PatternKind.Discard:
             nil
 
-    Term* = ref TermObject not nil
+    Term* = ref TermObject # not nil
     TermObject = object
         loc*: Location
         typ*: ref Value

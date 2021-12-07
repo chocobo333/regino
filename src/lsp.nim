@@ -7,9 +7,10 @@ import json
 import tables
 import options
 
-import
+import lsp/[
     lspschema,
     lspprotocol
+]
 import
     parsers,
     sema,
@@ -137,9 +138,9 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode, buffers: var Buffers) =
             parser = newParser()
             module = newModule()
             res = parser.parse(uri, text)
-            # (term, errs) = res.sema(module)
+            (term, errs) = res.sema(module)
         buffers.astbuf[uri] = res
-        # buffers.termbuf[uri] = term
+        buffers.termbuf[uri] = term
 
         var diags = parser.errs.toDiags
         s.textDocument(uri).publishDiagnostics(diags)

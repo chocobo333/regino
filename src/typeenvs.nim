@@ -3,6 +3,7 @@ import tables
 import sets
 import sequtils
 import hashes
+import options
 import sugar
 
 import il

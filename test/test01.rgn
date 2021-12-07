@@ -1,7 +1,7 @@
 
 ![link: "arith.ll"]
 
-alias
+const
     string = typeof("")
 func echo(s: string) ![importll]
 
