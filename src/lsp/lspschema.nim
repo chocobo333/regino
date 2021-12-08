@@ -110,6 +110,40 @@ type
         Identifier = 1
     TokenFormat* {.pure.} = enum
         Relative = "relative"
+    SemanticTokenTypes* {.pure.} = enum
+        namespace = "namespace"
+        type = "type"
+        class = "class"
+        `enum` = "enum"
+        `interface` = "interface"
+        struct = "struct"
+        typeParameter = "typeParameter"
+        parameter = "parameter"
+        variable = "variable"
+        property = "property"
+        enumMember = "enumMember"
+        event = "event"
+        function = "function"
+        `method` = "method"
+        `macro` = "macro"
+        keyword = "keyword"
+        modifier = "modifier"
+        comment = "comment"
+        string = "string"
+        number = "number"
+        regexp = "regexp"
+        operator = "operator"
+    SemanticTokenModifiers {.pure.} = enum
+        declaration = "declaration"
+        definition = "definition"
+        readonly = "readonly"
+        static = "static"
+        deprecated = "deprecated"
+        abstract = "abstract"
+        async = "async"
+        modification = "modification"
+        documentation = "documentation"
+        defaultLibrary = "defaultLibrary"
 
 jsonSchema:
     Message:
@@ -140,6 +174,10 @@ jsonSchema:
         "range": Range
     CodeDescription:
         href: string
+    WorkDoneProgressParams:
+        workDoneToken ?: int or string
+    PartialResultParams:
+        partialResultToken ?: int or string # ProgressToken
     DiagnosticRelatedInformation:
         location: Location
         message: string
@@ -177,6 +215,12 @@ jsonSchema:
     DidChangeTextDocumentParams:
         textDocument: VersionedTextDocumentIdentifier
         contentChanges: TextDocumentContentChangeEvent[]
+    SemanticTokensParams extends WorkDoneProgressParams:
+        partialResultToken ?: int or string # ProgressToken
+        textDocument: TextDocumentIdentifier
+    SemanticTokens:
+        resultId ?: string
+        data: int[] # uint
     PublishDiagnosticsParams:
         uri: string
         version ?: int
@@ -194,9 +238,6 @@ jsonSchema:
     # Workspace:
     #     workspaceFolders ?: WorkspaceFoldersServerCapabilities
     #     fileOperations ?: FileOperations
-
-    WorkDoneProgressParams:
-        workDoneToken ?: int or string
 
     ChangeAnnotationSupport:
         groupsOnLabel ?: bool
@@ -459,6 +500,17 @@ jsonSchema:
         trace ?: string
         workspaceFolders ?: WorkspaceFolder[] or nil
 
+    WorkDoneProgressOptions:
+        workDoneProgress ?: bool
+
+    SemanticTokensLegend:
+        tokenTypes: string[]
+        tokenModifiers: string[]
+    SemanticTokensOptions extends WorkDoneProgressOptions:
+        legend: SemanticTokensLegend
+        "range" ?: bool or nil
+        full ?: bool or SemanticTokensDelta
+
     ServerCapabilities:
         textDocumentSync ?: TextDocumentSyncOptions or int
         # completionProvider ?: CompletionOptions
@@ -484,13 +536,17 @@ jsonSchema:
         # selectionRangeProvider ?: bool or SelectionRangeOptions or SelectionRangeRegistrationOptions
         # linkedEditingRangeProvider ?: bool or LinkedEditingRangeOptions or LinkedEditingRangeRegistrationOptions
         # callHierarchyProvider ?: bool or CallHierarchyOptions or CallHierarchyRegistrationOptions
-        # semanticTokensProvider ?: SemanticTokensOptions or SemanticTokensRegistrationOptions
+        semanticTokensProvider ?: SemanticTokensOptions # or SemanticTokensRegistrationOptions
         # monikerProvider ?: bool or MonikerOptions or MonikerRegistrationOptions
         # workspaceSymbolProvider ?: bool or WorkspaceSymbolOptions
         # workspace ?: Workspace
         # experimental?: any
+    ServerInfo:
+        name: string
+        version ?: string
     InitializeResult:
         capabilities: ServerCapabilities
+        serverInfo ?: ServerInfo
 
 export
     unsafeOptAccess,
@@ -518,6 +574,8 @@ export
     LogMessageParams,
     DidOpenTextDocumentParams,
     DidChangeTextDocumentParams,
+    SemanticTokensParams,
+    SemanticTokens,
     PublishDiagnosticsParams,
     TextDocumentSyncOptions,
     WorkDoneProgressParams,
@@ -585,5 +643,9 @@ export
     WorkspaceFolder,
     ClientInfo,
     InitializeParams,
+    WorkDoneProgressOptions,
+    SemanticTokensLegend,
+    SemanticTokensOptions,
     ServerCapabilities,
+    ServerInfo,
     InitializeResult

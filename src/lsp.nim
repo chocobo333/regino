@@ -12,6 +12,7 @@ import lsp/[
     lspprotocol
 ]
 import
+    il,
     parsers,
     sema,
     codegen
@@ -88,25 +89,248 @@ proc `textDocument/publishDiagnostics`(uri: string, diags: seq[Diagnostic]): (st
 proc publishDiagnostics(textDocument: TextDocument, diags: seq[Diagnostic]) =
     textDocument.s.notify `textDocument/publishDiagnostics`(textDocument.uri, diags)
 
-proc initilize(s: Stream, msg: RequestMessage) =
+proc initilize(s: Stream, msg: RequestMessage, buffers: var Buffers) =
     if msg.params.isValid(InitializeParams, allowExtra=true):
         let
             params = InitializeParams(msg.params)
             semanticTokens = params["capabilities"]["textDocument"]["semanticTokens"]
-            tokenTypes = semanticTokens["tokenTypes"]
-            tokenModifiers = semanticTokens["tokenModifiers"]
+            tokenTypes = semanticTokens["tokenTypes"].to(seq[string])
+            tokenModifiers = semanticTokens["tokenModifiers"].to(seq[string])
+        buffers.tokenTypes = tokenTypes
+        buffers.tokenModifiers = tokenModifiers
         s.window.logMessage("Got initilize request")
-        s.window.logMessage($tokenTypes)
-        s.window.logMessage($tokenModifiers)
         s.respond(msg):
             InitializeResult.create(
                 ServerCapabilities.create(
                     some TextDocumentSyncOptions.create(
                         some true,
                         some TextDocumentSyncKind.Full.int
-                    )
+                    ),
+                    some SemanticTokensOptions.create(
+                        none(bool),
+                        SemanticTokensLegend.create(
+                            tokenTypes,
+                            tokenModifiers
+                        ),
+                        some false,
+                        some true
+                    ),
+                ),
+                some ServerInfo.create(
+                    "regino-languages-server",
+                    some "0.1.0"
                 )
             ).JsonNode
+
+proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, buffers: var Buffers) =
+    let
+        tokenTypes = buffers.tokenTypes
+        tokenModifiers = buffers.tokenModifiers
+    proc index(s: seq[string], str: string): int =
+        for (i, e) in s.pairs:
+            if e == str:
+                return i
+        return -1
+    proc coloring(self: Term, data: var seq[(int, int, int, int, int)])
+    proc coloring(self: Pattern, data: var seq[(int, int, int, int, int)]) =
+        case self.kind
+        of PatternKind.Literal:
+            discard
+        of PatternKind.Ident:
+            self.id.coloring(data)
+        # of PatternKind.Range:
+        #     discard
+        # of PatternKind.Array:
+        #     discard
+        of PatternKind.Pair:
+            discard
+        # of PatternKind.Tuple:
+        #     discard
+        of PatternKind.Record:
+            discard
+        of PatternKind.Discard:
+            discard
+    proc coloring(self: FunctionParam, data: var seq[(int, int, int, int, int)]) =
+        let
+            gen = self.gen
+            params = self.params
+            rety = self.rety
+        for e in gen & params:
+            let
+                pat = e.pat
+                typ = e.typ
+                default = e.default
+            pat.coloring(data)
+            if typ.isSome:
+                typ.get.coloring(data)
+            if default.isSome:
+                default.get.coloring(data)
+        rety.coloring(data)
+    proc coloring(self: Term, data: var seq[(int, int, int, int, int)]) =
+        case self.kind
+        of TermKind.Failed:
+            discard
+        of TermKind.bottom:
+            discard
+        of TermKind.`()`:
+            discard
+        of TermKind.Unit:
+            discard
+        of TermKind.U:
+            discard
+        # of TermKind.Bool:
+        #     discard
+        of TermKind.Integer, TermKind.Float:
+            let
+                kind = SemanticTokenTypes.number
+                loc = self.loc
+                a = loc.`range`.a
+                b = loc.`range`.b
+                l = b.character - a.character
+            assert a.line == b.line
+            data.add (a.line, a.character, l, tokenTypes.index($kind), 0)
+        of TermKind.Char:
+            discard
+        of TermKind.String:
+            discard
+        of TermKind.Id:
+            if not self.typ.isNil and self.typ.symbol.isSome:
+                let
+                    symbol = self.typ.symbol.get
+                    loc = self.loc
+                    a = loc.`range`.a
+                    b = loc.`range`.b
+                    l = b.character - a.character
+                    kind = case symbol.kind
+                        of il.SymbolKind.Var:
+                            SemanticTokenTypes.variable
+                        of il.SymbolKind.Let:
+                            SemanticTokenTypes.variable
+                        of il.SymbolKind.Const:
+                            SemanticTokenTypes.variable
+                        of il.SymbolKind.Typ:
+                            SemanticTokenTypes.type
+                        of il.SymbolKind.Func:
+                            SemanticTokenTypes.function
+                assert a.line == b.line, $a.line
+                data.add (a.line, a.character, l, tokenTypes.index($kind), 0)
+            else:
+                s.window.logMessage(fmt"{self} at {self.loc}")
+        # of TermKind.Lambda:
+        #     discard
+        # of TermKind.List:
+        #     discard
+        of TermKind.Tuple:
+            for e in self.terms:
+                e.coloring(data)
+        of TermKind.Record:
+            discard  # named tuple
+        of TermKind.Let:
+            let
+                iddef = self.iddef
+                pat = iddef.pat
+                typ = iddef.typ
+                default = iddef.default
+            pat.coloring(data)
+            if typ.isSome:
+                typ.get.coloring(data)
+            if default.isSome:
+                default.get.coloring(data)
+        # of TermKind.Var:
+        #     discard
+        of TermKind.Const:
+            let
+                iddef = self.iddef
+                pat = iddef.pat
+                typ = iddef.typ
+                default = iddef.default
+            pat.coloring(data)
+            if typ.isSome:
+                typ.get.coloring(data)
+            if default.isSome:
+                default.get.coloring(data)
+        # of TermKind.Typedef:
+        #     discard
+        of TermKind.Funcdef:
+            let
+                fn = self.fn
+                id = fn.id
+                param = fn.param
+                metadata = fn.metadata
+                body = fn.body
+            id.coloring(data)
+            param.coloring(data)
+            # TODO: metadata
+            body.term.coloring(data)
+        of TermKind.FuncdefInst:
+            discard
+        # of TermKind.If:
+        #     discard
+        # of TermKind.When:
+        #     discard
+        of TermKind.Case:
+            discard
+        # of TermKind.While:
+        #     discard
+        # of TermKind.For:
+        #     discard
+        # of TermKind.Loop:
+        #     discard
+        # of TermKind.Block:
+        #     discard
+        # of TermKind.Asign:
+        #     discard
+        of TermKind.Typeof:
+            discard
+        of TermKind.Discard:
+            self.term.coloring(data)
+        of TermKind.Apply:
+            self.callee.coloring(data)
+            for e in self.args:
+                e.coloring(data)
+        of TermKind.Meta:
+            discard
+        of TermKind.Seq:
+            # self.terms.applyIt(it.coloring(data))
+            for e in self.terms:
+                e.coloring(data)
+    if msg.params.isValid(SemanticTokensParams):
+        let
+            params = SemanticTokensParams(msg.params)
+            textDocument = params["textDocument"]
+            uri = textDocument["uri"].getStr
+        s.window.logMessage("[textDocument/semanticTokens/full] " & uri)
+        var data: seq[int] = @[]
+        if uri in buffers.termbuf:
+            let
+                term = buffers.termbuf[uri] # main function
+            var
+                data2: seq[(int, int, int, int, int)] = @[]
+                prevLine = 0
+                prevCh = 0
+            term.fn.body.term.coloring(data2)
+            for (line, ch, l, typ, mods) in data2:
+                if typ notin 0..<tokenTypes.len:
+                    continue
+                data.add if prevLine == line:
+                    assert ch > prevCh, fmt"{ch} > {prevCh}, line: {line}"
+                    @[0, ch - prevCh, l, typ, mods]
+                else:
+                    assert line > prevLine, fmt"{line} > {prevLine}"
+                    @[line - prevLine, ch, l, typ, mods]
+                prevLine = line
+                prevCh = ch
+        s.respond(msg):
+            if data.len == 0:
+                newJNull()
+            else:
+                SemanticTokens.create(
+                    none(string),
+                    data
+                ).JsonNode
+        s.window.logMessage("[textDocument/semanticTokens/full]: responded")
+    else:
+        s.window.logMessage("[textDocument/semanticTokens/full]: invalid params")
 proc toDiags(errs: seq[ParseError]): seq[Diagnostic] =
     if errs.len == 0:
         return @[]
@@ -180,10 +404,12 @@ proc Lsp*(): int =
                 `method` = msg.`method`
             case `method`
             of "initialize":
-                outstream.initilize(msg)
+                outstream.initilize(msg, buffers)
             of "shutdown":
                 outstream.respond(msg):
                     newJNull()
+            of "textDocument/semanticTokens/full":
+                outstream.`textDocument/semanticTokens/full`(msg, buffers)
         elif msg.isValid(NotificationMessage):
             let
                 msg = NotificationMessage(msg)

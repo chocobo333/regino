@@ -18,6 +18,12 @@ type
         uri*: Uri
         `range`*: PosRange
 
+proc `<=`*(self, other: Position): bool =
+    if self.line == other.line:
+        self.character <= other.character
+    else:
+        self.line <= other.line
+
 proc `$`*(self: Location): string =
     fmt"{self.uri}({self.`range`.a.line+1}, {self.`range`.a.character+1})"
 proc `end`*(self: Location): Location =

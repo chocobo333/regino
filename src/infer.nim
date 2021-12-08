@@ -545,7 +545,8 @@ proc resolveRelations(self: TypeEnv) =
 
 proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value
 proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
-    case self.kind
+    discard self.typeInfer(env, global)
+    result = case self.kind
     of TermKind.`()`:
         Value.unit
     of TermKind.Unit:
@@ -723,7 +724,7 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
             t1 = impl.typeInfer(env, global)
         if self.iddef.typ.isSome:
             let
-                _ = self.iddef.typ.get.typeInfer(env, global)
+                # _ = self.iddef.typ.get.typeInfer(env, global)
                 t = self.iddef.typ.get.evalConst(env, global)
             env.coerceEq(tv, t)
         if t1.kind == ValueKind.Intersection:
@@ -763,12 +764,13 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
             iddef = self.iddef
             pat = iddef.pat
             default = iddef.default.get
-            _ = default.typeInfer(env, global)
+            # _ = default.typeInfer(env, global)
             val = default.evalConst(env)
         env.addPatConst(pat, val, default, global)
         Value.Unit
     of TermKind.Funcdef, TermKind.FuncdefInst:
         let
+            # _ = self.fn.param.gen.mapIt((it.default.get.typeInfer(env, global), it.typ.get.typeInfer(env, global)))
             genty = self.fn.param.gen.mapIt((it.pat, Value.Gen(it.pat.id.name, it.default.get.evalConst(env, global), it.typ.get.evalConst(env, global))))
             # tvs = self.fn.param.params.mapIt(Value.Var())
             # tv = Value.Var()
@@ -782,8 +784,8 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
             let (pat, val) = gen
             env.addPatConst(pat, val, impl.default.get, false)
         let
-            _ = self.fn.param.params.mapIt(it.typ.get.typeInfer(env, false))
-            _ = self.fn.param.rety.typeInfer(env, global)
+            # _ = self.fn.param.params.mapIt(it.typ.get.typeInfer(env, false))
+            # _ = self.fn.param.rety.typeInfer(env, global)
             paramty = self.fn.param.params.mapIt(it.typ.get.evalConst(env, false))
             rety = self.fn.param.rety.evalConst(env, false)
             metadata = self.fn.metadata

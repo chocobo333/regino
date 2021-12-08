@@ -66,4 +66,6 @@ let b = swap(a)
 echo $b
 let b = swap(b)
 echo $b
+discard 0
+discard 0
 0
