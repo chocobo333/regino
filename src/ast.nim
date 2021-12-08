@@ -127,11 +127,11 @@ proc empty*(t: typedesc[AstNode]): AstNode = newEmptyNode()
 proc isEmpty*(self: AstNode): bool =
     self.kind == akEmpty
 
-proc seta*(self: AstNode, a: Position): AstNode =
+proc seta*(self: AstNode, a: spanned.Position): AstNode =
     result = self
     result.loc.`range`.a = a
 
-proc setb*(self: AstNode, b: Position): AstNode =
+proc setb*(self: AstNode, b: spanned.Position): AstNode =
     result = self
     result.loc.`range`.b = b
 

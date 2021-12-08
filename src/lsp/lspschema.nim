@@ -215,6 +215,20 @@ jsonSchema:
     DidChangeTextDocumentParams:
         textDocument: VersionedTextDocumentIdentifier
         contentChanges: TextDocumentContentChangeEvent[]
+    TextDocumentPositionParams:
+        textDocument: TextDocumentIdentifier
+        position: Position
+    HoverParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+    MarkedString:
+        language: string
+        value: string
+    MarkupContent:
+        kind: string
+        value: string
+    Hover:
+        contents: string or string[] or MarkedString or MarkedString[] or MarkupContent
+        "range" ?: Range
     SemanticTokensParams extends WorkDoneProgressParams:
         partialResultToken ?: int or string # ProgressToken
         textDocument: TextDocumentIdentifier
@@ -503,6 +517,8 @@ jsonSchema:
     WorkDoneProgressOptions:
         workDoneProgress ?: bool
 
+    HoverOptions:
+        workDoneProgress ?: bool
     SemanticTokensLegend:
         tokenTypes: string[]
         tokenModifiers: string[]
@@ -514,7 +530,7 @@ jsonSchema:
     ServerCapabilities:
         textDocumentSync ?: TextDocumentSyncOptions or int
         # completionProvider ?: CompletionOptions
-        # hoverProvider ?: bool or HoverOptions
+        hoverProvider ?: bool or HoverOptions
         # signatureHelpProvider ?: SignatureHelpOptions
         # declarationProvider ?: bool or DeclarationOptions or DeclarationRegistrationOptions
         # definitionProvider ?: bool or DefinitionOptions
@@ -574,6 +590,8 @@ export
     LogMessageParams,
     DidOpenTextDocumentParams,
     DidChangeTextDocumentParams,
+    TextDocumentPositionParams,
+    HoverParams,
     SemanticTokensParams,
     SemanticTokens,
     PublishDiagnosticsParams,
@@ -644,6 +662,7 @@ export
     ClientInfo,
     InitializeParams,
     WorkDoneProgressOptions,
+    HoverOptions,
     SemanticTokensLegend,
     SemanticTokensOptions,
     ServerCapabilities,

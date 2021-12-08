@@ -5,7 +5,7 @@ import uri
 import eat/spanned
 
 type
-    Position = object
+    Position* = object
         ## quoted from lsp specification.
         line*: Natural      ## Line position in a document (zero-based).
         character*: Natural ## Character offset on a line in a document (zero-based). Assuming that

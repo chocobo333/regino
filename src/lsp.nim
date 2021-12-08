@@ -16,6 +16,8 @@ import
     parsers,
     sema,
     codegen
+import lineinfos except Position
+type rPosition = lineinfos.Position
 import buffers
 
 
@@ -106,6 +108,7 @@ proc initilize(s: Stream, msg: RequestMessage, buffers: var Buffers) =
                         some true,
                         some TextDocumentSyncKind.Full.int
                     ),
+                    some true, # Hover
                     some SemanticTokensOptions.create(
                         none(bool),
                         SemanticTokensLegend.create(
@@ -121,7 +124,109 @@ proc initilize(s: Stream, msg: RequestMessage, buffers: var Buffers) =
                     some "0.1.0"
                 )
             ).JsonNode
-
+proc `in`(self: rPosition, term: Term): bool =
+    let r = term.loc.`range`
+    self != r.b and self in r
+proc `in`(self: rPosition, pat: Pattern): bool =
+    let r = pat.loc.`range`
+    self != r.b and self in r
+proc find(self: Term, pos: rPosition): Option[Term]
+proc find(self: Pattern, pos: rPosition): Option[Term] =
+    case self.kind
+    of PatternKind.Literal, PatternKind.Ident:
+        self.id.find(pos)
+    of PatternKind.Pair:
+        if pos in self.first:
+            self.first.find(pos)
+        else:
+            self.second.find(pos)
+    of PatternKind.Record:
+        none(Term)
+    of PatternKind.Discard:
+        none(Term)
+proc find(self: Term, pos: rPosition): Option[Term] =
+    case self.kind
+    of TermKind.Failed..TermKind.Id:
+        if pos in self:
+            some self
+        else:
+            none(Term)
+    of TermKind.Tuple:
+        var res = none(Term)
+        for e in self.terms:
+            if pos in e:
+                res = e.find(pos)
+                break
+        res
+    of TermKind.Record:
+        none(Term)
+    of TermKind.Let, TermKind.Const:
+        let
+            iddef = self.iddef
+            pat = iddef.pat
+            typ = iddef.typ
+            default = iddef.default
+        var res = none(Term)
+        block:
+            if pos in pat:
+                res = pat.find(pos)
+                break
+            if typ.isSome and pos in typ.get:
+                res = typ.get.find(pos)
+                break
+            if default.isSome and pos in default.get:
+                res = default.get.find(pos)
+                break
+        res
+    of TermKind.Funcdef:
+        none(Term)
+    of TermKind.FuncdefInst:
+        none(Term)
+    of TermKind.Case:
+        none(Term)
+    of TermKind.Typeof:
+        none(Term)
+    of TermKind.Discard:
+        if pos in self.term:
+            self.term.find(pos)
+        else:
+            none(Term)
+    of TermKind.Apply:
+        var res = none(Term)
+        block:
+            if pos in self.callee:
+                res = self.callee.find(pos)
+                break
+            for e in self.args:
+                if pos in e:
+                    res = e.find(pos)
+                    break
+        res
+    of TermKind.Meta:
+        none(Term)
+    of TermKind.Seq:
+        var res = none(Term)
+        for e in self.terms:
+            if pos in e:
+                res = e.find(pos)
+                break
+        res
+proc `textDocument/hover`(s: Stream, msg: RequestMessage, buffers: var Buffers) =
+    if msg.params.isValid(HoverParams):
+        let
+            params = HoverParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        if uri in buffers.termbuf:
+            let
+                term = buffers.termbuf[uri] # main function
+                focus = term.fn.body.term.find(pos)
+            s.window.logMessage("[textDocument/hover]: " & $focus)
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/hover]: valid params")
 proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, buffers: var Buffers) =
     let
         tokenTypes = buffers.tokenTypes
@@ -143,7 +248,8 @@ proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, buffers:
         # of PatternKind.Array:
         #     discard
         of PatternKind.Pair:
-            discard
+            self.first.coloring(data)
+            self.second.coloring(data)
         # of PatternKind.Tuple:
         #     discard
         of PatternKind.Record:
@@ -280,9 +386,7 @@ proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, buffers:
         #     discard
         # of TermKind.Asign:
         #     discard
-        of TermKind.Typeof:
-            discard
-        of TermKind.Discard:
+        of TermKind.Typeof, TermKind.Discard:
             self.term.coloring(data)
         of TermKind.Apply:
             self.callee.coloring(data)
@@ -408,6 +512,8 @@ proc Lsp*(): int =
             of "shutdown":
                 outstream.respond(msg):
                     newJNull()
+            of "textDocument/hover":
+                outstream.`textDocument/hover`(msg, buffers)
             of "textDocument/semanticTokens/full":
                 outstream.`textDocument/semanticTokens/full`(msg, buffers)
         elif msg.isValid(NotificationMessage):
