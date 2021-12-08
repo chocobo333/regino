@@ -62,6 +62,7 @@ func len(a: string) -> int ![importll]
 
 let
     a = (2, 2.0)
+    b = 3
 echo $a
 echo b
 let b = swap(a)

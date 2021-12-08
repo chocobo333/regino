@@ -4,6 +4,7 @@ import os
 import parsers
 import sema
 import codegen
+import errors
 
 
 from llvm import `$`, link
@@ -43,6 +44,8 @@ proc compile*(filename: string) =
     let (main, err) = parser.parse(filename).sema(module)
     if err.len == 0:
         discard main.codegen(module)
+    else:
+        err[0].`raise`
     for e in module.linkModules:
         discard module.module.link(e)
     # module = module.optimize
