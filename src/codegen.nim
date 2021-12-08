@@ -239,10 +239,11 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
                     Let(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self & "." & key))
             of PatternKind.Discard:
                 discard
-        let
-            pat = self.iddef.pat
-            default = self.iddef.default.get
-        Let(pat, default.typ, default.codegen(module, global))
+        for iddef in self.iddefs:
+            let
+                pat = iddef.pat
+                default = iddef.default.get
+            Let(pat, default.typ, default.codegen(module, global))
         nil
     # of TermKind.Var:
     #     let

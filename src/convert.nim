@@ -63,11 +63,11 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
                 let id = newPattern(aid)
                 assert not default.isNil, "let section needs initialization"
                 if typ.isEmpty():
-                    Term.Const(newIdentDef(id, default=newTerm(default, scope)))
+                    newIdentDef(id, default=newTerm(default, scope))
                 else:
-                    Term.Const(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
+                    newIdentDef(id, newTerm(typ, scope), newTerm(default, scope))
         )
-        Term.Seq(ts)
+        Term.Const(ts)
     of akLetSection:
         let ts = n.children.mapIt(
             block:
@@ -81,11 +81,11 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
                 let pat = newPattern(aid)
                 assert not default.isNil, "let section needs initialization"
                 if typ.isEmpty():
-                    Term.Let(newIdentDef(pat, default=newTerm(default, scope)))
+                    newIdentDef(pat, default=newTerm(default, scope))
                 else:
-                    Term.Let(newIdentDef(pat, newTerm(typ, scope), newTerm(default, scope)))
+                    newIdentDef(pat, newTerm(typ, scope), newTerm(default, scope))
         )
-        Term.Seq(ts)
+        Term.Let(ts)
     # of akVarSection:
     #     let ts = n.children.mapIt(
     #         block:

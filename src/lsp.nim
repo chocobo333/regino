@@ -144,6 +144,24 @@ proc find(self: Pattern, pos: rPosition): Option[Term] =
         none(Term)
     of PatternKind.Discard:
         none(Term)
+proc find(self: IdentDef, pos: rPosition): Option[Term] =
+    let
+        iddef = self
+        pat = iddef.pat
+        typ = iddef.typ
+        default = iddef.default
+    var res = none(Term)
+    block:
+        if pos in pat:
+            res = pat.find(pos)
+            break
+        if typ.isSome and pos in typ.get:
+            res = typ.get.find(pos)
+            break
+        if default.isSome and pos in default.get:
+            res = default.get.find(pos)
+            break
+    res
 proc find(self: Term, pos: rPosition): Option[Term] =
     case self.kind
     of TermKind.Failed..TermKind.Id:
@@ -161,21 +179,10 @@ proc find(self: Term, pos: rPosition): Option[Term] =
     of TermKind.Record:
         none(Term)
     of TermKind.Let, TermKind.Const:
-        let
-            iddef = self.iddef
-            pat = iddef.pat
-            typ = iddef.typ
-            default = iddef.default
         var res = none(Term)
-        block:
-            if pos in pat:
-                res = pat.find(pos)
-                break
-            if typ.isSome and pos in typ.get:
-                res = typ.get.find(pos)
-                break
-            if default.isSome and pos in default.get:
-                res = default.get.find(pos)
+        for e in self.iddefs:
+            res = e.find(pos)
+            if res.isSome:
                 break
         res
     of TermKind.Funcdef:
@@ -184,9 +191,7 @@ proc find(self: Term, pos: rPosition): Option[Term] =
         none(Term)
     of TermKind.Case:
         none(Term)
-    of TermKind.Typeof:
-        none(Term)
-    of TermKind.Discard:
+    of TermKind.Typeof, TermKind.Discard:
         if pos in self.term:
             self.term.find(pos)
         else:
@@ -272,7 +277,20 @@ proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, buffers:
             if default.isSome:
                 default.get.coloring(data)
         rety.coloring(data)
+    proc coloring(self: IdentDef, data: var seq[(int, int, int, int, int)]) =
+        let
+            iddef = self
+            pat = iddef.pat
+            typ = iddef.typ
+            default = iddef.default
+        pat.coloring(data)
+        if typ.isSome:
+            typ.get.coloring(data)
+        if default.isSome:
+            default.get.coloring(data)
     proc coloring(self: Term, data: var seq[(int, int, int, int, int)]) =
+        if self.inserted:
+            return
         case self.kind
         of TermKind.Failed:
             discard
@@ -331,30 +349,9 @@ proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, buffers:
                 e.coloring(data)
         of TermKind.Record:
             discard  # named tuple
-        of TermKind.Let:
-            let
-                iddef = self.iddef
-                pat = iddef.pat
-                typ = iddef.typ
-                default = iddef.default
-            pat.coloring(data)
-            if typ.isSome:
-                typ.get.coloring(data)
-            if default.isSome:
-                default.get.coloring(data)
-        # of TermKind.Var:
-        #     discard
-        of TermKind.Const:
-            let
-                iddef = self.iddef
-                pat = iddef.pat
-                typ = iddef.typ
-                default = iddef.default
-            pat.coloring(data)
-            if typ.isSome:
-                typ.get.coloring(data)
-            if default.isSome:
-                default.get.coloring(data)
+        of TermKind.Let, TermKind.Const:
+            for e in self.iddefs:
+                e.coloring(data)
         # of TermKind.Typedef:
         #     discard
         of TermKind.Funcdef:

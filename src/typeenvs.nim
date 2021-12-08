@@ -72,7 +72,12 @@ proc lookupConverter*(self: Scope, t1, t2: ref Value): Ident =
             return scope.converters[(t1, t2)]
     raise newException(TypeError, "")
 proc lookupConverter*(self: TypeEnv, t1, t2: ref Value): Ident =
-    self.scope.lookupConverter(t1, t2)
+    result = self.scope.lookupConverter(t1, t2)
+    let
+        typ = result.typ
+    result = Term.Id(result.name)
+    result.typ = typ
+    result.inserted = true
 
 proc addIdent*(self: TypeEnv, id: Ident, sym: Symbol) =
     let
@@ -272,11 +277,11 @@ proc inst*(t: Term): Term =
     of TermKind.Record:
         Term.Record(t.members.map(it => it.inst))
     of TermKind.Let:
-        Term.Let(t.iddef.inst)
+        Term.Let(t.iddefs.map(inst))
     # of TermKind.Var:
     #     fmt"var {self.iddef}"
     of TermKind.Const:
-        Term.Const(t.iddef.inst)
+        Term.Const(t.iddefs.map(inst))
     # of TermKind.Typedef:
     #     let s = self.typedefs.map(`$`).join("\n")
     #     &"type\n{s.indent(2)}"

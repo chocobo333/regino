@@ -197,6 +197,7 @@ proc addTypeRelation(self: TypeEnv, t1, t2: ref Value, fn: Ident) =
     # assert t1.kind == ValueKind.Typedesc
     # assert t2.kind == ValueKind.Typedesc
     # assert not (t2.`typedesc` <= t1.`typedesc`)
+    assert fn.kind == TermKind.Id
     self.scope.typeOrder.add (t1, t2)
     self.scope.converters[(t1, t2)] = fn
 
@@ -717,25 +718,26 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
                     self.addPat(pat, impl, global)
             of PatternKind.Discard:
                 discard
-        let
-            pat = self.iddef.pat
-            tv = pat.typeInfer(env, global)
-            impl = self.iddef.default.get
-            t1 = impl.typeInfer(env, global)
-        if self.iddef.typ.isSome:
+        for iddef in self.iddefs:
             let
-                # _ = self.iddef.typ.get.typeInfer(env, global)
-                t = self.iddef.typ.get.evalConst(env, global)
-            env.coerceEq(tv, t)
-        if t1.kind == ValueKind.Intersection:
-            env.coerceRelation(t1, tv)
-            env.coerceRelation(tv, Value.Union(t1.types))
-        else:
-            if self.iddef.typ.isSome:
+                pat = iddef.pat
+                tv = pat.typeInfer(env, global)
+                impl = iddef.default.get
+                t1 = impl.typeInfer(env, global)
+            if iddef.typ.isSome:
+                let
+                    # _ = self.iddef.typ.get.typeInfer(env, global)
+                    t = iddef.typ.get.evalConst(env, global)
+                env.coerceEq(tv, t)
+            if t1.kind == ValueKind.Intersection:
                 env.coerceRelation(t1, tv)
+                env.coerceRelation(tv, Value.Union(t1.types))
             else:
-                env.coerceEq(tv, t1)
-        env.addPat(pat, impl, global)
+                if iddef.typ.isSome:
+                    env.coerceRelation(t1, tv)
+                else:
+                    env.coerceEq(tv, t1)
+            env.addPat(pat, impl, global)
         Value.Unit
     # of TermKind.Var:
     #     let
@@ -760,13 +762,13 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     #     env.addIdent(id, sym)
     #     Value.Unit
     of TermKind.Const:
-        let
-            iddef = self.iddef
-            pat = iddef.pat
-            default = iddef.default.get
-            # _ = default.typeInfer(env, global)
-            val = default.evalConst(env)
-        env.addPatConst(pat, val, default, global)
+        for iddef in self.iddefs:
+            let
+                pat = iddef.pat
+                default = iddef.default.get
+                # _ = default.typeInfer(env, global)
+                val = default.evalConst(env)
+            env.addPatConst(pat, val, default, global)
         Value.Unit
     of TermKind.Funcdef, TermKind.FuncdefInst:
         let
@@ -976,24 +978,28 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
     of TermKind.Record:
         toSeq(self.members.values).mapIt(it.typeCheck(env)).flatten & self.check(Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].typ)).toTable))
     of TermKind.Let:
-        let
-            pat = self.iddef.pat
-            impl = self.iddef.default.get
-            ret = pat.typeCheck(env) & impl.typeCheck(env)
-        if self.iddef.typ.isSome:
-            assert impl.typ <= pat.typ, fmt"{impl.typ} <= {pat.typ}"
-            var imp = impl
-            if impl.typ != pat.typ and impl.typ <= pat.typ and (not gen):
-                let
-                    p = env.scope.typeOrder.path(impl.typ, pat.typ).get
-                for (t1, t2) in p:
+        var ret: seq[Error]
+        for iddef in self.iddefs.mitems:
+            let
+                pat = iddef.pat
+                impl = iddef.default.get
+            ret.add pat.typeCheck(env) & impl.typeCheck(env)
+            if iddef.typ.isSome:
+                assert impl.typ <= pat.typ, fmt"{impl.typ} <= {pat.typ}"
+                var imp = impl
+                if impl.typ != pat.typ and impl.typ <= pat.typ and (not gen):
                     let
-                        fn = env.lookupConverter(t1, t2)
-                    imp = Term.Apply(fn, @[imp])
-                    imp.typ = t2
-                self.iddef.default = some imp
-        else:
-            assert impl.typ == pat.typ, fmt"{impl.typ} == {pat.typ}"
+                        p = env.scope.typeOrder.path(impl.typ, pat.typ).get
+                    for (t1, t2) in p:
+                        let
+                            fn = env.lookupConverter(t1, t2)
+                            loc = imp.loc
+                        imp = Term.Apply(fn, @[imp])
+                        imp.typ = t2
+                        imp.loc = loc
+                    iddef.default = some imp
+            else:
+                assert impl.typ == pat.typ, fmt"{impl.typ} == {pat.typ}"
         self.check(Value.Unit) & ret
     # of TermKind.Var:
     #     let
@@ -1148,16 +1154,28 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
             for i in 0..<calleety.paramty.len:
                 let (argty, paramty) = (args[i], calleety.paramty[i])
                 assert argty <= paramty, fmt"{argty} <= {paramty}"
-                if argty != paramty and argty <= paramty:
+                if argty.kind != ValueKind.Var and paramty.kind != ValueKind.Var and argty != paramty and argty <= paramty:
                     let
+                        argty = block:
+                            var t = argty
+                            while t.kind == ValueKind.Link:
+                                t = t.to
+                            t
+                        paramty = block:
+                            var t = paramty
+                            while t.kind == ValueKind.Link:
+                                t = t.to
+                            t
                         p = env.scope.typeOrder.path(argty, paramty).get
                     var
                         arg = self.args[i]
                     for (t1, t2) in p:
                         let
                             fn = env.lookupConverter(t1, t2)
+                            loc = arg.loc
                         arg = Term.Apply(fn, @[arg])
                         arg.typ = t2
+                        arg.loc = loc
                     self.args[i] = arg
         ret
     # of TermKind.Projection:
