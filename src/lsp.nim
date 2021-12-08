@@ -223,13 +223,28 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, buffers: var Buffers) 
             textDocument = params["textDocument"]
             pos = params["position"].to(rPosition)
             uri = textDocument["uri"].getStr
+        var data: seq[string]
         if uri in buffers.termbuf:
             let
                 term = buffers.termbuf[uri] # main function
                 focus = term.fn.body.term.find(pos)
+            if focus.isSome:
+                let focus = focus.get
+                if focus.typ.symbol.isSome:
+                    data.add $focus.typ.symbol.get
+                if focus.kind == TermKind.Id:
+                    data.add fmt"{focus.name}: {focus.typ}"
+                else:
+                    data.add $focus.typ
             s.window.logMessage("[textDocument/hover]: " & $focus)
         s.respond(msg):
-            newJNull()
+            if data.len == 0:
+                newJNull()
+            else:
+                Hover.create(
+                    data,
+                    none(Range)
+                ).JsonNode
     else:
         s.window.logMessage("[textDocument/hover]: valid params")
 proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, buffers: var Buffers) =
