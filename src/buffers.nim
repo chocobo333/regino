@@ -11,8 +11,6 @@ type
         termbuf*: Buffer[Term]
         astbuf*: Buffer[AstNode]
         modbuf*: Buffer[Module]
-        tokenTypes*: seq[string]
-        tokenModifiers*: seq[string]
 
 proc newBuffer[T](): Buffer[T] =
     initTable[string, T]()

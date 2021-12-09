@@ -9,7 +9,8 @@ import options
 
 import lsp/[
     lspschema,
-    lspprotocol
+    lspprotocol,
+    configuration
 ]
 import
     il,
@@ -91,15 +92,15 @@ proc `textDocument/publishDiagnostics`(uri: string, diags: seq[Diagnostic]): (st
 proc publishDiagnostics(textDocument: TextDocument, diags: seq[Diagnostic]) =
     textDocument.s.notify `textDocument/publishDiagnostics`(textDocument.uri, diags)
 
-proc initilize(s: Stream, msg: RequestMessage, buffers: var Buffers) =
+proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration, buffers: var Buffers) =
     if msg.params.isValid(InitializeParams, allowExtra=true):
         let
             params = InitializeParams(msg.params)
             semanticTokens = params["capabilities"]["textDocument"]["semanticTokens"]
             tokenTypes = semanticTokens["tokenTypes"].to(seq[string])
             tokenModifiers = semanticTokens["tokenModifiers"].to(seq[string])
-        buffers.tokenTypes = tokenTypes
-        buffers.tokenModifiers = tokenModifiers
+        configuration.tokenTypes = tokenTypes
+        configuration.tokenModifiers = tokenModifiers
         s.window.logMessage("Got initilize request")
         s.respond(msg):
             InitializeResult.create(
@@ -216,7 +217,7 @@ proc find(self: Term, pos: rPosition): Option[Term] =
                 res = e.find(pos)
                 break
         res
-proc `textDocument/hover`(s: Stream, msg: RequestMessage, buffers: var Buffers) =
+proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configuration, buffers: var Buffers) =
     if msg.params.isValid(HoverParams):
         let
             params = HoverParams(msg.params)
@@ -247,10 +248,10 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, buffers: var Buffers) 
                 ).JsonNode
     else:
         s.window.logMessage("[textDocument/hover]: valid params")
-proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, buffers: var Buffers) =
+proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, configuration: Configuration, buffers: var Buffers) =
     let
-        tokenTypes = buffers.tokenTypes
-        tokenModifiers = buffers.tokenModifiers
+        tokenTypes = configuration.tokenTypes
+        tokenModifiers = configuration.tokenModifiers
     proc index(s: seq[string], str: string): int =
         for (i, e) in s.pairs:
             if e == str:
@@ -510,6 +511,7 @@ proc Lsp*(): int =
         instream = stdin.newFileStream
         outstream = stdout.newFileStream
     var
+        configuration = Configuration()
         buffers = newBuffers()
     while true:
         let
@@ -520,14 +522,14 @@ proc Lsp*(): int =
                 `method` = msg.`method`
             case `method`
             of "initialize":
-                outstream.initilize(msg, buffers)
+                outstream.initilize(msg, configuration, buffers)
             of "shutdown":
                 outstream.respond(msg):
                     newJNull()
             of "textDocument/hover":
-                outstream.`textDocument/hover`(msg, buffers)
+                outstream.`textDocument/hover`(msg, configuration, buffers)
             of "textDocument/semanticTokens/full":
-                outstream.`textDocument/semanticTokens/full`(msg, buffers)
+                outstream.`textDocument/semanticTokens/full`(msg, configuration, buffers)
         elif msg.isValid(NotificationMessage):
             let
                 msg = NotificationMessage(msg)
