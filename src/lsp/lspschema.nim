@@ -229,6 +229,18 @@ jsonSchema:
     Hover:
         contents: string or string[] or MarkedString or MarkedString[] or MarkupContent
         "range" ?: Range
+    DocumentSymbolParams extends WorkDoneProgressParams:
+        partialResultToken ?: int or string # ProgressToken
+        textDocument: TextDocumentIdentifier
+    DocumentSymbol:
+        name: string
+        detail ?: string
+        kind: int # SymbolKind
+        tags ?: int[] # SymbolTag[]
+        deprecated ?: bool
+        "range": Range
+        selectionRange: Range
+        children ?: DocumentSymbol[]
     SemanticTokensParams extends WorkDoneProgressParams:
         partialResultToken ?: int or string # ProgressToken
         textDocument: TextDocumentIdentifier
@@ -516,7 +528,8 @@ jsonSchema:
 
     WorkDoneProgressOptions:
         workDoneProgress ?: bool
-
+    DocumentSymbolOptions extends WorkDoneProgressOptions:
+        label ?: string
     HoverOptions:
         workDoneProgress ?: bool
     SemanticTokensLegend:
@@ -538,7 +551,7 @@ jsonSchema:
         # implementationProvider ?: bool or ImplementationOptions or ImplementationRegistrationOptions
         # referencesProvider ?: bool or ReferenceOptions
         # documentHighlightProvider ?: bool or DocumentHighlightOptions
-        # documentSymbolProvider ?: bool or DocumentSymbolOptions
+        documentSymbolProvider ?: bool or DocumentSymbolOptions
         # codeActionProvider ?: bool or CodeActionOptions
         # codeLensProvider ?: CodeLensOptions
         # documentLinkProvider ?: DocumentLinkOptions
@@ -595,6 +608,8 @@ export
     MarkedString,
     MarkupContent,
     Hover,
+    DocumentSymbolParams,
+    DocumentSymbol,
     SemanticTokensParams,
     SemanticTokens,
     PublishDiagnosticsParams,
@@ -665,6 +680,7 @@ export
     ClientInfo,
     InitializeParams,
     WorkDoneProgressOptions,
+    DocumentSymbolOptions,
     HoverOptions,
     SemanticTokensLegend,
     SemanticTokensOptions,

@@ -16,7 +16,8 @@ import
     il,
     parsers,
     sema,
-    codegen
+    codegen,
+    utils
 import lineinfos except Position
 type rPosition = lineinfos.Position
 import buffers
@@ -96,11 +97,15 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
     if msg.params.isValid(InitializeParams, allowExtra=true):
         let
             params = InitializeParams(msg.params)
-            semanticTokens = params["capabilities"]["textDocument"]["semanticTokens"]
+            capabilities = params["capabilities"]
+            textDocument = capabilities["textDocument"]
+            documentSymbol = textDocument["documentSymbol"].DocumentSymbolClientCapabilities
+            semanticTokens = textDocument["semanticTokens"]
             tokenTypes = semanticTokens["tokenTypes"].to(seq[string])
             tokenModifiers = semanticTokens["tokenModifiers"].to(seq[string])
         configuration.tokenTypes = tokenTypes
         configuration.tokenModifiers = tokenModifiers
+        configuration.documentSymbol = documentSymbol
         s.window.logMessage("Got initilize request")
         s.respond(msg):
             InitializeResult.create(
@@ -110,6 +115,10 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
                         some TextDocumentSyncKind.Full.int
                     ),
                     some true, # Hover
+                    some DocumentSymbolOptions.create(
+                        none(bool),
+                        some "regino"
+                    ),
                     some SemanticTokensOptions.create(
                         none(bool),
                         SemanticTokensLegend.create(
@@ -248,6 +257,80 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configu
                 ).JsonNode
     else:
         s.window.logMessage("[textDocument/hover]: valid params")
+proc collectSymbol(self: Term): Option[JsonNode] =
+    # result type is DocumentSymbol[]
+    case self.kind
+    of TermKind.Failed..TermKind.Const:
+        none(JsonNode)
+    of TermKind.Funcdef:
+        var res = newJArray()
+        for it in toSeq(self.fn.body.scope.syms.values).flatten:
+            let
+                kind = case it.kind:
+                of il.SymbolKind.Var, il.SymbolKind.Let:
+                    lspschema.SymbolKind.Variable
+                of il.SymbolKind.Const:
+                    lspschema.SymbolKind.Constant
+                of il.SymbolKind.Typ:
+                    lspschema.SymbolKind.Class
+                of il.SymbolKind.Func:
+                    lspschema.SymbolKind.Function
+            res.add DocumentSymbol.create(
+                it.decl.name,
+                some $it.typ,
+                kind.int,
+                none(seq[int]),
+                none(bool),
+                Range.create(
+                    Position.create(
+                        it.decl.loc.`range`.a.line,
+                        it.decl.loc.`range`.a.character
+                    ),
+                    Position.create(
+                        it.decl.loc.`range`.b.line,
+                        it.decl.loc.`range`.b.character
+                    )
+                ),
+                Range.create(
+                    Position.create(
+                        it.decl.loc.`range`.a.line,
+                        it.decl.loc.`range`.a.character
+                    ),
+                    Position.create(
+                        it.decl.loc.`range`.b.line,
+                        it.decl.loc.`range`.b.character
+                    )
+                ),
+                none(seq[DocumentSymbol])
+            ).JsonNode
+        if res.len == 0:
+            none(JsonNode)
+        else:
+            some res
+    of TermKind.FuncdefInst..TermKind.Meta:
+        none(JsonNode)
+    of TermKind.Seq:
+        none(JsonNode)
+proc `textDocument/documentSymbol`(s: Stream, msg: RequestMessage, configuration: Configuration, buffers: var Buffers) =
+    if msg.params.isValid(DocumentSymbolParams):
+        let
+            params = DocumentSymbolParams(msg.params)
+            textDocument = params["textDocument"]
+            uri = textDocument["uri"].getStr
+        s.window.logMessage(fmt"[textDocument/documentSymbol]: {uri}")
+        var data: Option[JsonNode]
+        if uri in buffers.termbuf:
+            let
+                term = buffers.termbuf[uri]
+            data = term.collectSymbol
+        s.respond(msg):
+            if data.isNone or data.get.len == 0:
+                newJNull()
+            else:
+                data.get
+    else:
+        s.window.logMessage("[textDocument/documentSymbol]: valid params")
+
 proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, configuration: Configuration, buffers: var Buffers) =
     let
         tokenTypes = configuration.tokenTypes
@@ -528,6 +611,8 @@ proc Lsp*(): int =
                     newJNull()
             of "textDocument/hover":
                 outstream.`textDocument/hover`(msg, configuration, buffers)
+            of "textDocument/documentSymbol":
+                outstream.`textDocument/documentSymbol`(msg, configuration, buffers)
             of "textDocument/semanticTokens/full":
                 outstream.`textDocument/semanticTokens/full`(msg, configuration, buffers)
         elif msg.isValid(NotificationMessage):
