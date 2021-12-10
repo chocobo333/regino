@@ -40,10 +40,11 @@ proc compile*(filename: string) =
     var
         module = newModule()
         parser = newParser()
+        node = parser.parse(filename)
 
-    let (main, err) = parser.parse(filename).sema(module)
     for e in parser.errs:
         echo e
+    let (main, err) = node.sema(module)
     if err.len == 0:
         discard main.codegen(module)
     else:

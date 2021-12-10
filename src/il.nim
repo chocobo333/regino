@@ -159,6 +159,7 @@ type
         #     boolval*: bool
         of Integer:
             intval*: BiggestInt
+            bits*: uint
         of Float:
             floatval*: BiggestFloat
         of Char:
@@ -244,8 +245,10 @@ type
         # name: string # TODO:
         case kind*: ValueKind
         # of Bottom, Top, ValueKind.Unit, ValueKind.Bool, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
-        of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
+        of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Float, ValueKind.Char, ValueKind.String:
             nil
+        of ValueKind.Integer:
+            bits*: uint
         of ValueKind.U:
             level*: int
         # of ValueKind.List:
@@ -498,8 +501,10 @@ suite Value:
         elif self.kind == other.kind:
             case self.kind
             # of Bottom, Top, ValueKind.Unit, ValueKind.Bool, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
-            of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
+            of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Float, ValueKind.Char, ValueKind.String:
                 true
+            of ValueKind.Integer:
+                self.bits == other.bits
             of ValueKind.U:
                 self.level == other.level
             # of ValueKind.List:
@@ -567,7 +572,10 @@ suite Value:
         #     "bool"
         of ValueKind.Integer:
             # $"int".red
-            "int"
+            if self.bits == wordSize():
+                "int"
+            else:
+                fmt"int{self.bits}"
         of ValueKind.Float:
             # $"float".red
             "float"
@@ -666,9 +674,10 @@ suite Value:
     proc Bool*(_: typedesc[Value]): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Bool)
-    proc Integer*(_: typedesc[Value]): ref Value =
+    proc Integer*(_: typedesc[Value], bits: uint): ref Value =
         result = new Value
-        result[] = Value(kind: ValueKind.Integer)
+        let bits = if bits == 0: wordSize() else: bits
+        result[] = Value(kind: ValueKind.Integer, bits: bits)
     proc Float*(_: typedesc[Value]): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Float)
@@ -915,7 +924,10 @@ suite Term:
         # of TermKind.Bool:
         #     $self.boolval
         of TermKind.Integer:
-            $self.intval
+            if self.bits == wordSize():
+                $self.intval
+            else:
+                $self.intval & fmt"'i{self.bits}"
         of TermKind.Float:
             $self.floatval
         of TermKind.Char:
@@ -1006,8 +1018,11 @@ suite Term:
         Term(kind: TermKind.U, level: level)
     proc Bool*(_: typedesc[Term], boolval: bool): Term =
         Term(kind: TermKind.Bool, boolval: boolval)
-    proc Integer*(_: typedesc[Term], intval: BiggestInt): Term =
-        Term(kind: TermKind.Integer, intval: intval)
+    proc Integer*(_: typedesc[Term], intval: BiggestInt, bits: uint): Term =
+        if bits == 0:
+            Term(kind: TermKind.Integer, intval: intval, bits: wordSize())
+        else:
+            Term(kind: TermKind.Integer, intval: intval, bits: bits)
     proc Float*(_: typedesc[Term], floatval: float): Term =
         Term(kind: TermKind.Float, floatval: floatval)
     proc Char*(_: typedesc[Term], charval: char): Term =

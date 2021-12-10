@@ -3,6 +3,7 @@ import macros
 import tables
 import sets
 import sugar
+import strutils
 
 
 macro suite*(label: untyped, body: untyped): untyped =
@@ -43,6 +44,11 @@ proc all*[T](self: HashSet[T], f: T -> bool): bool =
         if not f(e):
             return false
     true
+
+# const wordSizeImpl = staticExec("getconf LONG_BIT").parseInt.uint
+const wordSizeImpl = 64
+proc wordSize*(): uint =
+    wordSizeImpl
 
 # suite Option:
 #     type

@@ -258,7 +258,7 @@ proc inst*(t: Term): Term =
     # of TermKind.Bool:
     #     $self.boolval
     of TermKind.Integer:
-        Term.Integer(t.intval)
+        Term.Integer(t.intval, t.bits)
     of TermKind.Float:
         Term.Float(t.floatval)
     of TermKind.Char:

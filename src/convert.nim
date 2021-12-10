@@ -290,7 +290,7 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
             ).toTable
         )
     of akInt:
-        Term.Integer(n.intVal)
+        Term.Integer(n.intVal, n.bits)
     of akFloat:
         Term.Float(n.floatVal)
     of akString:

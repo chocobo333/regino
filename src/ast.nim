@@ -74,8 +74,11 @@ type
     AstNode* = ref object
         loc*: Location
         case kind*: AstKind
-        of akChar..akInt:
+        of akChar:
+            charVal*: char
+        of akInt:
             intVal*: BiggestInt
+            bits*: uint
         of akFloat:
             floatVal*: BiggestFloat
         of akBool:
@@ -90,7 +93,9 @@ type
 proc `$`*(self: AstNode): string =
     let k = fmt"{($self.kind)[2..^1].green} {""@"".cyan} {($self.loc)}"
     case self.kind:
-    of akChar..akInt:
+    of akChar:
+        genGraph(k, self.charVal)
+    of akInt:
         genGraph(k, self.intVal)
     of akFloat:
         genGraph(k, self.floatVal)
@@ -103,8 +108,10 @@ proc `$`*(self: AstNode): string =
     else:
         genGraphS(k, self.children)
 
-proc newIntNode*(val: BiggestInt, loc: Location = newLocation()): AstNode =
-    AstNode(kind: akInt, intVal: val, loc: loc)
+proc newCharNode*(val: char, loc: Location = newLocation()): AstNode =
+    AstNode(kind: akChar, charval: val, loc: loc)
+proc newIntNode*(val: BiggestInt, bits: uint, loc: Location = newLocation()): AstNode =
+    AstNode(kind: akInt, intVal: val, bits: bits, loc: loc)
 
 proc newFloatNode*(val: BiggestFloat, loc: Location = newLocation()): AstNode =
     AstNode(kind: akFloat, floatVal: val, loc: loc)

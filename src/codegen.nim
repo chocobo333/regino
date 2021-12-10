@@ -64,7 +64,7 @@ proc newLType(typ: ref Value, module: Module): LType =
     # of il.ValueKind.Bool:
     #     cxt.intType(1)
     of il.ValueKind.Integer:
-        cxt.intType(32)
+        cxt.intType(typ.bits)
     of il.ValueKind.Float:
         cxt.floatType()
     of il.ValueKind.String:
@@ -140,7 +140,8 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
     of TermKind.Integer:
         let
             i = self.intval
-            intty = newLType(Value.Integer, module)
+            bits = self.bits
+            intty = newLType(Value.Integer(bits), module)
         intty.constInt(int i)
     of TermKind.Float:
         let
@@ -155,7 +156,7 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         let
             conststr = module.cxt.constString(s)
             global = module.module.newGlobal(conststr.typ, s)
-            inty = newLType(Value.Integer, module)
+            inty = newLType(Value.Integer(32), module)
         global.initializer = conststr
         global.constant = true
         constStruct(
@@ -165,8 +166,8 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
                     global,
                     @[inty.constInt(0), inty.constInt(0)]
                 ),
-                newLType(Value.Integer, module).constInt(s.len),
-                newLType(Value.Integer, module).constInt(s.len)
+                newLType(Value.Integer(32), module).constInt(s.len),
+                newLType(Value.Integer(32), module).constInt(s.len)
             ]
         )
     of TermKind.Id:

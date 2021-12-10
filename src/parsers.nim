@@ -75,6 +75,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     bikkuri = s"!" ^ sp(0)
     dq      = s("\"")
     strlit  = p("\"(([^\"]|(\\.))*)\"")
+    charlit = p("'.'")
     arr     = s"->" ^ sp(0)
     tlt     = s"<:" ^ sp(0)
 
@@ -130,6 +131,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
                                                         #        else:
                                                         #            it
     Int0 = p"[0-9]+"
+    IntSuffix = s"'i" + Int0    @ (it => it[1])
 
     Operators0 = p"[\p{Sm}*/\\?!%&$^@-]+"
     Operators = Operators0                          @ (it => newIdNode(it.fragment).seta(it.pos).setb(it.endpos))
@@ -489,7 +491,10 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
 
 
     Id = Id0                                            @ (it => newIdNode(it.fragment, it.toLocation(uri)))
-    Int = Int0                                          @ (it => newIntNode(parseInt(it.fragment), it.toLocation(uri)))
+    Int = alt(
+        Int0 + IntSuffix    @ (it => newIntNode(parseInt(it[0].fragment), it[1].fragment.parseInt.uint, newLocation(uri, it[0], it[1]))),
+        Int0                @ (it => newIntNode(parseInt(it.fragment), 0, it.toLocation(uri))),
+    )
     Float = alt(
         Int0 > dot > Int0                               @ (it => newFloatNode(parseFloat(it[0].fragment & "." & it[2].fragment), newLocation(uri, it[0], it[2]))),
         Int0 > dot > !Id0                               @ (it => newFloatNode(parseFloat(it[0].fragment), newLocation(uri, it[0], it[1]))),
@@ -499,12 +504,14 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         falset          @ (it => newBoolNode(false, newLocation(uri, it, it))),
         truet           @ (it => newBoolNode(true, newLocation(uri, it, it)))
     )
-    String = strlit                                     @ (it => newStrNode(it.fragment[1..^2], it.toLocation(uri)))
+    String = strlit     @ (it => newStrNode(it.fragment[1..^2], it.toLocation(uri)))
+    Char = charlit      @ (it => newCharNode(it.fragment[1], it.toLocation(uri)))
     Literal = alt(
         Float,
         Int,
         Boolean,
-        String
+        String,
+        Char,
     )
     Tuple = delimited(lpar, Expr^*(comma), ?comma+rpar)        @ (it => akTuple.newTreeNode(it))
     Record = delimited(lpar, (Id + ?(preceded(colon, Expr)))^*comma, ?comma+rpar) @ (proc(a: auto): auto =

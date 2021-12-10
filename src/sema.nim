@@ -62,7 +62,7 @@ proc sema*(node: AstNode, module: Module): (Term, seq[Error]) =
         of il.ValueKind.Unit:
             Term.unit
         of il.ValueKind.Integer:
-            Term.TypeOf(Term.Integer(0))
+            Term.TypeOf(Term.Integer(0, 0))
         else:
             assert rety.kind notin @[il.ValueKind.Unit, il.ValueKind.Integer]
             Term.Failed

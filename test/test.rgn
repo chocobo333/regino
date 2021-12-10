@@ -9,9 +9,10 @@
 #    bool = typeof(false)
 const
     int = typeof(0)
+    int32 = typeof(0'i32)
     float = typeof(0.0)
     string = typeof("")
-    char = typeof('a')
+# char = typeof('a')
 #    a = (3, "f")
 # const
 #     seq[T] ![builtin: "seq"]
@@ -75,5 +76,6 @@ let b = swap(b)
 echo $b
 discard 0
 discard swap(b)
-echo "abc"
+discard 0'i32
+echo "abc".len
 0

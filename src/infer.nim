@@ -41,7 +41,7 @@ proc `<=`*(env: TypeEnv, t1, t2: ref Value): bool =
         of ValueKind.U:
             t1.level <= t2.level
         of ValueKind.Integer:
-            true
+            t1.bits <= t2.bits
         of ValueKind.Float:
             true
         of ValueKind.Char:
@@ -667,7 +667,7 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     # of TermKind.Bool:
     #     Value.Bool
     of TermKind.Integer:
-        Value.Integer
+        Value.Integer(self.bits)
     of TermKind.Float:
         Value.Float
     of TermKind.Char:
@@ -955,7 +955,7 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
     # of TermKind.Bool:
     #     self.check(Value.Bool)
     of TermKind.Integer:
-        self.check(Value.Integer)
+        self.check(Value.Integer(self.bits))
     of TermKind.Float:
         self.check(Value.Float)
     of TermKind.Char:
@@ -1219,6 +1219,6 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
 
 proc infer*(self: Term, env: TypeEnv, global: bool = false): (ref Value, seq[Error]) =
     result[0] = self.typeInfer(env, global)
-    env.coerceRelation(result[0], Value.Integer)
+    env.coerceRelation(result[0], Value.Integer(0))
     env.resolveRelations()
     result[1] = self.typeCheck(env)
