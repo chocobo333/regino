@@ -211,8 +211,7 @@ type
 
     ValueKind* {.pure.} = enum
         Bottom
-        # Top # unit Type is Top?
-        `()`
+        `()` # (): unit: U
         Unit
         U
         # Bool
@@ -224,7 +223,6 @@ type
         Pair
         # Tuple
         Record  # named tuple
-        # Arrow
         Pi
         # Sigma
         Typedesc # singleton
@@ -234,9 +232,6 @@ type
         Union
         Link
         Gen
-    # PolyTypeKind* {.pure.} = enum
-    #     Forall
-    #     Intersection
 
     TypeVarId = int
     TypeVar* = object
@@ -564,9 +559,9 @@ suite Value:
             "unit"
         of ValueKind.U:
             if self.level == 0:
-                "U"
+                "Type"
             else:
-                "U" & $self.level
+                "Type" & $self.level
         # of ValueKind.Bool:
         #     # $"bool".red
         #     "bool"
@@ -600,7 +595,7 @@ suite Value:
                 if self.genty.len == 0:
                     ""
                 else:
-                    self.genty.mapIt(fmt"∀{it[0]}").join(", ") & " "
+                    self.genty.mapIt(fmt"∏{it[1]}").join(", ") & " "
             ) &
             (
                 if self.paramty.len == 0:
@@ -639,7 +634,7 @@ suite Value:
         of ValueKind.Link:
             $self.to
         of ValueKind.Gen:
-            fmt"{self.gen.name} (<: {self.gen.ub})"
+            fmt"{self.gen.name}: {self.gen.typ} (<: {self.gen.ub})"
     proc `$`*(self: ref Value): string = $self[]
     var
         tvid: TypeVarId = -1
@@ -941,12 +936,12 @@ suite Term:
             let s = toSeq(self.members.pairs).mapIt(fmt"{it[0]}: {it[1]}").join(", ")
             fmt"({s})"
         of TermKind.Let:
-            let s = self.iddefs.map(`$`).join("\n")
+            let s = self.iddefs.map(`$`).join("\n").indent(2)
             &"let\n{s}"
         # of TermKind.Var:
         #     fmt"var {self.iddef}"
         of TermKind.Const:
-            let s = self.iddefs.map(`$`).join("\n")
+            let s = self.iddefs.map(`$`).join("\n").indent(2)
             &"const\n{s}"
         # of TermKind.Typedef:
         #     let s = self.typedefs.map(`$`).join("\n")

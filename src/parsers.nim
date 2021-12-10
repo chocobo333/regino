@@ -177,7 +177,14 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
                                                                 else:
                                                                     err it.getSrc, "invalid indentation"
 
-    Comment = s"#" > sp(0) > p".*"                      @ (it => akComment.newTreeNode(@[newStrNode(it[2].fragment)]))
+    Comment = alt(
+        s"#" > sp(0) > p".*"    @ (it => it[1].fragment & it[2].fragment),
+        s"#"                    @ (it => "")
+    )
+    Comments = Pos + separated1(
+        Comment,
+        Nodent
+    ) + Pos @ (it => newCommentNode(it[0][1], newLocation(uri, it[0][0], it[1])))
     Program: AstNode = alt(
         delimited(
             ?Nodent,
@@ -196,7 +203,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
 
     # statement
     Statement: AstNode = alt(
-        Comment,
+        Comments,
         LetSection,
         VarSection,
         ConstSection,

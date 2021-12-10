@@ -15,7 +15,6 @@ type
     AstKind* = enum
         akFailed
         akEmpty
-        akComment
         akStmtList
         akLetSection
         akVarSection
@@ -57,6 +56,7 @@ type
         akBool
         akString
         akId
+        akComment
     # DefKind = enum
     #     Func
     #     Template
@@ -82,6 +82,8 @@ type
             boolVal*: bool
         of akString..akId:
             strVal*: string
+        of akComment:
+            comments*: seq[string]
         else:
             children*: seq[AstNode]
 
@@ -96,6 +98,8 @@ proc `$`*(self: AstNode): string =
         genGraph(k, self.boolVal)
     of akString..akId:
         genGraph(k, &"\"{self.strVal}\"")
+    of akComment:
+        genGraphS(k, self.comments)
     else:
         genGraphS(k, self.children)
 
@@ -113,6 +117,8 @@ proc newStrNode*(val: string, loc: Location = newLocation()): AstNode =
 
 proc newIdNode*(name: string, loc: Location = newLocation()): AstNode =
     AstNode(kind: akId, strVal: name, loc: loc)
+proc newCommentNode*(comments: seq[string], loc: Location = newLocation()): AstNode =
+    AstNode(kind: akComment, comments: comments, loc: loc)
 
 proc newTreeNode*(kind: range[akFailed..akPatterns], children: seq[AstNode], loc: Location = newLocation(children[0].loc.uri, children[0].loc.`range`.a, children[^1].loc.`range`.b)): AstNode =
     AstNode(kind: kind, children: children, loc: loc)

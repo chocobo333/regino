@@ -11,7 +11,11 @@ const
     int = typeof(0)
     float = typeof(0.0)
     string = typeof("")
+    char = typeof('a')
 #    a = (3, "f")
+# const
+#     seq[T] ![builtin: "seq"]
+# seq: (T: Type) -> seq[T]
 
 
 func id[T](a: T) -> T:
@@ -70,5 +74,6 @@ echo $b
 let b = swap(b)
 echo $b
 discard 0
-discard 0
+discard swap(b)
+echo "abc"
 0

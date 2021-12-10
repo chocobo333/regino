@@ -1,12 +1,11 @@
-## 
-* literal pattern
+## TODOs
+* ptr type
 * Sum type
 * Sum pattern
 * pattern exaustivity
-* Pi Type
 * tuple, list, record and distinct type, object
-* var type
 * ref type
+* literal pattern
 * Unable symbol declared in let secion to be asigned twice
 * module system, use opaque type?
 * type classes; trait
@@ -15,3 +14,4 @@
 * region inference
 * lsp
 * typeCheck
+* var type
