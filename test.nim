@@ -1,18 +1,17 @@
 
 
 type
-    A = ref object
-        a: int
-    B = ref A
+    A = object
+        b: B
+    B = object
+        i: int
 
 var
-    a: A = new A
-    b = a
+    a = A(b: B(i: 3))
+    b = 3
 
-a = A(a: 3)
-echo a[]
-echo b[]
+echo a
 
-b = A(a: 4)
-echo a[]
-echo b[]
+(a.b.i, b) = (4, 5)
+echo a
+echo b

@@ -209,7 +209,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         LetSection,
         VarSection,
         ConstSection,
-        AliasSection,
+        TypeSection,
         FuncDef,
         Discard,
         Metadata,
@@ -286,7 +286,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     LetSection = s"let" + Section                       @ (it => akLetSection.newTreeNode(it[1]).seta(it[0].pos))
     VarSection = s"var" + Section                       @ (it => akVarSection.newTreeNode(it[1]).seta(it[0].pos))
     ConstSection = s"const" + Section                   @ (it => akConstSection.newTreeNode(it[1]).seta(it[0].pos))
-    AliasSection = s"type" + Section                    @ (it => akAliasSection.newTreeNode(it[1]).seta(it[0].pos))
+    TypeSection = s"type" + Section                     @ (it => akConstSection.newTreeNode(it[1]).seta(it[0].pos))
     GenParamList: seq[AstNode] = separated0(
         GenIdentDef,
         comma
@@ -521,15 +521,24 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
     DiscardPattern = us                                 @ (it => akDiscardPattern.newNode())
     IdPattern = Id
     LiteralPattern = Literal
-    TuplePattern = Tuple
-    RecordPattern = Record
+    TuplePattern: AstNode = delimited(lpar, Pattern^*(comma), ?comma+rpar)              @ (it => akTuple.newTreeNode(it))
+    RecordPattern: AstNode = delimited(
+        lpar,
+        (Id + ?(preceded(colon, Pattern)))^*comma,
+        ?comma+rpar
+    )   @ (proc(a: auto): auto =
+            let ch = a.mapIt(akIdentDef.newTreeNode(if it[1].isSome: @[it[0], it[1].get] else: @[it[0]]))
+            akRecord.newTreeNode(ch)
+        )
+    BracketPattern: AstNode = IdPattern > delimited(lbra, separated1(Pattern, comma), rbra)    @ (it => akBracketExpr.newTreeNode(it))
 
     Pattern = alt(
         DiscardPattern,
         IdPattern,
         LiteralPattern,
         TuplePattern,
-        RecordPattern
+        RecordPattern,
+        BracketPattern,
     )
     Metadata = preceded(
         bikkuri,

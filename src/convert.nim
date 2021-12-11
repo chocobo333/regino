@@ -289,6 +289,8 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
                         (it.children[0].strVal, it.children[1].newTerm(scope))
             ).toTable
         )
+    of akChar:
+        Term.Char(n.charval)
     of akInt:
         Term.Integer(n.intVal, n.bits)
     of akFloat:

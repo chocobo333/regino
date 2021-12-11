@@ -12,7 +12,7 @@ const
     int32 = typeof(0'i32)
     float = typeof(0.0)
     string = typeof("")
-# char = typeof('a')
+    char = typeof('a')
 #    a = (3, "f")
 # const
 #     seq[T] ![builtin: "seq"]
