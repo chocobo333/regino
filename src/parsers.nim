@@ -17,7 +17,7 @@ import uri
 proc first[T](a: seq[T]): T = a[0]
 proc second[T](a: seq[T]): T = a[1]
 proc boxing[T](a: T): seq[T] = @[a]
-proc newTreeNode(kind: range[akFailed..akPatterns]): proc(a: seq[AstNode]): AstNode =
+proc newTreeNode(kind: range[akFailed..akRecord]): proc(a: seq[AstNode]): AstNode =
     result = proc(a: seq[AstNode]): AstNode =
         kind.newTreeNode(a)
 
@@ -490,7 +490,7 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
                                                                 atom
 
 
-    Id = Id0                                            @ (it => newIdNode(it.fragment, it.toLocation(uri)))
+    Id = Id0    @ (it => (if it.fragment == "_": akUs.newNode() else: newIdNode(it.fragment, it.toLocation(uri))))
     Int = alt(
         Int0 + IntSuffix    @ (it => newIntNode(parseInt(it[0].fragment), it[1].fragment.parseInt.uint, newLocation(uri, it[0], it[1]))),
         Int0                @ (it => newIntNode(parseInt(it.fragment), 0, it.toLocation(uri))),
@@ -514,32 +514,29 @@ ParserDef Parser(uri: Uri, indent: seq[int], errs: seq[ParseError]):
         Char,
     )
     Tuple = delimited(lpar, Expr^*(comma), ?comma+rpar)        @ (it => akTuple.newTreeNode(it))
-    Record = delimited(lpar, (Id + ?(preceded(colon, Expr)))^*comma, ?comma+rpar) @ (proc(a: auto): auto =
-                                                                                        let ch = a.mapIt(akIdentDef.newTreeNode(if it[1].isSome: @[it[0], it[1].get] else: @[it[0]]))
-                                                                                        akRecord.newTreeNode(ch)
-                                                                                    )
-    DiscardPattern = us                                 @ (it => akDiscardPattern.newNode())
-    IdPattern = Id
-    LiteralPattern = Literal
-    TuplePattern: AstNode = delimited(lpar, Pattern^*(comma), ?comma+rpar)              @ (it => akTuple.newTreeNode(it))
-    RecordPattern: AstNode = delimited(
+    Record = delimited(
         lpar,
-        (Id + ?(preceded(colon, Pattern)))^*comma,
+        (Id + ?(preceded(colon, Expr)))^*comma,
         ?comma+rpar
-    )   @ (proc(a: auto): auto =
+    ) @ (proc(a: auto): auto =
             let ch = a.mapIt(akIdentDef.newTreeNode(if it[1].isSome: @[it[0], it[1].get] else: @[it[0]]))
             akRecord.newTreeNode(ch)
         )
-    BracketPattern: AstNode = IdPattern > delimited(lbra, separated1(Pattern, comma), rbra)    @ (it => akBracketExpr.newTreeNode(it))
 
-    Pattern = alt(
-        DiscardPattern,
-        IdPattern,
-        LiteralPattern,
-        TuplePattern,
-        RecordPattern,
-        BracketPattern,
-    )
+    # IdPattern = Id
+    # LiteralPattern = Literal
+    # TuplePattern: AstNode = delimited(lpar, Pattern^*(comma), ?comma+rpar)              @ (it => akTuple.newTreeNode(it))
+    # RecordPattern: AstNode = delimited(
+    #     lpar,
+    #     (Id + ?(preceded(colon, Pattern)))^*comma,
+    #     ?comma+rpar
+    # )   @ (proc(a: auto): auto =
+    #         let ch = a.mapIt(akIdentDef.newTreeNode(if it[1].isSome: @[it[0], it[1].get] else: @[it[0]]))
+    #         akRecord.newTreeNode(ch)
+    #     )
+    # BracketPattern: AstNode = IdPattern > delimited(lbra, separated1(Pattern, comma), rbra)    @ (it => akBracketExpr.newTreeNode(it))
+
+    Pattern = SimplExpr
     Metadata = preceded(
         bikkuri,
         delimited(

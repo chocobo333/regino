@@ -5,6 +5,10 @@
 ![link: "string.ll"]
 
 
+# const
+#     ptr ![builtin: "ptr"]
+# proc ptrGet[T](self: ptr T) -> T ![builtin: "ptrGet"]
+
 #const
 #    bool = typeof(false)
 const
@@ -13,6 +17,7 @@ const
     float = typeof(0.0)
     string = typeof("")
     char = typeof('a')
+# pairWithInt[T] = (int, T)
 #    a = (3, "f")
 # const
 #     seq[T] ![builtin: "seq"]

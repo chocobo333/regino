@@ -57,20 +57,11 @@ type
         # Projection
         Meta
         Seq
-
-    PatternKind* {.pure.} = enum
-        Literal
-        Ident
-        # Range
-        # Array
-        Pair
-        # Tuple
-        Record
-        Discard
+        Us
 
     IdentDefs* = seq[IdentDef]
     IdentDef* = object
-        pat*: Pattern
+        pat*: Term
         typ*: Option[Term]
         default*: Option[Term]
     Ident* = ref TermObject # not nil  # suppose to be of TermKind.Id Pattern?
@@ -116,30 +107,6 @@ type
     BuildInMetadata* = Link..ImportLL
     FunctionMetadata* = ImportLL..ImportLL
     NoBodyMetadata* = ImportLL..ImportLL
-
-    Pattern* = ref object
-        loc*: Location
-        typ*: ref Value
-        case kind*: PatternKind
-        of PatternKind.Literal:
-            lit*: Term
-        of PatternKind.Ident:
-            id*: Ident
-        # of PatternKind.Range:
-        #     lb*: Term
-        #     ub*: Term
-        # of PatternKind.Array:
-        #     # TODO: pattern for array
-        #     nil
-        of PatternKind.Pair:
-            first*: Pattern
-            second*: Pattern
-        # of PatternKind.Tuple:
-        #     tpl*: seq[Pattern]
-        of PatternKind.Record:
-            members*: Table[string, Pattern]
-        of PatternKind.Discard:
-            nil
 
     Term* = ref TermObject # not nil
     TermObject = object
@@ -188,7 +155,7 @@ type
         #     `else`*: Body
         of Case:
             matcher*: Term
-            branches*: seq[(Pattern, Term)]
+            branches*: seq[(Term, Term)]
         # of While:
         #     cond*: Term
         #     wbody*: Body
@@ -209,6 +176,8 @@ type
         #     index*: range[0..1]
         of TermKind.Meta:
             metadata*: Metadata
+        of TermKind.Us:
+            nil
 
     ValueKind* {.pure.} = enum
         Bottom
@@ -267,7 +236,7 @@ type
         #     paramty*: seq[ref Value]
         #     rety*: ref Value
         of ValueKind.Pi:
-            genty*: seq[(Pattern, ref Value)]
+            genty*: seq[(Term, ref Value)]
             gentyinst*: seq[ref Value] # for type inference
             paramty*: seq[ref Value]
             rety*: ref Value
@@ -323,10 +292,12 @@ type
         lty*: llvm.Type
         val*: llvm.Value
 
+proc Literal*(_: typedesc[TermKind]): set[TermKind] =
+    {TermKind.`()`..TermKind.String}
+
 suite IdentDef:
     proc `$`*(self: ref Value): string
     proc `$`*(self: Term): string
-    proc `$`*(self: Pattern): string
     proc `$`*(self: IdentDef): string =
         result = $self.pat
         if self.typ.isSome:
@@ -335,13 +306,13 @@ suite IdentDef:
             result.add fmt"(: {self.pat.typ})"
         if self.default.isSome:
             result.add fmt" = {self.default.get}"
-    proc newIdentDef*(pat: Pattern): IdentDef =
+    proc newIdentDef*(pat: Term): IdentDef =
         IdentDef(pat: pat, typ: none(Term), default: none(Term))
-    proc newIdentDef*(pat: Pattern, typ: Term): IdentDef =
+    proc newIdentDef*(pat: Term, typ: Term): IdentDef =
         IdentDef(pat: pat, typ: some(typ), default: none(Term))
-    proc newIdentDef*(pat: Pattern, default: Term): IdentDef =
+    proc newIdentDef*(pat: Term, default: Term): IdentDef =
         IdentDef(pat: pat, typ: none(Term), default: some(default))
-    proc newIdentDef*(pat: Pattern, typ: Term, default: Term): IdentDef =
+    proc newIdentDef*(pat: Term, typ: Term, default: Term): IdentDef =
         IdentDef(pat: pat, typ: some(typ), default: some(default))
 
 suite Metadata:
@@ -406,49 +377,6 @@ suite TypeVar:
         result = chr(ord('a') + p) & result
         result = fmt"'{result}(ub: {self.ub}, lb: {self.lb})"
 
-suite Pattern:
-    proc Literal*(_: typedesc[Pattern], lit: Term): Pattern =
-        Pattern(kind: PatternKind.Literal, lit: lit)
-    proc Id*(_: typedesc[Pattern], id: Term): Pattern =
-        Pattern(kind: PatternKind.Ident, id: id)
-    proc Pair*(_: typedesc[Pattern], first: Pattern, second: Pattern): Pattern =
-        Pattern(kind: PatternKind.Pair, first: first, second: second)
-    proc Record*(_: typedesc[Pattern], members: Table[string, Pattern]): Pattern =
-        Pattern(kind: PatternKind.Record, members: members)
-    proc Discard*(_: typedesc[Pattern]): Pattern =
-        Pattern(kind: PatternKind.Discard)
-    proc `==`*(self, other: Pattern): bool =
-        if self.kind == other.kind:
-            case self.kind
-            of PatternKind.Literal:
-                self.lit == other.lit
-            of PatternKind.Ident:
-                self.id == other.id
-            of PatternKind.Pair:
-                self.first == other.first and self.second == other.second
-            # of PatternKind.Tuple:
-            #     self.tpl.zip(other.tpl).mapIt(it[0] == it[1]).foldl(a and b)
-            of PatternKind.Record:
-                self.members == other.members
-            of PatternKind.Discard:
-                true
-        else:
-            false
-    proc `$`*(self: Pattern): string =
-        case self.kind
-        of PatternKind.Literal:
-            $self.lit
-        of PatternKind.Ident:
-            $self.id
-        of PatternKind.Pair:
-            fmt"({self.first}, {self.second})"
-        # of PatternKind.Tuple:
-        #     $self.tpl
-        of PatternKind.Record:
-            let s = toSeq(self.members.pairs).mapIt(fmt"{it[0]}: {it[1]}").join", "
-            fmt"({s})"
-        of PatternKind.Discard:
-            "_"
 
 suite Value:
     proc hash*(self: TypeVar): Hash =
@@ -709,7 +637,7 @@ suite Value:
         result = new Value
         # result[] = Value(kind: ValueKind.Arrow, paramty: params, rety: rety)
         result[] = Value(kind: ValueKind.Pi, genty: @[], paramty: params, rety: rety)
-    proc Pi*(_: typedesc[Value], genty: seq[(Pattern, ref Value)], params: seq[ref Value], rety: ref Value): ref Value =
+    proc Pi*(_: typedesc[Value], genty: seq[(Term, ref Value)], params: seq[ref Value], rety: ref Value): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Pi, genty: genty, paramty: params, rety: rety)
     proc Typedesc*(_: typedesc[Value], typ: ref Value): ref Value =
@@ -1005,6 +933,8 @@ suite Term:
                     fmt" (: {it.typ})"
                 fmt"{it}{tmp}"
             self.terms.map(f).join("\n")
+        of TermKind.Us:
+            "_"
 
     proc Failed*(_: typedesc[Term]): Term =
         Term(kind: TermKind.Failed)
@@ -1078,6 +1008,8 @@ suite Term:
         Term(kind: TermKind.Meta, metadata: meta)
     proc Seq*(_: typedesc[Term], terms: seq[Term]): Term =
         Term(kind: TermKind.Seq, terms: terms)
+    proc Us*(_: typedesc[Term]): Term =
+        Term(kind: TermKind.Us)
 
     proc newIdent*(name: string): Ident =
         Term.Id(name)

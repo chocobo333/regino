@@ -320,6 +320,8 @@ proc inst*(t: Term): Term =
         Term.Meta(t.metadata.inst)
     of TermKind.Seq:
         Term.Seq(t.terms.mapIt(it.inst))
+    of TermKind.Us:
+        Term.Us
     result.typ = nil
 
 proc implInst*(self: Term): Term =

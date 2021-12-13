@@ -217,13 +217,13 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             ret = module.curBuilder.insertvalue(ret, term.codegen(module, global), i, $term)
         ret
     of TermKind.Let:
-        proc Let(self: Pattern, typ: ref Value, val: LValue) =
+        proc Let(self: Term, typ: ref Value, val: LValue) =
             case self.kind
-            of PatternKind.Literal:
+            of TermKind.Literal:
                 discard
-            of PatternKind.Ident:
+            of TermKind.Id:
                 let
-                    id = self.id
+                    id = self
                     sym = id.sym
                     name = id.name
                     typ = newLType(typ, module)
@@ -231,15 +231,26 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
                 sym.val = p
                 sym.lty = typ
                 discard module.curBuilder.store(val, p, $self)
-            of PatternKind.Pair:
+            of TermKind.Tuple:
                 assert typ.kind == ValueKind.Pair
-                Let(self.first, typ.first, module.curBuilder.extractvalue(val, 0, $self))
-                Let(self.second, typ.second, module.curBuilder.extractvalue(val, 1, $self))
-            of PatternKind.Record:
+                case self.terms.len
+                of 0:
+                    discard
+                of 1:
+                    Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+                of 2:
+                    Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+                    Let(self.terms[1], typ.second, module.curBuilder.extractvalue(val, 1, $self))
+                else:
+                    Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+                    Let(Term.Tuple(self.terms[1..^1]), typ.second, module.curBuilder.extractvalue(val, 1, $self))
+            of TermKind.Record:
                 for (i, key) in toSeq(self.members.keys).pairs:
                     Let(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self & "." & key))
-            of PatternKind.Discard:
+            of TermKind.Us:
                 discard
+            else:
+                assert false, "notimplemented"
         for iddef in self.iddefs:
             let
                 pat = iddef.pat
@@ -304,13 +315,13 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         module.curFun = fn2
         module.curBuilder.atEndOf(bb)
         module.curBB = bb
-        proc Param(self: Pattern, typ: ref Value, val: LValue) =
+        proc Param(self: Term, typ: ref Value, val: LValue) =
             case self.kind
-            of PatternKind.Literal:
+            of TermKind.Literal:
                 discard
-            of PatternKind.Ident:
+            of TermKind.Id:
                 let
-                    id = self.id
+                    id = self
                     name = id.name
                     sym = id.sym
                     typ = newLType(typ, module)
@@ -318,15 +329,26 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
                 sym.val = p
                 sym.lty = typ
                 discard module.curBuilder.store(val, p, name)
-            of PatternKind.Pair:
+            of TermKind.Tuple:
                 assert typ.kind == ValueKind.Pair
-                Param(self.first, typ.first, module.curBuilder.extractvalue(val, 0, $self))
-                Param(self.second, typ.second, module.curBuilder.extractvalue(val, 1, $self))
-            of PatternKind.Record:
+                case self.terms.len
+                of 0:
+                    discard
+                of 1:
+                    Param(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+                of 2:
+                    Param(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+                    Param(self.terms[1], typ.second, module.curBuilder.extractvalue(val, 1, $self))
+                else:
+                    Param(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+                    Param(Term.Tuple(self.terms[1..^1]), typ.second, module.curBuilder.extractvalue(val, 1, $self))
+            of TermKind.Record:
                 for (i, key) in toSeq(self.members.keys).pairs:
                     Param(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self & "." & key))
-            of PatternKind.Discard:
+            of TermKind.Us:
                 discard
+            else:
+                assert false, "notimplemented"
         for i in 0..<fn.param.params.len:
             let
                 pat = fn.param.params[i].pat

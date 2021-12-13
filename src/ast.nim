@@ -46,10 +46,7 @@ type
         akCall
         akTuple
         akRecord
-        akDiscardPattern
-        akIdPattern
-        akLiteralPattern
-        akPatterns
+        akUs
         akChar
         akInt
         akFloat
@@ -68,7 +65,6 @@ const
     akHasChildren* = {akStmtList..akCall}
     akStatement* = {akLetSection..akAsign}
     akExpr* = {akBlockExpr..akCommand, akCall..akId}
-    akPat* = {akDiscardPattern..akPatterns}
 
 type
     AstNode* = ref object
@@ -127,7 +123,7 @@ proc newIdNode*(name: string, loc: Location = newLocation()): AstNode =
 proc newCommentNode*(comments: seq[string], loc: Location = newLocation()): AstNode =
     AstNode(kind: akComment, comments: comments, loc: loc)
 
-proc newTreeNode*(kind: range[akFailed..akPatterns], children: seq[AstNode], loc: Location = newLocation(children[0].loc.uri, children[0].loc.`range`.a, children[^1].loc.`range`.b)): AstNode =
+proc newTreeNode*(kind: range[akFailed..akRecord], children: seq[AstNode], loc: Location = newLocation(children[0].loc.uri, children[0].loc.`range`.a, children[^1].loc.`range`.b)): AstNode =
     AstNode(kind: kind, children: children, loc: loc)
 
 proc newNode*(kind: AstKind, loc: Location = newLocation()): AstNode =
@@ -220,14 +216,8 @@ proc repr*(self: AstNode, ind: uint = 2): string =
         var
             args = self.children[1..^1].map(repr2).join(", ")
         &"{self.children[0].repr} {args}"
-    of akDiscardPattern:
+    of akUs:
         "_"
-    of akIdPattern:
-        self.children[0].repr2
-    of akLiteralPattern:
-        self.children[0].repr2
-    of akPatterns:
-        self.children.map(repr2).join(", ")
     of akCall:
         ""
     of akTuple:

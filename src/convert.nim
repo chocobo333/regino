@@ -7,42 +7,42 @@ import ast
 import il
 
 
-proc newPattern*(n: AstNode): Pattern =
-    result = case n.kind
-    of akId:
-        let id = Term.Id(n.strVal)
-        id.loc = n.loc
-        Pattern.Id(id)
-    of akTuple:
-        case n.children.len
-        of 0:
-            echo n.kind
-            echo n
-            assert false, "notimplemented"
-            Pattern.Discard
-        of 1:
-            Pattern.Pair(n.children[0].newPattern(), Pattern.Discard)
-        of 2:
-            Pattern.Pair(n.children[0].newPattern(), n.children[1].newPattern())
-        else:
-            Pattern.Pair(n.children[0].newPattern(), akTuple.newTreeNode(n.children[1..^1]).newPattern())
-    of akRecord:
-        Pattern.Record(
-            n.children.mapIt(
-                block:
-                    assert it.kind == akIdentDef
-                    if it.children.len == 1:
-                        (it.children[0].strVal, it.children[0].newPattern())
-                    else:
-                        (it.children[0].strVal, it.children[1].newPattern())
-            ).toTable
-        )
-    else:
-        echo n.kind
-        echo n
-        assert false, "notimplemented"
-        Pattern.Discard
-    result.loc = n.loc
+# proc newPattern*(n: AstNode): Pattern =
+#     result = case n.kind
+#     of akId:
+#         let id = Term.Id(n.strVal)
+#         id.loc = n.loc
+#         Pattern.Id(id)
+#     of akTuple:
+#         case n.children.len
+#         of 0:
+#             echo n.kind
+#             echo n
+#             assert false, "notimplemented"
+#             Pattern.Discard
+#         of 1:
+#             Pattern.Pair(n.children[0].newPattern(), Pattern.Discard)
+#         of 2:
+#             Pattern.Pair(n.children[0].newPattern(), n.children[1].newPattern())
+#         else:
+#             Pattern.Pair(n.children[0].newPattern(), akTuple.newTreeNode(n.children[1..^1]).newPattern())
+#     of akRecord:
+#         Pattern.Record(
+#             n.children.mapIt(
+#                 block:
+#                     assert it.kind == akIdentDef
+#                     if it.children.len == 1:
+#                         (it.children[0].strVal, it.children[0].newPattern())
+#                     else:
+#                         (it.children[0].strVal, it.children[1].newPattern())
+#             ).toTable
+#         )
+#     else:
+#         echo n.kind
+#         echo n
+#         assert false, "notimplemented"
+#         Pattern.Discard
+#     result.loc = n.loc
 
 proc newTerm*(n: AstNode, scope: Scope): Term =
     result = case n.kind
@@ -60,7 +60,7 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
                     typ = it.children[1]
                     default = it.children[2]
                 assert aid.kind in {akId, akTuple, akRecord}, ""
-                let id = newPattern(aid)
+                let id = newTerm(aid, scope)
                 assert not default.isNil, "let section needs initialization"
                 if typ.isEmpty():
                     newIdentDef(id, default=newTerm(default, scope))
@@ -78,7 +78,7 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
                     typ = it.children[1]
                     default = it.children[2]
                 assert aid.kind in {akId, akTuple, akRecord}, ""
-                let pat = newPattern(aid)
+                let pat = newTerm(aid, scope)
                 assert not default.isNil, "let section needs initialization"
                 if typ.isEmpty():
                     newIdentDef(pat, default=newTerm(default, scope))
@@ -141,19 +141,19 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
             gen = genty.children.mapIt(block:
                 if it.kind == akIdentDef:
                     newIdentDef(
-                        newPattern(it.children[0]),
+                        newTerm(it.children[0], scope),
                         # TODO: change code
                         (if it.children[1].isEmpty: Term.U else: it.children[1].newTerm(scope)),
                         (if it.children[2].isEmpty: Term.Unit else: it.children[2].newTerm(scope)),
                     )
                 else:
                     newIdentDef(
-                        newPattern(it),
+                        newTerm(it, scope),
                         Term.U,
                         Term.Unit
                     )
             )
-            params = paramty.mapIt(IdentDef(pat: newPattern(it.children[0]), typ: some newTerm(it.children[1], scope)))
+            params = paramty.mapIt(IdentDef(pat: newTerm(it.children[0], scope), typ: some newTerm(it.children[1], scope)))
         if meta.isSome and meta.get.kind == MetadataKind.ImportLL:
             assert body.isEmpty
         # let fn = newFunction(fname.strVal, params, newTerm(rety), newTerm(body), meta)

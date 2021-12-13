@@ -581,77 +581,100 @@ proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     else:
         echo self
         raise newException(TypeError, "")
-proc typeInfer(self: Pattern, env: TypeEnv, global: bool = false): ref Value =
+proc typeInferP(self: Term, env: TypeEnv, global: bool = false): ref Value =
     result = case self.kind
-    of PatternKind.Literal:
-        self.lit.typeInfer(env, global)
-    of PatternKind.Ident:
-        let
-            tv = Value.Var(env)
-        self.id.typ = tv
-        tv
-    of PatternKind.Pair:
-        Value.Pair(self.first.typeInfer(env, global), self.second.typeInfer(env, global))
-    of PatternKind.Record:
-        Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].typeInfer(env, global))).toTable)
-    of PatternKind.Discard:
+    of TermKind.Literal:
+        self.typeInfer(env, global)
+    of TermKind.Id, TermKind.Us:
         Value.Var(env)
+    of TermKind.Tuple:
+        case self.terms.len
+        of 0:
+            Value.Unit
+        of 1:
+            Value.Pair(self.terms[0].typeInferP(env, global), Value.Unit)
+        of 2:
+            Value.Pair(self.terms[0].typeInferP(env, global), self.terms[1].typeInferP(env, global))
+        else:
+            Value.Pair(self.terms[0].typeInfer(env, global), Term.Tuple(self.terms[1..^1]).typeInfer(env, global))
+    of TermKind.Record:
+        Value.Record(self.members.map(it => it.typeInferP(env, global)))
+    else:
+        assert false, "not implemented"
+        Value.Unit()
     self.typ = result
-proc addPatConst(self: TypeEnv, pat: Pattern, constval: ref Value, impl: Term, global: bool) =
+proc addPatConst(self: TypeEnv, pat: Term, constval: ref Value, impl: Term, global: bool) =
     case pat.kind
-    of PatternKind.Literal:
-        assert constval.typ == pat.lit.typeInfer(self, global)
-        pat.typ = constval.typ
-    of PatternKind.Ident:
+    of TermKind.Literal:
+        assert constval.typ == pat.typeInferP(self, global)
+    of TermKind.Id:
         let
             t = constval.typ
             sym = if t.typ.kind == ValueKind.U:
-                Symbol.Typ(pat.id, t, impl, global)
+                Symbol.Typ(pat, t, impl, global)
             else:
-                Symbol.Const(pat.id, t, impl, global)
+                Symbol.Const(pat, t, impl, global)
             con = if t.typ.kind == ValueKind.U:
-                Symbol.Typ(pat.id, constval, impl, global)
+                Symbol.Typ(pat, constval, impl, global)
             else:
-                Symbol.Const(pat.id, constval, impl, global)
-        # pat.id.typ = t.typ # ?
-        # pat.typ = t.typ
-        pat.id.typ = t
-        pat.typ = t
-        self.addIdent(pat.id, sym)
-        self.addConst(pat.id, con)
-    of PatternKind.Pair:
+                Symbol.Const(pat, constval, impl, global)
+        self.addIdent(pat, sym)
+        self.addConst(pat, con)
+    of TermKind.Tuple:
         assert constval.kind == ValueKind.Pair
-        self.addPatConst(pat.first, constval.first, impl, global)
-        self.addPatConst(pat.second, constval.first, impl, global)
-        pat.typ = constval.typ
-    of PatternKind.Record:
+        case pat.terms.len
+        of 0:
+            discard
+        of 1:
+            self.addPatConst(pat.terms[0], constval.first, impl, global)
+        of 2:
+            self.addPatConst(pat.terms[0], constval.first, impl, global)
+            self.addPatConst(pat.terms[1], constval.second, impl, global)
+        else:
+            self.addPatConst(pat.terms[0], constval.first, impl, global)
+            self.addPatConst(Term.Tuple(pat.terms[1..^1]), constval.second, impl, global)
+    of TermKind.Record:
         assert constval.kind == ValueKind.Record
         for key in pat.members.keys:
             self.addPatConst(pat.members[key], constval.members[key], impl, global)
-    of PatternKind.Discard:
-        pat.typ = constval.typ
+    of TermKind.Us:
+        discard
+    else:
+        assert false, "notimplemented"
+    pat.typ = constval.typ
 proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     if not self.typ.isNil:
         return self.typ
-    proc addPatFuncDef(self: TypeEnv, pat: Pattern, t: ref Value, impl: Term, global: bool) =
+    proc addPatFuncDef(self: TypeEnv, pat: Term, t: ref Value, impl: Term, global: bool) =
             case pat.kind
-            of PatternKind.Literal:
-                assert t == pat.lit.typeInfer(self, global)
-            of PatternKind.Ident:
+            of TermKind.Literal:
+                assert t == pat.typeInferP(self, global)
+            of TermKind.Id:
                 let
-                    sym = Symbol.Let(pat.id, t, impl, global)
-                pat.id.typ = t
-                self.addIdent(pat.id, sym)
-            of PatternKind.Pair:
+                    sym = Symbol.Let(pat, t, impl, global)
+                pat.typ = t
+                self.addIdent(pat, sym)
+            of TermKind.Tuple:
                 assert t.kind == ValueKind.Pair
-                self.addPatFuncDef(pat.first, t.first, impl, global)
-                self.addPatFuncDef(pat.second, t.second, impl, global)
-            of PatternKind.Record:
+                case pat.terms.len
+                of 0:
+                    discard
+                of 1:
+                    self.addPatFuncDef(pat.terms[0], t.first, impl, global)
+                of 2:
+                    self.addPatFuncDef(pat.terms[0], t.first, impl, global)
+                    self.addPatFuncDef(pat.terms[1], t.second, impl, global)
+                else:
+                    self.addPatFuncDef(pat.terms[0], t.first, impl, global)
+                    self.addPatFuncDef(Term.Tuple(pat.terms[1..^1]), t.second, impl, global)
+            of TermKind.Record:
                 assert t.kind == ValueKind.Record
                 for key in pat.members.keys:
                     self.addPatFuncDef(pat.members[key], t.members[key], impl, global)
-            of PatternKind.Discard:
+            of TermKind.Discard:
                 discard
+            else:
+                assert false, "notimplemented"
             pat.typ = t
     result = case self.kind
     of TermKind.Failed:
@@ -702,26 +725,37 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     of TermKind.Record:
         Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].typeInfer(env, global))).toTable)
     of TermKind.Let:
-        proc addPat(self: TypeEnv, pat: Pattern, impl: Term, global: bool) =
+        proc addPat(self: TypeEnv, pat: Term, impl: Term, global: bool) =
             case pat.kind
-            of PatternKind.Literal:
+            of TermKind.Literal:
                 discard
-            of PatternKind.Ident:
+            of TermKind.Id:
                 let
-                    sym = Symbol.Let(pat.id, pat.id.typ, impl, global)
-                self.addIdent(pat.id, sym)
-            of PatternKind.Pair:
-                self.addPat(pat.first, impl, global)
-                self.addPat(pat.second, impl, global)
-            of PatternKind.Record:
+                    sym = Symbol.Let(pat, pat.typ, impl, global)
+                self.addIdent(pat, sym)
+            of TermKind.Tuple:
+                case pat.terms.len
+                of 0:
+                    discard
+                of 1:
+                    self.addPat(pat.terms[0], impl, global)
+                of 2:
+                    self.addPat(pat.terms[0], impl, global)
+                    self.addPat(pat.terms[1], impl, global)
+                else:
+                    self.addPat(pat.terms[0], impl, global)
+                    self.addPat(Term.Tuple(pat.terms[1..^1]), impl, global)
+            of TermKind.Record:
                 for pat in pat.members.values:
                     self.addPat(pat, impl, global)
-            of PatternKind.Discard:
+            of TermKind.Us:
                 discard
+            else:
+                assert false, "notimplemented"
         for iddef in self.iddefs:
             let
                 pat = iddef.pat
-                tv = pat.typeInfer(env, global)
+                tv = pat.typeInferP(env, global)
                 impl = iddef.default.get
                 t1 = impl.typeInfer(env, global)
             if iddef.typ.isSome:
@@ -773,7 +807,7 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     of TermKind.Funcdef, TermKind.FuncdefInst:
         let
             # _ = self.fn.param.gen.mapIt((it.default.get.typeInfer(env, global), it.typ.get.typeInfer(env, global)))
-            genty = self.fn.param.gen.mapIt((it.pat, Value.Gen(it.pat.id.name, it.default.get.evalConst(env, global), it.typ.get.evalConst(env, global))))
+            genty = self.fn.param.gen.mapIt((it.pat, Value.Gen(it.pat.name, it.default.get.evalConst(env, global), it.typ.get.evalConst(env, global))))
             # tvs = self.fn.param.params.mapIt(Value.Var())
             # tv = Value.Var()
             # fnty = Value.Arrow(tvs, tv)
@@ -864,7 +898,7 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     #     Value.Unit
     # of TermKind.Asign:
     #     let
-    #         pat = self.pat.typeInfer(env, global)
+    #         pat = self.pat.typeInferP(env, global)
     #         val = self.val.typeInfer(env, global)
     #     env.coerceRelation(val, pat)
     #     Value.Unit
@@ -904,21 +938,23 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         for e in terms[0..^2]:
             env.coerceEq(e, Value.Unit)
         terms[^1]
+    of TermKind.Us:
+        Value.Var(env)
     self.typ = result
 
 proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error]
-proc typeCheck(self: Pattern, env: TypeEnv): seq[Error] =
-    case self.kind
-    of PatternKind.Literal:
-        self.lit.typeCheck(env)
-    of PatternKind.Ident:
-        self.id.typeCheck(env)
-    of PatternKind.Pair:
-        self.first.typeCheck(env) & self.second.typeCheck(env)
-    of PatternKind.Record:
-        toSeq(self.members.values).mapIt(it.typeCheck(env)).flatten
-    of PatternKind.Discard:
-        @[]
+# proc typeCheck(self: Pattern, env: TypeEnv): seq[Error] =
+#     case self.kind
+#     of PatternKind.Literal:
+#         self.lit.typeCheck(env)
+#     of PatternKind.Ident:
+#         self.id.typeCheck(env)
+#     of PatternKind.Pair:
+#         self.first.typeCheck(env) & self.second.typeCheck(env)
+#     of PatternKind.Record:
+#         toSeq(self.members.values).mapIt(it.typeCheck(env)).flatten
+#     of PatternKind.Discard:
+#         @[]
 proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
     setTypeEnv(env)
     if self.typ.kind == ValueKind.Link:
@@ -1215,6 +1251,8 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
             else:
                 @[TypeError.Undeciable]
             ret
+    of TermKind.Us:
+        @[]
 
 
 proc infer*(self: Term, env: TypeEnv, global: bool = false): (ref Value, seq[Error]) =
