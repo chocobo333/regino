@@ -7,7 +7,19 @@
 
 # const
 #     ptr ![builtin: "ptr"]
+# ptr[T <: Default] = block:
+#     let a: T = default()
+#     typeof(pointerof(a))
+# ptr[T, n: int] = typeof(malloc[T](n))
+# ref[T] = ptr[T, 1]
+# seq[T] = ((n: int), int, ptr[T, n])
+# string = seq[char]
 # proc ptrGet[T](self: ptr T) -> T ![builtin: "ptrGet"]
+# cstring = ptr char
+# string = object:
+#     p: cstring
+#     len: int
+#     size: int
 
 #const
 #    bool = typeof(false)
@@ -23,6 +35,8 @@ const
 #     seq[T] ![builtin: "seq"]
 # seq: (T: Type) -> seq[T]
 
+const
+    one = 1
 
 func id[T](a: T) -> T:
     a
