@@ -537,7 +537,7 @@ suite Value:
                 if self.paramty.len == 0:
                     "()"
                 else:
-                    self.paramty.mapIt($it[]).join(", ")
+                    "(" & self.paramty.mapIt($it[]).join(", ") & ")"
             ) & " -> " & $self.rety[]
         # of ValueKind.Sigma:
         #     fmt"({self.first}, {self.second})"
@@ -848,7 +848,7 @@ suite Term:
         of TermKind.Unit:
             "unit"
         of TermKind.U:
-            "U"
+            "Type"
         # of TermKind.Bool:
         #     $self.boolval
         of TermKind.Integer:
