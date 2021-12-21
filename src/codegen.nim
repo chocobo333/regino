@@ -127,6 +127,40 @@ proc paramty(self: Function): seq[ref Value] =
 proc rety(self: Function): ref Value =
     self.id.typ.rety
 proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = false): LValue =
+    proc Let(self: Term, typ: ref Value, val: LValue) =
+        case self.kind
+        of TermKind.Literal:
+            discard
+        of TermKind.Id:
+            let
+                id = self
+                sym = id.sym
+                name = id.name
+                typ = newLType(typ, module)
+                p = if global: module.module.newGlobal(typ, name) else: module.curBuilder.alloca(typ, name)
+            sym.val = p
+            sym.lty = typ
+            discard module.curBuilder.store(val, p, $self)
+        of TermKind.Tuple:
+            assert typ.kind == ValueKind.Pair
+            case self.terms.len
+            of 0:
+                discard
+            of 1:
+                Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+            of 2:
+                Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+                Let(self.terms[1], typ.second, module.curBuilder.extractvalue(val, 1, $self))
+            else:
+                Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
+                Let(Term.Tuple(self.terms[1..^1]), typ.second, module.curBuilder.extractvalue(val, 1, $self))
+        of TermKind.Record:
+            for (i, key) in toSeq(self.members.keys).pairs:
+                Let(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self & "." & key))
+        of TermKind.Us:
+            discard
+        else:
+            assert false, "notimplemented"
     case self.kind
     of TermKind.`()`:
         nil
@@ -217,40 +251,6 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             ret = module.curBuilder.insertvalue(ret, term.codegen(module, global), i, $term)
         ret
     of TermKind.Let:
-        proc Let(self: Term, typ: ref Value, val: LValue) =
-            case self.kind
-            of TermKind.Literal:
-                discard
-            of TermKind.Id:
-                let
-                    id = self
-                    sym = id.sym
-                    name = id.name
-                    typ = newLType(typ, module)
-                    p = module.curBuilder.alloca(typ, name)
-                sym.val = p
-                sym.lty = typ
-                discard module.curBuilder.store(val, p, $self)
-            of TermKind.Tuple:
-                assert typ.kind == ValueKind.Pair
-                case self.terms.len
-                of 0:
-                    discard
-                of 1:
-                    Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
-                of 2:
-                    Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
-                    Let(self.terms[1], typ.second, module.curBuilder.extractvalue(val, 1, $self))
-                else:
-                    Let(self.terms[0], typ.first, module.curBuilder.extractvalue(val, 0, $self))
-                    Let(Term.Tuple(self.terms[1..^1]), typ.second, module.curBuilder.extractvalue(val, 1, $self))
-            of TermKind.Record:
-                for (i, key) in toSeq(self.members.keys).pairs:
-                    Let(self.members[key], typ.members[key], module.curBuilder.extractvalue(val, i, $self & "." & key))
-            of TermKind.Us:
-                discard
-            else:
-                assert false, "notimplemented"
         for iddef in self.iddefs:
             let
                 pat = iddef.pat
@@ -270,6 +270,12 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
     #     discard module.curBuilder.store(default.codegen(module, global), p, $self)
     #     nil
     of TermKind.Const:
+        for iddef in self.iddefs:
+            let
+                pat = iddef.pat
+                default = iddef.default.get
+            if pat.typ.kind != ValueKind.U:
+                Let(pat, default.typ, default.codegen(module, global))
         nil
     of TermKind.FuncDef, TermKind.FuncdefInst:
         if self.fn.param.gen.len > 0:

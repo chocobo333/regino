@@ -202,6 +202,10 @@ type
         Union
         Link
         Gen
+        IntV
+        FloatV
+        CharV
+        StringV
 
     TypeVarId = int
     TypeVar* = object
@@ -254,6 +258,14 @@ type
             to*: ref Value
         of ValueKind.Gen:
             gen*: GenType
+        of ValueKind.IntV:
+            intval*: BiggestInt
+        of ValueKind.FloatV:
+            floatval*: BiggestFloat
+        of ValueKind.CharV:
+            charval*: char
+        of ValueKind.StringV:
+            strval*: string
         symbol*: Option[Symbol]
 
     GenType* = object
@@ -475,6 +487,15 @@ suite Value:
                 self.to == other.to
             of ValueKind.Gen:
                 self.gen.name == other.gen.name
+            of ValueKind.IntV:
+                self.intval == other.intval
+            of ValueKind.FloatV:
+                self.floatval == other.floatval
+            of ValueKind.CharV:
+                self.charval == other.charval
+            of ValueKind.StringV:
+                self.strval == other.strval
+
         else:
             false
     proc `==`*(self, other: ref Value): bool =
@@ -571,6 +592,14 @@ suite Value:
             $self.to
         of ValueKind.Gen:
             fmt"{self.gen.name}: {self.gen.typ} (<: {self.gen.ub})"
+        of ValueKind.IntV:
+            fmt"{self.intval}"
+        of ValueKind.FloatV:
+            fmt"{self.floatval}"
+        of ValueKind.CharV:
+            fmt"{self.charval}"
+        of ValueKind.StringV:
+            fmt"{self.strval}"
     proc `$`*(self: ref Value): string = $self[]
     var
         tvid: TypeVarId = -1
@@ -701,6 +730,19 @@ suite Value:
         result = new Value
         result[] = Value(kind: ValueKind.Gen, gen: GenType(name: name, ub: ub, typ: typ))
 
+    proc IntV*(_: typedesc[Value], intval: BiggestInt): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.IntV, intval: intval)
+    proc FloatV*(_: typedesc[Value], floatval: BiggestFloat): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.FloatV, floatval: floatval)
+    proc CharV*(_: typedesc[Value], charval: char): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.CharV, charval: charval)
+    proc StringV*(_: typedesc[Value], strval: string): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.StringV, strval: strval)
+
     proc hasRegion*(self: ref Value): bool =
         case self.kind
         of ValueKind.Bottom..ValueKind.Char:
@@ -732,6 +774,14 @@ suite Value:
             false
         of ValueKind.Gen:
             assert false, ""
+            false
+        of ValueKind.IntV:
+            false
+        of ValueKind.FloatV:
+            false
+        of ValueKind.CharV:
+            false
+        of ValueKind.StringV:
             false
 
     proc compilable*(self: ref Value): bool =
@@ -766,6 +816,14 @@ suite Value:
             false
         of ValueKind.Gen:
             false
+        of ValueKind.IntV:
+            true
+        of ValueKind.FloatV:
+            true
+        of ValueKind.CharV:
+            true
+        of ValueKind.StringV:
+            true
 
     proc typ*(self: ref Value): ref Value =
         case self.kind
@@ -822,6 +880,14 @@ suite Value:
             self.to.typ
         of ValueKind.Gen:
             self.gen.typ
+        of ValueKind.IntV:
+            Value.Integer(0)
+        of ValueKind.FloatV:
+            Value.Float
+        of ValueKind.CharV:
+            Value.Char
+        of ValueKind.StringV:
+            Value.String
 
 # suite PolyType:
 #     proc Forall*(_: typedesc[PolyType], gen: HashSet[TypeVar], typ: ref Value): PolyType =

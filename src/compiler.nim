@@ -46,7 +46,7 @@ proc compile*(filename: string) =
         echo e
     let (main, err) = node.sema(module)
     if err.len == 0:
-        discard main.codegen(module)
+        discard main.codegen(module, true)
     else:
         err[0].`raise`
     for e in module.linkModules:

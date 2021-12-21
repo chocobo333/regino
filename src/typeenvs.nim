@@ -168,6 +168,8 @@ proc inst*(typ: ref Value, env: TypeEnv, subs: Table[GenType, ref Value] = initT
     result = case typ.kind
     of ValueKind.Bottom..ValueKind.String:
         typ.deepCopy
+    of ValueKind.IntV..ValueKind.StringV:
+        typ.deepCopy
     # of ValueKind.List:
     #     nil
     of ValueKind.Pair:

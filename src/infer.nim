@@ -262,6 +262,8 @@ proc containtv(self: ref Value): bool =
         self.to.containtv
     of ValueKind.Gen:
         false
+    of ValueKind.IntV..ValueKind.StringV:
+        false
 const
     cvar = 1000
     undeciable = 10000
@@ -596,6 +598,14 @@ proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         Value.Unit
     of TermKind.U:
         Value.U
+    of TermKind.Integer:
+        Value.IntV(self.intval)
+    of TermKind.Float:
+        Value.FloatV(self.floatval)
+    of TermKind.Char:
+        Value.CharV(self.charval)
+    of TermKind.String:
+        Value.StringV(self.strval)
     of TermKind.Id:
         let
             syms = env.lookupConst(self.name)
@@ -646,17 +656,17 @@ proc typeInferP(self: Term, env: TypeEnv, global: bool = false): ref Value =
         Value.Unit()
     self.typ = result
 proc addPatConst(self: TypeEnv, pat: Term, constval: ref Value, impl: Term, global: bool) =
+    pat.typ = constval.typ
     case pat.kind
     of TermKind.Literal:
         assert constval.typ == pat.typeInferP(self, global)
     of TermKind.Id:
         let
-            t = constval.typ
-            sym = if t.typ.kind == ValueKind.U:
-                Symbol.Typ(pat, t, impl, global)
+            sym = if pat.typ.typ.kind == ValueKind.U:
+                Symbol.Typ(pat, pat.typ, impl, global)
             else:
-                Symbol.Const(pat, t, impl, global)
-            con = if t.typ.kind == ValueKind.U:
+                Symbol.Const(pat, pat.typ, impl, global)
+            con = if pat.typ.typ.kind == ValueKind.U:
                 Symbol.Typ(pat, constval, impl, global)
             else:
                 Symbol.Const(pat, constval, impl, global)
@@ -683,7 +693,6 @@ proc addPatConst(self: TypeEnv, pat: Term, constval: ref Value, impl: Term, glob
         discard
     else:
         assert false, "notimplemented"
-    pat.typ = constval.typ
 proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     if not self.typ.isNil:
         return self.typ
@@ -1094,7 +1103,13 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
     #         self.iddef.default = some impl
     #     self.check(Value.Unit) & ret
     of TermKind.Const:
-        self.check(Value.Unit)
+        var ret: seq[Error]
+        for iddef in self.iddefs.mitems:
+            let
+                pat = iddef.pat
+                impl = iddef.default.get
+            ret.add pat.typeCheck(env) & impl.typeCheck(env)
+        self.check(Value.Unit) & ret
     # of TermKind.Typedef:
     #     # for typedef in self.typedefs:
     #     #     let

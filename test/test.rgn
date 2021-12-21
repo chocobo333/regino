@@ -37,6 +37,7 @@ const
 
 const
     one = 1
+    hello_world = "Hello, world!"
 
 func id[T](a: T) -> T:
     a
@@ -97,4 +98,5 @@ discard 0
 discard swap(b)
 discard 0'i32
 echo "abc".len
+echo hello_world
 0
