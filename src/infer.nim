@@ -484,6 +484,48 @@ proc resolveRelation(self: TypeEnv, t1, t2: ref Value) =
             echo t2.kind
             echo self.constraints
             raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+proc resolveRelationsPartially(self: TypeEnv) =
+    var tmp: seq[Constraint]
+    while self.constraints.len > 0:
+        self.constraints.reverse
+        while self.constraints.len > 0:
+            let
+                (t1, t2) = self.constraints.pop
+            self.resolveRelation(t1, t2)
+        var
+            ord = newOrder[ref Value]()
+            f = false
+        if self.tvconstraints.filterIt(it[0].kind != ValueKind.Var or it[1].kind != ValueKind.Var).len != 0:
+            self.constraints = self.tvconstraints & self.interconstraints
+            self.tvconstraints = @[]
+            self.interconstraints = @[]
+            continue
+        for cons in self.tvconstraints:
+            let
+                (t1, t2) = cons
+                path = ord.path(t2, t1)
+            if path.isSome:
+                for (t1, t2) in path.get:
+                    self.resolveRelation(t1, t2)
+                self.resolveRelation(t1, t2)
+                for t2 in path.get.mapIt(it[0]):
+                    self.bindtv(t2, t1)
+                self.constraints = self.tvconstraints & self.interconstraints
+                self.tvconstraints = @[]
+                self.interconstraints = @[]
+                f = true
+                break
+            else:
+                ord.add cons
+        if f: continue
+        self.constraints = self.tvconstraints & self.interconstraints
+        self.tvconstraints = @[]
+        self.interconstraints = @[]
+        if self.constraints.len == 0:
+            break
+        if self.constraints.len == tmp.len and self.constraints.zip(tmp).allIt(it[0] == it[1]):
+            break
+        tmp = self.constraints
 proc resolveRelations(self: TypeEnv) =
     var tmp: seq[Constraint]
     while self.constraints.len > 0:
@@ -941,6 +983,7 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     of TermKind.Us:
         Value.Var(env)
     self.typ = result
+    env.resolveRelationsPartially()
 
 proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error]
 # proc typeCheck(self: Pattern, env: TypeEnv): seq[Error] =
