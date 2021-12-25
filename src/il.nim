@@ -552,7 +552,7 @@ suite Value:
                 if self.genty.len == 0:
                     ""
                 else:
-                    self.genty.mapIt(fmt"∏{it[1]}").join(", ") & " "
+                    self.genty.mapIt(fmt"∀{it[1]}").join(", ") & " "
             ) &
             (
                 if self.paramty.len == 0:
