@@ -137,23 +137,23 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
 proc `in`(self: rPosition, term: Term): bool =
     let r = term.loc.`range`
     self != r.b and self in r
-proc `in`(self: rPosition, pat: Pattern): bool =
-    let r = pat.loc.`range`
-    self != r.b and self in r
+# proc `in`(self: rPosition, pat: Pattern): bool =
+#     let r = pat.loc.`range`
+#     self != r.b and self in r
 proc find(self: Term, pos: rPosition): Option[Term]
-proc find(self: Pattern, pos: rPosition): Option[Term] =
-    case self.kind
-    of PatternKind.Literal, PatternKind.Ident:
-        self.id.find(pos)
-    of PatternKind.Pair:
-        if pos in self.first:
-            self.first.find(pos)
-        else:
-            self.second.find(pos)
-    of PatternKind.Record:
-        none(Term)
-    of PatternKind.Discard:
-        none(Term)
+# proc find(self: Pattern, pos: rPosition): Option[Term] =
+#     case self.kind
+#     of PatternKind.Literal, PatternKind.Ident:
+#         self.id.find(pos)
+#     of PatternKind.Pair:
+#         if pos in self.first:
+#             self.first.find(pos)
+#         else:
+#             self.second.find(pos)
+#     of PatternKind.Record:
+#         none(Term)
+#     of PatternKind.Discard:
+#         none(Term)
 proc find(self: IdentDef, pos: rPosition): Option[Term] =
     let
         iddef = self
@@ -199,6 +199,17 @@ proc find(self: Term, pos: rPosition): Option[Term] =
         none(Term)
     of TermKind.FuncdefInst:
         none(Term)
+    of TermKind.FunctionInst:
+        var res = none(Term)
+        block:
+            if pos in self.pfn:
+                res = self.pfn.find(pos)
+                break
+            for e in self.instargs:
+                if pos in e:
+                    res = e.find(pos)
+                    break
+        res
     of TermKind.Case:
         none(Term)
     of TermKind.Typeof, TermKind.Discard:
@@ -226,6 +237,11 @@ proc find(self: Term, pos: rPosition): Option[Term] =
                 res = e.find(pos)
                 break
         res
+    of TermKind.Us:
+        if pos in self:
+            some self
+        else:
+            none(Term)
 proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configuration, buffers: var Buffers) =
     if msg.params.isValid(HoverParams):
         let
@@ -311,6 +327,8 @@ proc collectSymbol(self: Term): Option[JsonNode] =
         none(JsonNode)
     of TermKind.Seq:
         none(JsonNode)
+    of TermKind.Us:
+        none(JsonNode)
 proc `textDocument/documentSymbol`(s: Stream, msg: RequestMessage, configuration: Configuration, buffers: var Buffers) =
     if msg.params.isValid(DocumentSymbolParams):
         let
@@ -341,25 +359,25 @@ proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, configur
                 return i
         return -1
     proc coloring(self: Term, data: var seq[(int, int, int, int, int)])
-    proc coloring(self: Pattern, data: var seq[(int, int, int, int, int)]) =
-        case self.kind
-        of PatternKind.Literal:
-            discard
-        of PatternKind.Ident:
-            self.id.coloring(data)
-        # of PatternKind.Range:
-        #     discard
-        # of PatternKind.Array:
-        #     discard
-        of PatternKind.Pair:
-            self.first.coloring(data)
-            self.second.coloring(data)
-        # of PatternKind.Tuple:
-        #     discard
-        of PatternKind.Record:
-            discard
-        of PatternKind.Discard:
-            discard
+    # proc coloring(self: Pattern, data: var seq[(int, int, int, int, int)]) =
+    #     case self.kind
+    #     of PatternKind.Literal:
+    #         discard
+    #     of PatternKind.Ident:
+    #         self.id.coloring(data)
+    #     # of PatternKind.Range:
+    #     #     discard
+    #     # of PatternKind.Array:
+    #     #     discard
+    #     of PatternKind.Pair:
+    #         self.first.coloring(data)
+    #         self.second.coloring(data)
+    #     # of PatternKind.Tuple:
+    #     #     discard
+    #     of PatternKind.Record:
+    #         discard
+    #     of PatternKind.Discard:
+    #         discard
     proc coloring(self: FunctionParam, data: var seq[(int, int, int, int, int)]) =
         let
             gen = self.gen
@@ -466,6 +484,10 @@ proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, configur
             body.term.coloring(data)
         of TermKind.FuncdefInst:
             discard
+        of TermKind.FunctionInst:
+            self.pfn.coloring(data)
+            for e in self.instargs:
+                e.coloring(data)
         # of TermKind.If:
         #     discard
         # of TermKind.When:
@@ -494,6 +516,8 @@ proc `textDocument/semanticTokens/full`(s: Stream, msg: RequestMessage, configur
             # self.terms.applyIt(it.coloring(data))
             for e in self.terms:
                 e.coloring(data)
+        of TermKind.Us:
+            discard
     if msg.params.isValid(SemanticTokensParams):
         let
             params = SemanticTokensParams(msg.params)
