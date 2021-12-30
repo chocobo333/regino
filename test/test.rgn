@@ -12,16 +12,14 @@
 #     typeof(pointerof(a))
 # ptr[T, n: int] = typeof(malloc[T](n))
 # ref[T] = ptr[T, 1]
-# seq[T] = ((n: int), int, ptr[T, n])
+# seq[T] =  ([size: int], len: int, p: ptr[T, size])
 # string = seq[char]
-# proc ptrGet[T](self: ptr T) -> T ![builtin: "ptrGet"]
-# cstring = ptr char
-# string = object:
-#     p: cstring
-#     len: int
-#     size: int
+# func ptrGet[T, n: int](self: ptr[T, n], m: int) -> T ![builtin: "ptrGet"]
+# func `[]`[T](self: seq[T], n: int) -> T:
+#     self.p.ptrGet(n)
+# cstring = typeof("")
 
-#const
+# const
 #    bool = typeof(false)
 const
     int = typeof(0)
@@ -29,18 +27,30 @@ const
     float = typeof(0.0)
     string = typeof("")
     char = typeof('a')
-# pairWithInt[T] = (int, T)
+    pairWithInt[T] = (int, T)
+    pair[T, U] = (T, U)
+# func pairWithInt[T]() -> Type:
+#     (int, T)
 #    a = (3, "f")
 # const
 #     seq[T] ![builtin: "seq"]
 # seq: (T: Type) -> seq[T]
 
+func two() -> int:
+    2
+func `three?`() -> int:
+    two()
 const
     one = 1
+    two = two()
+    three = `three?`()
     hello_world = "Hello, world!"
 
 func id[T](a: T) -> T:
     a
+const
+    four = id 4
+    five = id[int](5)
 func swap[T, U]((a, b): (T, U)) -> (U, T):
     (b, a)
 # func f(a: bool) -> bool:
@@ -88,15 +98,17 @@ func len(a: string) -> int ![importll]
 let
     a = (2, 2.0)
     b = 3
-echo $a
-echo b
 let b = swap(a)
-echo $b
 let b = swap(b)
-echo $b
-discard 0
-discard swap(b)
-discard 0'i32
-echo "abc".len
 echo hello_world
+echo one
+echo two
+echo id three
+echo id[int](4)
+echo five
+echo id[string]("ff")
+let a: pairWithInt[float] = (3, 4.0)
+echo $a
+let b: pair[float, float] = (3., 4.0)
+echo $b
 0

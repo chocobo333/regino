@@ -43,6 +43,7 @@ type
         # Typedef
         Funcdef
         FuncdefInst
+        FunctionInst
         # If
         # When
         Case
@@ -145,11 +146,14 @@ type
             members*: Table[string, Term]
         # of Let, Var, Const:
         of Let, Const:
-            iddefs*: IdentDefs
+            iddef*: IdentDef
         # of Typedef:
         #     typedefs*: IdentDefs
         of Funcdef, FuncdefInst:
             fn*: Function
+        of FunctionInst:
+            pfn*: Term
+            instargs*: seq[Term]
         # of If, When:
         #     `elif`*: seq[(Term, Body)]
         #     `else`*: Body
@@ -942,18 +946,19 @@ suite Term:
             let s = toSeq(self.members.pairs).mapIt(fmt"{it[0]}: {it[1]}").join(", ")
             fmt"({s})"
         of TermKind.Let:
-            let s = self.iddefs.map(`$`).join("\n").indent(2)
-            &"let\n{s}"
+            &"let {self.iddef}"
         # of TermKind.Var:
         #     fmt"var {self.iddef}"
         of TermKind.Const:
-            let s = self.iddefs.map(`$`).join("\n").indent(2)
-            &"const\n{s}"
+            &"const {self.iddef}"
         # of TermKind.Typedef:
         #     let s = self.typedefs.map(`$`).join("\n")
         #     &"type\n{s.indent(2)}"
         of TermKind.Funcdef, TermKind.FuncdefInst:
             $self.fn
+        of TermKind.FunctionInst:
+            let s = self.instargs.map(`$`).join(", ")
+            fmt"{self.pfn}[{s}]"
         # of TermKind.If:
         #     let
         #         elift = self.`elif`.mapIt(&"elif {it[0]}:\n{($it[1]).indent(2)}").join("\n")[2..^1]
@@ -1035,16 +1040,18 @@ suite Term:
         Term(kind: TermKind.Tuple, terms: terms)
     proc Record*(_: typedesc[Term], members: Table[string, Term]): Term =
         Term(kind: TermKind.Record, members: members)
-    proc Let*(_: typedesc[Term], iddef: IdentDefs): Term =
-        Term(kind: TermKind.Let, iddefs: iddef)
-    proc Var*(_: typedesc[Term], iddefs: IdentDefs): Term =
-        Term(kind: TermKind.Var, iddefs: iddefs)
-    proc Const*(_: typedesc[Term], iddefs: IdentDefs): Term =
-        Term(kind: TermKind.Const, iddefs: iddefs)
+    proc Let*(_: typedesc[Term], iddef: IdentDef): Term =
+        Term(kind: TermKind.Let, iddef: iddef)
+    proc Var*(_: typedesc[Term], iddef: IdentDef): Term =
+        Term(kind: TermKind.Var, iddef: iddef)
+    proc Const*(_: typedesc[Term], iddef: IdentDef): Term =
+        Term(kind: TermKind.Const, iddef: iddef)
     proc Typedef*(_: typedesc[Term], iddefs: IdentDefs): Term =
         Term(kind: TermKind.Typedef, typedefs: iddefs)
     proc Funcdef*(_: typedesc[Term], fn: Function): Term =
         Term(kind: TermKind.Funcdef, fn: fn)
+    proc FunctionInst*(_: typedesc[Term], pfn: Term, instargs: seq[Term]): Term =
+        Term(kind: TermKind.FunctionInst, pfn: pfn, instargs: instargs)
     proc If*(_: typedesc[Term], `elif`: seq[(Term, Body)], `else`: Body): Term =
         Term(kind: TermKind.If, `elif`: `elif`, `else`: `else`)
     proc When*(_: typedesc[Term]): Term =

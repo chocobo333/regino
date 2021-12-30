@@ -210,10 +210,13 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             sym = self.sym
             val = sym.val
             ty = sym.lty
-        if lval:
+        if val.kind == llvm.ValueKind.FunctionValueKind:
             val
         else:
-            module.curBuilder.load(ty, val, name)
+            if lval:
+                val
+            else:
+                module.curBuilder.load(ty, val, name)
     of TermKind.Tuple:
         proc makeTuple(typ: ref Value, terms: seq[Term]): LValue =
             if typ.second.kind == il.ValueKind.Pair:
@@ -251,11 +254,12 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             ret = module.curBuilder.insertvalue(ret, term.codegen(module, global), i, $term)
         ret
     of TermKind.Let:
-        for iddef in self.iddefs:
-            let
-                pat = iddef.pat
-                default = iddef.default.get
-            Let(pat, default.typ, default.codegen(module, global))
+        # for iddef in self.iddefs:
+        let
+            iddef = self.iddef
+            pat = iddef.pat
+            default = iddef.default.get
+        Let(pat, default.typ, default.codegen(module, global))
         nil
     # of TermKind.Var:
     #     let
@@ -270,12 +274,13 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
     #     discard module.curBuilder.store(default.codegen(module, global), p, $self)
     #     nil
     of TermKind.Const:
-        for iddef in self.iddefs:
-            let
-                pat = iddef.pat
-                default = iddef.default.get
-            if pat.typ.kind != ValueKind.U:
-                Let(pat, default.typ, default.codegen(module, global))
+        # for iddef in self.iddefs:
+        let
+            iddef = self.iddef
+            pat = iddef.pat
+            default = iddef.default.get
+        if pat.typ.kind != ValueKind.U:
+            Let(pat, default.typ, default.codegen(module, global))
         nil
     of TermKind.FuncDef, TermKind.FuncdefInst:
         if self.fn.param.gen.len > 0:
@@ -386,11 +391,13 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
             nil
         else:
             fn2
+    of TermKind.FunctionInst:
+        self.sym.val
     of TermKind.Apply:
         let
             callee = self.callee
             args = self.args
-            callee2 = codegen(callee, module, lval = true)
+            callee2 = codegen(callee, module)
             args2 = args.mapIt(codegen(it, module))
             rety = newLType(self.typ, module)
         # TODO: check returning void

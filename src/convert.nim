@@ -59,15 +59,30 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
                     aid = it.children[0]
                     typ = it.children[1]
                     default = it.children[2]
-                assert aid.kind in {akId, akTuple, akRecord}, ""
-                let id = newTerm(aid, scope)
-                assert not default.isNil, "let section needs initialization"
-                if typ.isEmpty():
-                    newIdentDef(id, default=newTerm(default, scope))
+                assert aid.kind in {akId, akTuple, akRecord, akBracketExpr}, $aid.kind
+                if aid.kind == akBracketExpr:
+                    var a = akFuncDef.newTreeNode(@[
+                        aid.children[0],
+                        akParams.newTreeNode(aid.children[1..^1]),
+                        akParams.newTreeNode(@[
+                            newIdNode("_")
+                        ]),
+                        newEmptyNode(),
+                        akStmtList.newTreeNode(@[default])
+                    ]).newTerm(scope)
+                    a.fn.param.rety = Term.U
+                    a
                 else:
-                    newIdentDef(id, newTerm(typ, scope), newTerm(default, scope))
+                    let id = newTerm(aid, scope)
+                    assert not default.isNil, "let section needs initialization"
+                    Term.Const(
+                        if typ.isEmpty():
+                            newIdentDef(id, default=newTerm(default, scope))
+                        else:
+                            newIdentDef(id, newTerm(typ, scope), newTerm(default, scope))
+                    )
         )
-        Term.Const(ts)
+        Term.Seq(ts)
     of akLetSection:
         let ts = n.children.mapIt(
             block:
@@ -80,12 +95,14 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
                 assert aid.kind in {akId, akTuple, akRecord}, ""
                 let pat = newTerm(aid, scope)
                 assert not default.isNil, "let section needs initialization"
-                if typ.isEmpty():
-                    newIdentDef(pat, default=newTerm(default, scope))
-                else:
-                    newIdentDef(pat, newTerm(typ, scope), newTerm(default, scope))
+                Term.Let(
+                    if typ.isEmpty():
+                        newIdentDef(pat, default=newTerm(default, scope))
+                    else:
+                        newIdentDef(pat, newTerm(typ, scope), newTerm(default, scope))
+                )
         )
-        Term.Let(ts)
+        Term.Seq(ts)
     # of akVarSection:
     #     let ts = n.children.mapIt(
     #         block:

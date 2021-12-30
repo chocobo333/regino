@@ -45,6 +45,7 @@ proc all*[T](self: HashSet[T], f: T -> bool): bool =
     true
 
 when defined(release):
+    import strutils
     const wordSizeImpl = staticExec("getconf LONG_BIT").parseInt.uint
 else:
     const wordSizeImpl = 64

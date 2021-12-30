@@ -1,5 +1,5 @@
 ## TODOs
-* partially type inference (possibly function-wise)
+* global value
 * ptr type
 * Sum type
 * Sum pattern

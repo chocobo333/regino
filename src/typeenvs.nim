@@ -279,16 +279,18 @@ proc inst*(t: Term): Term =
     of TermKind.Record:
         Term.Record(t.members.map(it => it.inst))
     of TermKind.Let:
-        Term.Let(t.iddefs.map(inst))
+        Term.Let(t.iddef.inst)
     # of TermKind.Var:
     #     fmt"var {self.iddef}"
     of TermKind.Const:
-        Term.Const(t.iddefs.map(inst))
+        Term.Const(t.iddef.inst)
     # of TermKind.Typedef:
     #     let s = self.typedefs.map(`$`).join("\n")
     #     &"type\n{s.indent(2)}"
     of TermKind.Funcdef, TermKind.FuncdefInst:
         Term.Funcdef(t.fn.inst)
+    of TermKind.FunctionInst:
+        Term.FunctionInst(t.pfn, t.instargs.map(inst))
     # of TermKind.If:
     #     let
     #         elift = self.`elif`.mapIt(&"elif {it[0]}:\n{($it[1]).indent(2)}").join("\n")[2..^1]
@@ -327,6 +329,8 @@ proc inst*(t: Term): Term =
     result.typ = nil
 
 proc implInst*(self: Term): Term =
+    if self.kind == TermKind.FunctionInst:
+        return self.pfn.implInst
     assert self.kind == TermKind.Id
     let
         gentyinst = self.genty

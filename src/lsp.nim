@@ -582,6 +582,7 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode, buffers: var Buffers) =
             uri = textDocument["uri"].getStr
             text = textDocument["text"].getStr
         s.window.logMessage(fmt"Got didOpen notificfation {uri}")
+        s.window.logMessage(fmt"Got didOpen notificfation {uri}")
         let
             parser = newParser()
             module = newModule()
@@ -590,9 +591,11 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode, buffers: var Buffers) =
         buffers.astbuf[uri] = res
         buffers.termbuf[uri] = term
         buffers.modbuf[uri] = module
+        s.window.logMessage(fmt"Got didOpen notificfation {uri}")
 
         var diags = parser.errs.toDiags
         s.textDocument(uri).publishDiagnostics(diags)
+        s.window.logMessage(fmt"Got didOpen notificfation {uri}")
 proc `textDocument/didChange`(s: Stream, params: JsonNode, buffers: var Buffers) =
     if params.isValid(DidChangeTextDocumentParams):
         let

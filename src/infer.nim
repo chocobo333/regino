@@ -30,6 +30,15 @@ proc `<=`*(env: TypeEnv, t1, t2: ref Value): bool =
         true
     elif t1.kind == ValueKind.Gen:
         env.`<=`(t1.gen.ub, t2)
+    elif t2.kind == ValueKind.U:
+        case t1.kind
+        of ValueKind.U:
+            t1.level <= t2.level
+        of ValueKind.Pair:
+            `<=`(env, t1.first, t2) and `<=`(env, t1.second, t2)
+        else:
+            echo t1.kind
+            raise newException(TypeError, "notimplemented")
     elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Bottom:
@@ -589,50 +598,6 @@ proc resolveRelations(self: TypeEnv) =
         tmp = self.constraints
 
 proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value
-proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
-    discard self.typeInfer(env, global)
-    result = case self.kind
-    of TermKind.`()`:
-        Value.unit
-    of TermKind.Unit:
-        Value.Unit
-    of TermKind.U:
-        Value.U
-    of TermKind.Integer:
-        Value.IntV(self.intval)
-    of TermKind.Float:
-        Value.FloatV(self.floatval)
-    of TermKind.Char:
-        Value.CharV(self.charval)
-    of TermKind.String:
-        Value.StringV(self.strval)
-    of TermKind.Id:
-        let
-            syms = env.lookupConst(self.name)
-        case syms.len
-        of 0:
-            Value.Var(env)
-        of 1:
-            syms[0].typ
-        else:
-            Value.Intersection(syms.mapIt(it.typ))
-    of TermKind.Tuple:
-        case self.terms.len
-        of 0:
-            Value.unit()
-        of 1:
-            Value.Pair(self.terms[0].evalConst(env, global), Value.unit)
-        of 2:
-            Value.Pair(self.terms[0].evalConst(env, global), self.terms[1].evalConst(env, global))
-        else:
-            Value.Pair(self.terms[0].evalConst(env, global), Term.Tuple(self.terms[1..^1]).evalConst(env, global))
-    of TermKind.Record:
-        Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].evalConst(env, global))).toTable)
-    of TermKind.Typeof:
-        self.term.typeInfer(env, global)
-    else:
-        echo self
-        raise newException(TypeError, "")
 proc typeInferP(self: Term, env: TypeEnv, global: bool = false): ref Value =
     result = case self.kind
     of TermKind.Literal:
@@ -693,6 +658,82 @@ proc addPatConst(self: TypeEnv, pat: Term, constval: ref Value, impl: Term, glob
         discard
     else:
         assert false, "notimplemented"
+proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
+    discard self.typeInfer(env, global)
+    result = case self.kind
+    of TermKind.`()`:
+        Value.unit
+    of TermKind.Unit:
+        Value.Unit
+    of TermKind.U:
+        Value.U
+    of TermKind.Integer:
+        Value.IntV(self.intval)
+    of TermKind.Float:
+        Value.FloatV(self.floatval)
+    of TermKind.Char:
+        Value.CharV(self.charval)
+    of TermKind.String:
+        Value.StringV(self.strval)
+    of TermKind.Id:
+        let
+            syms = env.lookupConst(self.name)
+        case syms.len
+        of 0:
+            Value.Var(env)
+        of 1:
+            syms[0].typ
+        else:
+            Value.Intersection(syms.mapIt(it.typ))
+    of TermKind.Tuple:
+        case self.terms.len
+        of 0:
+            Value.unit()
+        of 1:
+            Value.Pair(self.terms[0].evalConst(env, global), Value.unit)
+        of 2:
+            Value.Pair(self.terms[0].evalConst(env, global), self.terms[1].evalConst(env, global))
+        else:
+            Value.Pair(self.terms[0].evalConst(env, global), Term.Tuple(self.terms[1..^1]).evalConst(env, global))
+    of TermKind.Record:
+        Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].evalConst(env, global))).toTable)
+    of TermKind.FunctionInst:
+        let
+            scope = env.scope.newScope()
+            geninst = self.instargs.mapIt(it.evalConst(env))
+            fn = self.pfn
+            sym = self.typ.symbol.get
+            genty = sym.typ.genty
+        env.pushScope(scope)
+        defer:
+            env.popScope()
+        for (pat, arg) in genty.zip(geninst):
+            let (pat, _) = pat
+            env.addPatConst(pat, arg, Term.Unit, global)
+        sym.impl.fn.body.term.evalConst(env)
+    of TermKind.Apply:
+        let
+            scope = env.scope.newScope()
+            fnty = self.callee.typ
+            sym = self.callee.typ.symbol.get
+            args = self.args.mapIt((it, it.evalConst(env)))
+            params = sym.impl.fn.param.params
+        # TODO: type checking
+        env.pushScope(scope)
+        defer:
+            env.popScope()
+        for (pat, arg) in params.mapIt(it.pat).zip(args):
+            let (impl, arg) = arg
+            env.addPatConst(pat, arg, impl, global)
+        sym.impl.fn.body.term.evalConst(env)
+    of TermKind.Typeof:
+        self.term.typeInfer(env, global)
+    of TermKind.Seq:
+        self.terms.mapIt(it.evalConst(env))[^1]
+    else:
+        echo self
+        echo self.kind
+        raise newException(TypeError, "")
 proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     if not self.typ.isNil:
         return self.typ
@@ -803,26 +844,27 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
                 discard
             else:
                 assert false, "notimplemented"
-        for iddef in self.iddefs:
+        # for iddef in self.iddefs:
+        let
+            iddef = self.iddef
+            pat = iddef.pat
+            tv = pat.typeInferP(env, global)
+            impl = iddef.default.get
+            t1 = impl.typeInfer(env, global)
+        if iddef.typ.isSome:
             let
-                pat = iddef.pat
-                tv = pat.typeInferP(env, global)
-                impl = iddef.default.get
-                t1 = impl.typeInfer(env, global)
+                # _ = self.iddef.typ.get.typeInfer(env, global)
+                t = iddef.typ.get.evalConst(env, global)
+            env.coerceEq(tv, t)
+        if t1.kind == ValueKind.Intersection:
+            env.coerceRelation(t1, tv)
+            env.coerceRelation(tv, Value.Union(t1.types))
+        else:
             if iddef.typ.isSome:
-                let
-                    # _ = self.iddef.typ.get.typeInfer(env, global)
-                    t = iddef.typ.get.evalConst(env, global)
-                env.coerceEq(tv, t)
-            if t1.kind == ValueKind.Intersection:
                 env.coerceRelation(t1, tv)
-                env.coerceRelation(tv, Value.Union(t1.types))
             else:
-                if iddef.typ.isSome:
-                    env.coerceRelation(t1, tv)
-                else:
-                    env.coerceEq(tv, t1)
-            env.addPat(pat, impl, global)
+                env.coerceEq(tv, t1)
+        env.addPat(pat, impl, global)
         Value.Unit
     # of TermKind.Var:
     #     let
@@ -847,13 +889,14 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     #     env.addIdent(id, sym)
     #     Value.Unit
     of TermKind.Const:
-        for iddef in self.iddefs:
-            let
-                pat = iddef.pat
-                default = iddef.default.get
-                # _ = default.typeInfer(env, global)
-                val = default.evalConst(env)
-            env.addPatConst(pat, val, default, global)
+        # for iddef in self.iddefs:
+        let
+            iddef = self.iddef
+            pat = iddef.pat
+            default = iddef.default.get
+            # _ = default.typeInfer(env, global)
+            val = default.evalConst(env)
+        env.addPatConst(pat, val, default, global)
         Value.Unit
     of TermKind.Funcdef, TermKind.FuncdefInst:
         let
@@ -912,6 +955,16 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         if self.kind == TermKind.Funcdef:
             env.addIdent(self.fn.id, sym)
         Value.Unit
+    of TermKind.FunctionInst:
+        let
+            funty = self.pfn.typeInfer(env, global)
+            types = self.instargs.mapIt(it.evalConst(env, global))
+            sym = funty.symbol.get
+            typ = sym.typ
+        assert typ.kind == ValueKind.Pi
+        for (g, t) in funty.gentyinst.zip(types):
+            env.coerceEq(g, t)
+        funty
     # of TermKind.If:
     #     let
     #         conds = self.`elif`.mapIt(it[0].typeInfer(env, global))
@@ -959,16 +1012,40 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         discard self.term.typeInfer(env)
         Value.Unit
     of TermKind.Apply:
-        let
-            callee = self.callee.typeInfer(env, global)
-            args = self.args.mapIt(it.typeInfer(env, global))
-            tv = Value.Var(env)
-        env.coerceRelation(callee, Value.Arrow(args, tv))
-        if callee.kind == ValueKind.Intersection:
-            env.coerceRelation(tv, Value.Union(callee.types.filter(it => it.kind == ValueKind.Pi).map(it => it.rety)))
+        if self.callee.kind == TermKind.Id:
+            case self.callee.name:
+            of "[]":
+                let
+                    funty = self.args[0].typeInfer(env, global)
+                    sym = funty.symbol.get
+                    typ = sym.typ
+                    loc = self.loc
+                assert typ.kind == ValueKind.Pi
+                self[] = Term.FunctionInst(self.args[0], self.args[1..^1])[]
+                self.loc = loc
+                self.typeInfer(env, global)
+            else:
+                let
+                    callee = self.callee.typeInfer(env, global)
+                    args = self.args.mapIt(it.typeInfer(env, global))
+                    tv = Value.Var(env)
+                env.coerceRelation(callee, Value.Arrow(args, tv))
+                if callee.kind == ValueKind.Intersection:
+                    env.coerceRelation(tv, Value.Union(callee.types.filter(it => it.kind == ValueKind.Pi).map(it => it.rety)))
+                else:
+                    env.coerceRelation(tv, callee.rety)
+                tv
         else:
-            env.coerceRelation(tv, callee.rety)
-        tv
+            let
+                callee = self.callee.typeInfer(env, global)
+                args = self.args.mapIt(it.typeInfer(env, global))
+                tv = Value.Var(env)
+            env.coerceRelation(callee, Value.Arrow(args, tv))
+            if callee.kind == ValueKind.Intersection:
+                env.coerceRelation(tv, Value.Union(callee.types.filter(it => it.kind == ValueKind.Pi).map(it => it.rety)))
+            else:
+                env.coerceRelation(tv, callee.rety)
+            tv
     # of TermKind.Projection:
     #     let
     #         container = self.container.typeInfer(env, global)
@@ -1067,27 +1144,28 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
         toSeq(self.members.values).mapIt(it.typeCheck(env)).flatten & self.check(Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].typ)).toTable))
     of TermKind.Let:
         var ret: seq[Error]
-        for iddef in self.iddefs.mitems:
-            let
-                pat = iddef.pat
-                impl = iddef.default.get
-            ret.add pat.typeCheck(env) & impl.typeCheck(env)
-            if iddef.typ.isSome:
-                assert impl.typ <= pat.typ, fmt"{impl.typ} <= {pat.typ}"
-                var imp = impl
-                if impl.typ != pat.typ and impl.typ <= pat.typ and (not gen):
+        # for iddef in self.iddefs.mitems:
+        let
+            iddef = self.iddef
+            pat = iddef.pat
+            impl = iddef.default.get
+        ret.add pat.typeCheck(env) & impl.typeCheck(env)
+        if iddef.typ.isSome:
+            assert impl.typ <= pat.typ, fmt"{impl.typ} <= {pat.typ}"
+            var imp = impl
+            if impl.typ != pat.typ and impl.typ <= pat.typ and (not gen):
+                let
+                    p = env.scope.typeOrder.path(impl.typ, pat.typ).get
+                for (t1, t2) in p:
                     let
-                        p = env.scope.typeOrder.path(impl.typ, pat.typ).get
-                    for (t1, t2) in p:
-                        let
-                            fn = env.lookupConverter(t1, t2)
-                            loc = imp.loc
-                        imp = Term.Apply(fn, @[imp])
-                        imp.typ = t2
-                        imp.loc = loc
-                    iddef.default = some imp
-            else:
-                assert impl.typ == pat.typ, fmt"{impl.typ} == {pat.typ}"
+                        fn = env.lookupConverter(t1, t2)
+                        loc = imp.loc
+                    imp = Term.Apply(fn, @[imp])
+                    imp.typ = t2
+                    imp.loc = loc
+                self.iddef.default = some imp
+        else:
+            assert impl.typ == pat.typ, fmt"{impl.typ} == {pat.typ}"
         self.check(Value.Unit) & ret
     # of TermKind.Var:
     #     let
@@ -1104,11 +1182,12 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
     #     self.check(Value.Unit) & ret
     of TermKind.Const:
         var ret: seq[Error]
-        for iddef in self.iddefs.mitems:
-            let
-                pat = iddef.pat
-                impl = iddef.default.get
-            ret.add pat.typeCheck(env) & impl.typeCheck(env)
+        # for iddef in self.iddefs.mitems:
+        let
+            iddef = self.iddef
+            pat = iddef.pat
+            impl = iddef.default.get
+        ret.add pat.typeCheck(env) & impl.typeCheck(env)
         self.check(Value.Unit) & ret
     # of TermKind.Typedef:
     #     # for typedef in self.typedefs:
@@ -1168,6 +1247,8 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
         # else:
         #     env.coerceRelation(inferedRety, tv)
         self.check(Value.Unit) & ret
+    of TermKind.FunctionInst:
+        @[]
     # of TermKind.If:
     #     let
     #         conds = self.`elif`.mapIt(it[0].typeCheck(env))
