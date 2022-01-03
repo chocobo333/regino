@@ -172,6 +172,8 @@ proc inst*(typ: ref Value, env: TypeEnv, subs: Table[GenType, ref Value] = initT
         typ.deepCopy
     # of ValueKind.List:
     #     nil
+    of ValueKind.Ptr:
+        Value.Ptr(typ.pointee.inst(env, subs))
     of ValueKind.Pair:
         Value.Pair(typ.first.inst(env, subs), typ.second.inst(env, subs))
     # of ValueKind.Tuple:
@@ -314,6 +316,8 @@ proc inst*(t: Term): Term =
     #     fmt"{self.pat} = {self.val}"
     of TermKind.Typeof:
         Term.Typeof(t.term.inst)
+    of TermKind.Malloc:
+        Term.Malloc(t.malloctype.inst, t.mallocsize.inst)
     of TermKind.Discard:
         Term.Discard(t.term.inst)
     of TermKind.Apply:

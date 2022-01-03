@@ -53,6 +53,7 @@ type
         # Block
         # Asign
         Typeof
+        Malloc
         Discard
         Apply
         # Projection
@@ -172,6 +173,9 @@ type
         #     forbody*: Body # for For
         of Typeof, TermKind.Discard:
             term*: Term
+        of Malloc:
+            malloctype*: Term
+            mallocsize*: Term
         of Apply:
             callee*: Term
             args*: seq[Term]
@@ -194,6 +198,7 @@ type
         Char
         String
         # List
+        Ptr
         Pair
         # Tuple
         Record  # named tuple
@@ -230,6 +235,8 @@ type
             level*: int
         # of ValueKind.List:
         #     elem*: ref Value
+        of ValueKind.Ptr:
+            pointee*: ref Value
         of ValueKind.Pair:
             first*: ref Value
             second*: ref Value
@@ -453,6 +460,8 @@ suite Value:
                 self.level == other.level
             # of ValueKind.List:
             #     self.elem == other.elem
+            of ValueKind.Ptr:
+                self.pointee == other.pointee
             of ValueKind.Pair:
                 self.first == other.first and self.second == other.second
             of ValueKind.Record:
@@ -540,6 +549,8 @@ suite Value:
             "string"
         # of ValueKind.List:
         #     fmt"[{self.base[]}]"
+        of ValueKind.Ptr:
+            fmt"Ptr[{self.pointee}]"
         of ValueKind.Pair:
             fmt"({self.first}, {self.second})"
         of ValueKind.Record:
@@ -651,6 +662,9 @@ suite Value:
     proc List*(_: typedesc[Value], elem: ref Value): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.List, elem: elem)
+    proc Ptr*(_: typedesc[Value], pointee: ref Value): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.Ptr, pointee: pointee)
     proc Pair*(_: typedesc[Value], first, second: ref Value): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.Pair, first: first, second: second)
@@ -757,6 +771,8 @@ suite Value:
         #     true
         # of ValueKind.List:
         #     true
+        of ValueKind.Ptr:
+            true
         of ValueKind.Pair:
             self.first.hasRegion or self.second.hasRegion
         of ValueKind.Record:
@@ -798,6 +814,8 @@ suite Value:
         #     self.paramty.all(compilable) and self.rety.compilable
         # of ValueKind.List:
         #     self.elem.compilable
+        of ValueKind.Ptr:
+            self.pointee.compilable
         of ValueKind.Pair:
             self.first.compilable and self.second.compilable
         of ValueKind.Record:
@@ -853,6 +871,8 @@ suite Value:
             Value.U
         # of ValueKind.List:
         #     nil
+        of ValueKind.Ptr:
+            self.pointee.typ
         of ValueKind.Pair:
             let
                 ft = self.first.typ
@@ -982,6 +1002,8 @@ suite Term:
         #     fmt"{self.pat} = {self.val}"
         of TermKind.Typeof:
             fmt"typeof({self.term})"
+        of TermKind.Malloc:
+            fmt"malloc({self.malloctype}, {self.mallocsize})"
         of TermKind.Discard:
             fmt"discard {self.term}"
         of TermKind.Apply:
@@ -1070,6 +1092,8 @@ suite Term:
         Term(kind: TermKind.Asign, pat: pat, val: val)
     proc Typeof*(_: typedesc[Term], term: Term): Term =
         Term(kind: TermKind.Typeof, term: term)
+    proc Malloc*(_: typedesc[Term], malloctype: Term, mallocsize: Term): Term =
+        Term(kind: TermKind.Malloc, malloctype: malloctype, mallocsize: mallocsize)
     proc Discard*(_: typedesc[Term], term: Term): Term =
         Term(kind: TermKind.Discard, term: term)
     proc Apply*(_: typedesc[Term], callee: Term, args: seq[Term]): Term =

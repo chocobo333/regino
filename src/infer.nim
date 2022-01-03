@@ -32,10 +32,16 @@ proc `<=`*(env: TypeEnv, t1, t2: ref Value): bool =
         env.`<=`(t1.gen.ub, t2)
     elif t2.kind == ValueKind.U:
         case t1.kind
+        of ValueKind.Unit:
+            true
         of ValueKind.U:
             t1.level <= t2.level
         of ValueKind.Pair:
             `<=`(env, t1.first, t2) and `<=`(env, t1.second, t2)
+        of ValueKind.Ptr:
+            env.`<=`(t1.pointee, t2)
+        of ValueKind.Typedesc:
+            env.`<=`(t1.`typedesc`, t2)
         else:
             echo t1.kind
             raise newException(TypeError, "notimplemented")
@@ -249,6 +255,8 @@ proc containtv(self: ref Value): bool =
         false
     # of ValueKind.# List:
     #     false
+    of ValueKind.Ptr:
+        self.pointee.containtv
     of ValueKind.Pair:
         self.first.containtv or self.second.containtv
     # of ValueKind.# Tuple:
@@ -698,6 +706,7 @@ proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     of TermKind.Record:
         Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].evalConst(env, global))).toTable)
     of TermKind.FunctionInst:
+        # TODO:
         let
             scope = env.scope.newScope()
             geninst = self.instargs.mapIt(it.evalConst(env))
@@ -735,8 +744,8 @@ proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         echo self.kind
         raise newException(TypeError, "")
 proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
-    if not self.typ.isNil:
-        return self.typ
+    # if not self.typ.isNil:
+    #     return self.typ
     proc addPatFuncDef(self: TypeEnv, pat: Term, t: ref Value, impl: Term, global: bool) =
             case pat.kind
             of TermKind.Literal:
@@ -1008,6 +1017,9 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     #     Value.Unit
     of TermKind.Typeof:
         Value.Typedesc(self.term.typeInfer(env, global))
+    of TermKind.Malloc:
+        env.coerceEq(self.mallocsize.typeInfer(env, global), Value.Integer(0))
+        Value.Ptr(self.malloctype.evalConst(env, global))
     of TermKind.Discard:
         discard self.term.typeInfer(env)
         Value.Unit
@@ -1299,6 +1311,8 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
     #     self.check(Value.Unit) & ret
     of TermKind.Typeof:
         self.check(Value.Typedesc(self.term.typ)) & self.term.typeCheck(env)
+    of TermKind.Malloc:
+        self.malloctype.typeCheck(env) & self.mallocsize.check(Value.Integer(0)) # self.check(Value.Ptr(self.malloctype.typ)) &
     of TermKind.Discard:
         self.check(Value.Unit) & self.term.typeCheck(env)
     of TermKind.Apply:

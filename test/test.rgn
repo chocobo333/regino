@@ -6,18 +6,24 @@
 
 
 # const
-#     ptr ![builtin: "ptr"]
-# ptr[T <: Default] = block:
-#     let a: T = default()
-#     typeof(pointerof(a))
-# ptr[T, n: int] = typeof(malloc[T](n))
-# ref[T] = ptr[T, 1]
-# seq[T] =  ([size: int], len: int, p: ptr[T, size])
-# string = seq[char]
+#     ptr[T, n: int] = typeof(malloc[T, n]())
+#     ref[T] = ptr[T, 1]
+#     seq[T] =  ([size: int], len: int, p: ptr[T, size])
+#     string = seq[char]
 # func ptrGet[T, n: int](self: ptr[T, n], m: int) -> T ![builtin: "ptrGet"]
+# func ptrSet[T, n: int](self: ptr[T, n], m: int, val: T) -> T ![builtin: "ptrGet"]
 # func `[]`[T](self: seq[T], n: int) -> T:
-#     self.p.ptrGet(n)
+#     self.p.ptrGet[T](n)
+# func `[]=`[T](self: seq[T], n: int, val: T) ![builtin: "ptrSet"]:
+#     self.p.ptrSet[T](n, val)
 # cstring = typeof("")
+const
+    ptr[T] = typeof(malloc(T, 1))
+# func ptrGet[T](self: ptr[T], n: int) -> T ![builtin: "ptrGet"]
+# func ptrSet[T](self: ptr[T], n: int, val: T) -> T ![builtin: "ptrSet"]
+# const
+#     ref[T] = distinct ptr[T]
+#     seq[T] = (size: int, len: int, p: ptr[T])
 
 # const
 #    bool = typeof(false)
@@ -29,32 +35,12 @@ const
     char = typeof('a')
     pairWithInt[T] = (int, T)
     pair[T, U] = (T, U)
-# func pairWithInt[T]() -> Type:
-#     (int, T)
-#    a = (3, "f")
-# const
-#     seq[T] ![builtin: "seq"]
-# seq: (T: Type) -> seq[T]
-
-func two() -> int:
-    2
-func `three?`() -> int:
-    two()
-const
-    one = 1
-    two = two()
-    three = `three?`()
-    hello_world = "Hello, world!"
 
 func id[T](a: T) -> T:
     a
-const
-    four = id 4
-    five = id[int](5)
 func swap[T, U]((a, b): (T, U)) -> (U, T):
     (b, a)
-# func f(a: bool) -> bool:
-#    a
+
 func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
 func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
 # func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
@@ -95,20 +81,8 @@ func len(a: string) -> int ![importll]
 #     else:
 #         fib(n-1) + fib(n-2)
 
-let
-    a = (2, 2.0)
-    b = 3
-let b = swap(a)
-let b = swap(b)
-echo hello_world
-echo one
-echo two
-echo id three
-echo id[int](4)
-echo five
-echo id[string]("ff")
-let a: pairWithInt[float] = (3, 4.0)
-echo $a
-let b: pair[float, float] = (3., 4.0)
-echo $b
+echo "Hello world!"
+let a = malloc(int, 3)
+let c: pairWithInt[int] = (3, 3)
+let b: ptr[int] = malloc(int, 3)
 0

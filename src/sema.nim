@@ -74,6 +74,6 @@ proc sema*(node: AstNode, module: Module): (Term, seq[Error]) =
     mainid.typ = mainty
     mainid.typ.symbol = some sym
     # mainid.typ.symbol.get.instances[mainid.typ] = Symbol()
-    # echo program
+    echo program
     # echo mainScope
     (main, err)

@@ -267,6 +267,9 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
             of "typeof":
                 assert args.len == 1
                 return Term.TypeOf(newTerm(args[0], scope))
+            of "malloc":
+                assert args.len == 2
+                return Term.Malloc(newTerm(args[0], scope), newTerm(args[1], scope))
         # if callee.kind == akInt:
         #     assert callee.intval in 0..1, "projection"
         #     Term.Projection(args[0].newTerm(scope), callee.intval)
@@ -286,6 +289,9 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
             of "typeof":
                 assert args.len == 1
                 return Term.TypeOf(newTerm(args[0], scope))
+            of "malloc":
+                assert args.len == 2
+                return Term.Malloc(newTerm(args[0], scope), newTerm(args[1], scope))
         if callee.kind == akDot:
             newTerm(akCall.newTreeNode(@[callee.children[1], callee.children[0]] & args), scope)
         else:
