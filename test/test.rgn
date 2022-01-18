@@ -24,6 +24,10 @@ const
 # const
 #     ref[T] = distinct ptr[T]
 #     seq[T] = (size: int, len: int, p: ptr[T])
+#     Monoid = (_, op): ([T], (T, T) -> T) with
+#         func unit(_: singleton (T, op)) -> T
+#         prop unitNeutral(x: T) -> (op((T, op).unit, x) == x, op(x, (T, op).unit) == x)
+#         prop associtive(x, y, z: T) -> op(x, op(y, z)) == op(op(x, y), z)
 
 # const
 #    bool = typeof(false)
