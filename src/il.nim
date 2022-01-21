@@ -27,7 +27,7 @@ type
         `()`    # is term, `()`: Unit: U
         Unit    # is type
         U       # Universe_0 or Type_0
-        # Bool
+        Bool
         Integer
         Float
         Char
@@ -38,20 +38,20 @@ type
         Tuple
         Record  # named tuple
         Let
-        # Var
+        Var
         Const
         # Typedef
         Funcdef
         FuncdefInst
         FunctionInst
-        # If
+        If
         # When
         Case
         # While
         # For
-        # Loop
-        # Block
-        # Asign
+        Loop
+        Block
+        Asign
         Typeof
         Malloc
         Discard
@@ -124,8 +124,8 @@ type
             nil
         of TermKind.U:
             level*: int
-        # of Bool:
-        #     boolval*: bool
+        of Bool:
+            boolval*: bool
         of Integer:
             intval*: BiggestInt
             bits*: uint
@@ -145,8 +145,7 @@ type
             terms*: seq[Term]
         of TermKind.Record:
             members*: Table[string, Term]
-        # of Let, Var, Const:
-        of Let, Const:
+        of Let, Var, Const:
             iddef*: IdentDef
         # of Typedef:
         #     typedefs*: IdentDefs
@@ -155,22 +154,23 @@ type
         of FunctionInst:
             pfn*: Term
             instargs*: seq[Term]
-        # of If, When:
-        #     `elif`*: seq[(Term, Body)]
-        #     `else`*: Body
+        of If: # When
+            `elif`*: seq[(Term, Body)]
+            `else`*: Body
         of Case:
             matcher*: Term
             branches*: seq[(Term, Term)]
         # of While:
         #     cond*: Term
         #     wbody*: Body
-        # of Loop, Block:
-        #     label*: Ident
-        #     `block`*: Body
+        of Loop, Block:
+            label*: Ident
+            `block`*: Body
         # of For, Asign:
-        #     pat*: Term
-        #     val*: Term
-        #     forbody*: Body # for For
+        of Asign:
+            pat*: Term
+            val*: Term
+            # forbody*: Body # for For
         of Typeof, TermKind.Discard:
             term*: Term
         of Malloc:
@@ -192,7 +192,7 @@ type
         `()` # (): unit: U
         Unit
         U
-        # Bool
+        Bool
         Integer
         Float
         Char
@@ -211,6 +211,7 @@ type
         Union
         Link
         Gen
+        BoolV
         IntV
         FloatV
         CharV
@@ -227,7 +228,7 @@ type
         # name: string # TODO:
         case kind*: ValueKind
         # of Bottom, Top, ValueKind.Unit, ValueKind.Bool, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
-        of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Float, ValueKind.Char, ValueKind.String:
+        of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Bool, ValueKind.Float, ValueKind.Char, ValueKind.String:
             nil
         of ValueKind.Integer:
             bits*: uint
@@ -269,6 +270,8 @@ type
             to*: ref Value
         of ValueKind.Gen:
             gen*: GenType
+        of ValueKind.BoolV:
+            boolval: bool
         of ValueKind.IntV:
             intval*: BiggestInt
         of ValueKind.FloatV:
@@ -452,7 +455,7 @@ suite Value:
         elif self.kind == other.kind:
             case self.kind
             # of Bottom, Top, ValueKind.Unit, ValueKind.Bool, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
-            of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Float, ValueKind.Char, ValueKind.String:
+            of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Bool, ValueKind.Float, ValueKind.Char, ValueKind.String:
                 true
             of ValueKind.Integer:
                 self.bits == other.bits
@@ -500,6 +503,8 @@ suite Value:
                 self.to == other.to
             of ValueKind.Gen:
                 self.gen.name == other.gen.name
+            of ValueKind.BoolV:
+                self.boolval == other.boolval
             of ValueKind.IntV:
                 self.intval == other.intval
             of ValueKind.FloatV:
@@ -529,9 +534,9 @@ suite Value:
                 "Type"
             else:
                 "Type" & $self.level
-        # of ValueKind.Bool:
-        #     # $"bool".red
-        #     "bool"
+        of ValueKind.Bool:
+            # $"bool".red
+            "bool"
         of ValueKind.Integer:
             # $"int".red
             if self.bits == wordSize():
@@ -607,6 +612,8 @@ suite Value:
             $self.to
         of ValueKind.Gen:
             fmt"{self.gen.name}: {self.gen.typ} (<: {self.gen.ub})"
+        of ValueKind.BoolV:
+            fmt"{self.boolval}"
         of ValueKind.IntV:
             fmt"{self.intval}"
         of ValueKind.FloatV:
@@ -748,6 +755,9 @@ suite Value:
         result = new Value
         result[] = Value(kind: ValueKind.Gen, gen: GenType(name: name, ub: ub, typ: typ))
 
+    proc BoolV*(_: typedesc[Value], boolval: bool): ref Value =
+        result = new Value
+        result[] = Value(kind: ValueKind.BoolV, boolval: boolval)
     proc IntV*(_: typedesc[Value], intval: BiggestInt): ref Value =
         result = new Value
         result[] = Value(kind: ValueKind.IntV, intval: intval)
@@ -795,13 +805,7 @@ suite Value:
         of ValueKind.Gen:
             assert false, ""
             false
-        of ValueKind.IntV:
-            false
-        of ValueKind.FloatV:
-            false
-        of ValueKind.CharV:
-            false
-        of ValueKind.StringV:
+        of ValueKind.BoolV..ValueKind.StringV:
             false
 
     proc compilable*(self: ref Value): bool =
@@ -838,14 +842,9 @@ suite Value:
             false
         of ValueKind.Gen:
             false
-        of ValueKind.IntV:
+        of ValueKind.BoolV..ValueKind.StringV:
             true
-        of ValueKind.FloatV:
-            true
-        of ValueKind.CharV:
-            true
-        of ValueKind.StringV:
-            true
+
 
     proc typ*(self: ref Value): ref Value =
         case self.kind
@@ -861,6 +860,8 @@ suite Value:
             Value.U(self.level + 1)
         # of ValueKind.Bool:
         #     nil
+        of ValueKind.Bool:
+            Value.U
         of ValueKind.Integer:
             Value.U
         of ValueKind.Float:
@@ -904,6 +905,8 @@ suite Value:
             self.to.typ
         of ValueKind.Gen:
             self.gen.typ
+        of ValueKind.BoolV:
+            Value.Bool
         of ValueKind.IntV:
             Value.Integer(0)
         of ValueKind.FloatV:
@@ -939,8 +942,8 @@ suite Term:
             "unit"
         of TermKind.U:
             "Type"
-        # of TermKind.Bool:
-        #     $self.boolval
+        of TermKind.Bool:
+            $self.boolval
         of TermKind.Integer:
             if self.bits == wordSize():
                 $self.intval
@@ -967,8 +970,8 @@ suite Term:
             fmt"({s})"
         of TermKind.Let:
             &"let {self.iddef}"
-        # of TermKind.Var:
-        #     fmt"var {self.iddef}"
+        of TermKind.Var:
+            fmt"var {self.iddef}"
         of TermKind.Const:
             &"const {self.iddef}"
         # of TermKind.Typedef:
@@ -979,11 +982,11 @@ suite Term:
         of TermKind.FunctionInst:
             let s = self.instargs.map(`$`).join(", ")
             fmt"{self.pfn}[{s}]"
-        # of TermKind.If:
-        #     let
-        #         elift = self.`elif`.mapIt(&"elif {it[0]}:\n{($it[1]).indent(2)}").join("\n")[2..^1]
-        #         elset = ($self.`else`).indent(2)
-        #     &"{elift}\nelse:\n{elset}"
+        of TermKind.If:
+            let
+                elift = self.`elif`.mapIt(&"elif {it[0]}:\n{($it[1]).indent(2)}").join("\n")[2..^1]
+                elset = ($self.`else`).indent(2)
+            &"{elift}\nelse:\n{elset}"
         # of TermKind.When:
         #     ""
         of TermKind.Case:
@@ -992,14 +995,14 @@ suite Term:
         #     ""
         # of TermKind.For:
         #     ""
-        # of TermKind.Loop:
-        #     let s = $self.body
-        #     &"loop {self.label}\n{s.indent(2)}"
-        # of TermKind.Block:
-        #     let s = $self.body
-        #     &"block {self.label}\n{s.indent(2)}"
-        # of TermKind.Asign:
-        #     fmt"{self.pat} = {self.val}"
+        of TermKind.Loop:
+            let s = $self.`block`
+            &"loop {self.label}\n{s.indent(2)}"
+        of TermKind.Block:
+            let s = $self.`block`
+            &"block {self.label}\n{s.indent(2)}"
+        of TermKind.Asign:
+            fmt"{self.pat} = {self.val}"
         of TermKind.Typeof:
             fmt"typeof({self.term})"
         of TermKind.Malloc:
@@ -1084,10 +1087,10 @@ suite Term:
         Term()
     proc For*(_: typedesc[Term]): Term =
         Term()
-    proc Loop*(_: typedesc[Term]): Term =
-        Term()
-    proc Block*(_: typedesc[Term]): Term =
-        Term()
+    proc Loop*(_: typedesc[Term], label: Ident, `block`: Body): Term =
+        Term(kind: TermKind.Loop, label: label, `block`: `block`)
+    proc Block*(_: typedesc[Term], label: Ident, `block`: Body): Term =
+        Term(kind: TermKind.Block, label: label, `block`: `block`)
     proc Asign*(_: typedesc[Term], pat: Term, val: Term): Term =
         Term(kind: TermKind.Asign, pat: pat, val: val)
     proc Typeof*(_: typedesc[Term], term: Term): Term =

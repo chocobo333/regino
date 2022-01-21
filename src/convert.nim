@@ -103,25 +103,25 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
                 )
         )
         Term.Seq(ts)
-    # of akVarSection:
-    #     let ts = n.children.mapIt(
-    #         block:
-    #             assert it.kind == akIdentDef
-    #             assert it.children.len == 3
-    #             let
-    #                 aid = it.children[0]
-    #                 typ = it.children[1]
-    #                 default = it.children[2]
-    #             assert aid.kind == akId, ""
-    #             let id = newTerm(aid, scope)
-    #             assert not default.isNil, "let section needs initialization"
-    #             if typ.isEmpty():
-    #                 Term.Var(newIdentDef(id, default=newTerm(default, scope)))
-    #             else:
-    #                 Term.Var(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
+    of akVarSection:
+        let ts = n.children.mapIt(
+            block:
+                assert it.kind == akIdentDef
+                assert it.children.len == 3
+                let
+                    aid = it.children[0]
+                    typ = it.children[1]
+                    default = it.children[2]
+                assert aid.kind == akId, ""
+                let id = newTerm(aid, scope)
+                assert not default.isNil, "let section needs initialization"
+                if typ.isEmpty():
+                    Term.Var(newIdentDef(id, default=newTerm(default, scope)))
+                else:
+                    Term.Var(newIdentDef(id, newTerm(typ, scope), newTerm(default, scope)))
 
-    #     )
-    #     Term.Seq(ts)
+        )
+        Term.Seq(ts)
     # of akAliasSection:
     #     let ts = n.children.mapIt(
     #         block:
@@ -185,11 +185,11 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
             metadata: meta
         )
         Term.FuncDef(fn)
-    # of akAsign:
-    #     let
-    #         pat = newTerm(n.children[0], scope)
-    #         val = newTerm(n.children[2], scope)
-    #     Term.Asign(pat, val)
+    of akAsign:
+        let
+            pat = newTerm(n.children[0], scope)
+            val = newTerm(n.children[2], scope)
+        Term.Asign(pat, val)
     of akMetadata:
         let
             name = n.children[0]
@@ -212,33 +212,33 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
         else:
             Term.unit
         Term.Discard(a)
-    # of akIfExpr:
-    #     if n.children[^1].kind == akElseBranch:
-    #         Term.If(
-    #             n.children[0..^2].mapIt(
-    #                 (
-    #                     newTerm(it.children[0], scope),
-    #                     block:
-    #                         let scope = newScope(scope)
-    #                         newBody(newTerm(it.children[1], scope), scope)
-    #                 )
-    #             ),
-    #             block:
-    #                 let scope = newScope(scope)
-    #                 newBody(newTerm(n.children[^1].children[0], scope), scope)
-    #         )
-    #     else:
-    #         Term.If(
-    #             n.children[0..^1].mapIt(
-    #                 (newTerm(it.children[0], scope),
-    #                 block:
-    #                     let scope = newScope(scope)
-    #                     newBody(newTerm(it.children[1], scope), scope))
-    #             ),
-    #             block:
-    #                 let scope = newScope(scope)
-    #                 newBody(Term.unit, scope)
-    #         )
+    of akIfExpr:
+        if n.children[^1].kind == akElseBranch:
+            Term.If(
+                n.children[0..^2].mapIt(
+                    (
+                        newTerm(it.children[0], scope),
+                        block:
+                            let scope = newScope(scope)
+                            newBody(newTerm(it.children[1], scope), scope)
+                    )
+                ),
+                block:
+                    let scope = newScope(scope)
+                    newBody(newTerm(n.children[^1].children[0], scope), scope)
+            )
+        else:
+            Term.If(
+                n.children[0..^1].mapIt(
+                    (newTerm(it.children[0], scope),
+                    block:
+                        let scope = newScope(scope)
+                        newBody(newTerm(it.children[1], scope), scope))
+                ),
+                block:
+                    let scope = newScope(scope)
+                    newBody(Term.unit, scope)
+            )
     # of akLambdaDef:
     #     let
     #         name = n.children[0]
@@ -321,8 +321,7 @@ proc newTerm*(n: AstNode, scope: Scope): Term =
     of akString:
         Term.String(n.strVal)
     of akBool:
-        # Term.Bool(n.boolval)
-        Term.Id($n.boolval)
+        Term.Bool(n.boolval)
     of akId:
         Term.Id(n.strVal)
     of akComment:

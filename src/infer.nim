@@ -251,7 +251,7 @@ proc containtv(self: ref Value): bool =
         false
     # of ValueKind.# Bool:
     #     false
-    of ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
+    of ValueKind.Bool, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
         false
     # of ValueKind.# List:
     #     false
@@ -279,7 +279,7 @@ proc containtv(self: ref Value): bool =
         self.to.containtv
     of ValueKind.Gen:
         false
-    of ValueKind.IntV..ValueKind.StringV:
+    of ValueKind.BoolV..ValueKind.StringV:
         false
 const
     cvar = 1000
@@ -675,6 +675,8 @@ proc evalConst*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         Value.Unit
     of TermKind.U:
         Value.U
+    of TermKind.Bool:
+        Value.BoolV(self.boolval)
     of TermKind.Integer:
         Value.IntV(self.intval)
     of TermKind.Float:
@@ -788,8 +790,8 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         Value.U
     of TermKind.U:
         Value.U(1)
-    # of TermKind.Bool:
-    #     Value.Bool
+    of TermKind.Bool:
+        Value.Bool
     of TermKind.Integer:
         Value.Integer(self.bits)
     of TermKind.Float:
@@ -825,7 +827,7 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         # Value.Tuple(self.seqval.mapIt(it.typeInfer(env, global)))
     of TermKind.Record:
         Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].typeInfer(env, global))).toTable)
-    of TermKind.Let:
+    of TermKind.Let, TermKind.Var:
         proc addPat(self: TypeEnv, pat: Term, impl: Term, global: bool) =
             case pat.kind
             of TermKind.Literal:
@@ -872,31 +874,12 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
             if iddef.typ.isSome:
                 env.coerceRelation(t1, tv)
             else:
-                env.coerceEq(tv, t1)
+                if self.kind == TermKind.Var:
+                    env.coerceRelation(t1, tv)
+                else:
+                    env.coerceEq(tv, t1)
         env.addPat(pat, impl, global)
         Value.Unit
-    # of TermKind.Var:
-    #     let
-    #         tv = Value.Var
-    #         id = self.iddef.id
-    #         impl = self.iddef.default.get
-    #         t1 = impl.typeInfer(env, global)
-    #         sym = if t1.kind == ValueKind.Arrow:
-    #             # PSymbol.Let(t1.gen(env), self, global)
-    #             # TODO:
-    #             PSymbol()
-    #         else:
-    #             PSymbol.Let(id, PolyType.ForAll(nullFtv, tv), impl, global)
-    #         # sym = PSymbol.Let(t1.gen(env))
-    #     if self.iddef.typ.isSome:
-    #         let
-    #             typ = self.iddef.typ.get.typeInfer(env, global)
-    #         env.coerceRelation(Value.Typedesc(tv), typ)
-    #         env.coerceRelation(typ, Value.Typedesc(tv))
-    #     env.coerceRelation(t1, tv)
-    #     id.typ = tv
-    #     env.addIdent(id, sym)
-    #     Value.Unit
     of TermKind.Const:
         # for iddef in self.iddefs:
         let
@@ -933,6 +916,11 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
             # fnty = Value.Pi(genty, paramty, rety)
             fnty = Value.Pi(genty, tvs, tv)
             sym = Symbol.Func(self.fn.id, fnty, self, global)
+        self.fn.id.typ = fnty
+        if self.kind == TermKind.Funcdef:
+            let s = env.popScope
+            env.addIdent(self.fn.id, sym)
+            env.pushScope(s)
         # for (p, v) in paramty.zip(tvs):
         #     env.coerceEq(v, p)
         # env.coerceEq(tv, rety)
@@ -960,9 +948,6 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
                 discard
         else:
             env.coerceRelation(inferedRety, rety)
-        self.fn.id.typ = fnty
-        if self.kind == TermKind.Funcdef:
-            env.addIdent(self.fn.id, sym)
         Value.Unit
     of TermKind.FunctionInst:
         let
@@ -974,29 +959,29 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
         for (g, t) in funty.gentyinst.zip(types):
             env.coerceEq(g, t)
         funty
-    # of TermKind.If:
-    #     let
-    #         conds = self.`elif`.mapIt(it[0].typeInfer(env, global))
-    #         thents = self.`elif`.mapIt(
-    #             block:
-    #                 env.pushScope it[1].scope
-    #                 let body = it[1].term.typeInfer(env, global)
-    #                 env.popScope
-    #                 body
-    #             )
-    #         elset = block:
-    #             env.pushScope self.`else`.scope
-    #             let body = self.`else`.term.typeInfer(env, global)
-    #             env.popScope
-    #             body
-    #         tv = Value.Var
-    #     for cond in conds:
-    #         env.coerceRelation(cond, Value.Bool)
-    #         env.coerceRelation(Value.Bool, cond)
-    #     for thent in thents:
-    #         env.coerceRelation(thent, tv)
-    #     env.coerceRelation(elset, tv)
-    #     tv
+    of TermKind.If:
+        let
+            conds = self.`elif`.mapIt(it[0].typeInfer(env, global))
+            thents = self.`elif`.mapIt(
+                block:
+                    env.pushScope it[1].scope
+                    let body = it[1].term.typeInfer(env, global)
+                    env.popScope
+                    body
+                )
+            elset = block:
+                env.pushScope self.`else`.scope
+                let body = self.`else`.term.typeInfer(env, global)
+                env.popScope
+                body
+            tv = Value.Var(env)
+        for cond in conds:
+            env.coerceRelation(cond, Value.Bool)
+            env.coerceRelation(Value.Bool, cond)
+        for thent in thents:
+            env.coerceRelation(thent, tv)
+        env.coerceRelation(elset, tv)
+        tv
     # of TermKind.When:
     #     Value.Unit
     of TermKind.Case:
@@ -1005,16 +990,21 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
     #     Value.Unit
     # of TermKind.For:
     #     Value.Unit
-    # of TermKind.Loop:
-    #     Value.Unit
-    # of TermKind.Block:
-    #     Value.Unit
-    # of TermKind.Asign:
-    #     let
-    #         pat = self.pat.typeInferP(env, global)
-    #         val = self.val.typeInfer(env, global)
-    #     env.coerceRelation(val, pat)
-    #     Value.Unit
+    of TermKind.Loop:
+        Value.Unit
+    of TermKind.Block:
+        let
+            b = self.`block`
+        env.pushScope(b.scope)
+        let a = b.term.typeInfer(env)
+        env.popScope
+        a
+    of TermKind.Asign:
+        let
+            pat = self.pat.typeInfer(env, global)
+            val = self.val.typeInfer(env, global)
+        env.coerceRelation(val, pat)
+        Value.Unit
     of TermKind.Typeof:
         Value.Typedesc(self.term.typeInfer(env, global))
     of TermKind.Malloc:
@@ -1045,6 +1035,8 @@ proc typeInfer*(self: Term, env: TypeEnv, global: bool = false): ref Value =
                 if callee.kind == ValueKind.Intersection:
                     env.coerceRelation(tv, Value.Union(callee.types.filter(it => it.kind == ValueKind.Pi).map(it => it.rety)))
                 else:
+                    echo self.callee
+                    echo callee
                     env.coerceRelation(tv, callee.rety)
                 tv
         else:
@@ -1129,8 +1121,8 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
         self.check(Value.U)
     of TermKind.U:
         self.check(Value.U(1))
-    # of TermKind.Bool:
-    #     self.check(Value.Bool)
+    of TermKind.Bool:
+        self.check(Value.Bool)
     of TermKind.Integer:
         self.check(Value.Integer(self.bits))
     of TermKind.Float:
@@ -1154,7 +1146,7 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
         # self.terms.mapIt(it.typeCheck(env)).flatten & self.check(self.terms.mapIt(it.typ).foldr(Value.Sigma(a, b)))
     of TermKind.Record:
         toSeq(self.members.values).mapIt(it.typeCheck(env)).flatten & self.check(Value.Record(toSeq(self.members.pairs).mapIt((it[0], it[1].typ)).toTable))
-    of TermKind.Let:
+    of TermKind.Let, TermKind.Var:
         var ret: seq[Error]
         # for iddef in self.iddefs.mitems:
         let
@@ -1179,19 +1171,6 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
         else:
             assert impl.typ == pat.typ, fmt"{impl.typ} == {pat.typ}"
         self.check(Value.Unit) & ret
-    # of TermKind.Var:
-    #     let
-    #         id = self.iddef.id
-    #         impl = self.iddef.default.get
-    #         ret = id.typeCheck(env) & impl.typeCheck(env)
-    #     assert impl.typ <= id.typ, fmt"{impl.typ} <= {id.typ}"
-    #     if impl.typ != id.typ and impl.typ <= id.typ:
-    #         let
-    #             fn = env.lookupConverter(impl.typ, id.typ)
-    #             impl = Term.Apply(fn, @[impl])
-    #         impl.typ = id.typ
-    #         self.iddef.default = some impl
-    #     self.check(Value.Unit) & ret
     of TermKind.Const:
         var ret: seq[Error]
         # for iddef in self.iddefs.mitems:
@@ -1261,31 +1240,31 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
         self.check(Value.Unit) & ret
     of TermKind.FunctionInst:
         @[]
-    # of TermKind.If:
-    #     let
-    #         conds = self.`elif`.mapIt(it[0].typeCheck(env))
-    #         thens = self.`elif`.mapIt(
-    #             block:
-    #                 env.pushScope it[1].scope
-    #                 let res = it[1].term.typeCheck(env)
-    #                 env.popScope
-    #                 res
-    #         )
-    #         elset = block:
-    #             env.pushScope self.`else`.scope
-    #             let res = self.`else`.term.typeCheck(env)
-    #             env.popScope
-    #             res
-    #         condtypes = self.`elif`.mapIt(it[0].typ)
-    #         thentypes = self.`elif`.mapIt(it[1].term.typ)
-    #         elsetype = self.`else`.term.typ
-    #     for cond in condtypes:
-    #         assert cond == Value.Bool
-    #     # for thent in thents:
-    #     #     env.coerceRelation(thent, tv)
-    #     # env.coerceRelation(elset, tv)
-    #     # tv
-    #     conds.flatten & thens.flatten & elset
+    of TermKind.If:
+        let
+            conds = self.`elif`.mapIt(it[0].typeCheck(env))
+            thens = self.`elif`.mapIt(
+                block:
+                    env.pushScope it[1].scope
+                    let res = it[1].term.typeCheck(env)
+                    env.popScope
+                    res
+            )
+            elset = block:
+                env.pushScope self.`else`.scope
+                let res = self.`else`.term.typeCheck(env)
+                env.popScope
+                res
+            condtypes = self.`elif`.mapIt(it[0].typ)
+            thentypes = self.`elif`.mapIt(it[1].term.typ)
+            elsetype = self.`else`.term.typ
+        for cond in condtypes:
+            assert cond == Value.Bool
+        # for thent in thents:
+        #     env.coerceRelation(thent, tv)
+        # env.coerceRelation(elset, tv)
+        # tv
+        conds.flatten & thens.flatten & elset
     # of TermKind.When:
     #     self.check(Value.Unit)
     of TermKind.Case:
@@ -1294,21 +1273,21 @@ proc typeCheck(self: Term, env: TypeEnv, gen: bool = false): seq[Error] =
     #     self.check(Value.Unit)
     # of TermKind.For:
     #     self.check(Value.Unit)
-    # of TermKind.Loop:
-    #     self.check(Value.Unit)
-    # of TermKind.Block:
-    #     self.check(Value.Unit)
-    # of TermKind.Asign:
-    #     let
-    #         ret = self.pat.typeCheck(env) & self.val.typeCheck(env)
-    #     assert self.val.typ <= self.pat.typ, fmt"{self.val.typ} <= {self.pat.typ}"
-    #     if self.val.typ != self.pat.typ and self.val.typ <= self.pat.typ:
-    #         let
-    #             fn = env.lookupConverter(self.val.typ, self.pat.typ)
-    #             val = Term.Apply(fn, @[self.val])
-    #         val.typ = self.pat.typ
-    #         self.val = val
-    #     self.check(Value.Unit) & ret
+    of TermKind.Loop:
+        self.check(Value.Unit)
+    of TermKind.Block:
+        @[]
+    of TermKind.Asign:
+        let
+            ret = self.pat.typeCheck(env) & self.val.typeCheck(env)
+        assert self.val.typ <= self.pat.typ, fmt"{self.val.typ} <= {self.pat.typ}"
+        if self.val.typ != self.pat.typ and self.val.typ <= self.pat.typ:
+            let
+                fn = env.lookupConverter(self.val.typ, self.pat.typ)
+                val = Term.Apply(fn, @[self.val])
+            val.typ = self.pat.typ
+            self.val = val
+        self.check(Value.Unit) & ret
     of TermKind.Typeof:
         self.check(Value.Typedesc(self.term.typ)) & self.term.typeCheck(env)
     of TermKind.Malloc:

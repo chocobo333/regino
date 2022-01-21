@@ -21,6 +21,8 @@ type
         type2llvmType*: Table[ref Value, LType]
         linkModules*: seq[LModule]
         linkFuncs*: seq[LValue]
+        malloc: FunctionValue
+        targetdata: TargetData
 #         scopes*: Scope
 #     Scope* = ref object
 #         parent*: Scope
@@ -32,13 +34,20 @@ type
 #         vars: initTable[string, (LType, LValue)]()
 #     )
 proc newModule*(name: string = "main"): Module =
-    let cxt = newContext()
-    Module(
-        module: llvm.newModule(name, cxt),
+    let
+        cxt = newContext()
+        module = llvm.newModule(name, cxt)
+        pty = pointerType(cxt.intType(8))
+        fnty = functionType(pty, @[cast[LType](cxt.intType(32))])
+        fn = module.addFunction("malloc", fnty)
+    result = Module(
+        module: module,
         cxt: cxt,
         curBuilder: newBuilder(cxt),
         type2llvmType: initTable[ref Value, LType](),
         # scopes: newScope()
+        malloc: fn,
+        targetdata: module.targetData
     )
 # proc pushScope(self: Module) =
 #     self.scopes = newScope(self.scopes)
@@ -61,8 +70,8 @@ proc newLType(typ: ref Value, module: Module): LType =
     case typ.kind
     of il.ValueKind.Unit:
         cxt.voidType()
-    # of il.ValueKind.Bool:
-    #     cxt.intType(1)
+    of il.ValueKind.Bool:
+        cxt.intType(1)
     of il.ValueKind.Integer:
         cxt.intType(typ.bits)
     of il.ValueKind.Float:
@@ -72,6 +81,8 @@ proc newLType(typ: ref Value, module: Module): LType =
             strtyp = cxt.createStruct("string")
             strtyp.body = @[pointerType(cxt.intType(8)), cxt.intType(32), cxt.intType(32)]
         strtyp
+    of il.ValueKind.Ptr:
+        pointerType(newLType(typ.pointee, module))
     of il.ValueKind.Pair:
         cxt.createStruct(@[typ.first.newLType(module), typ.second.newLType(module)])
     of il.ValueKind.Record:
@@ -166,11 +177,11 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         nil
     of TermKind.Unit:
         nil
-    # of TermKind.Bool:
-    #     let
-    #         b = self.boolval
-    #         boolty = newLType(Value.Bool, module)
-    #     boolty.constInt(if b: 1 else: 0)
+    of TermKind.Bool:
+        let
+            b = self.boolval
+            boolty = newLType(Value.Bool, module)
+        boolty.constInt(if b: 1 else: 0)
     of TermKind.Integer:
         let
             i = self.intval
@@ -253,7 +264,7 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
         for (i, term) in toSeq(self.members.values).pairs:
             ret = module.curBuilder.insertvalue(ret, term.codegen(module, global), i, $term)
         ret
-    of TermKind.Let:
+    of TermKind.Let, TermKind.Var:
         # for iddef in self.iddefs:
         let
             iddef = self.iddef
@@ -413,48 +424,53 @@ proc codegen*(self: Term, module: Module, global: bool = false, lval: bool = fal
     #         container = self.container
     #         index = self.index
     #     module.curBuilder.extractvalue(container.codegen(module), index, $self)
-    # of TermKind.If:
-    #     var
-    #         thenbs = self.`elif`.mapIt(module.curFun.appendBasicBlock("then"))
-    #         elseb = module.curFun.appendBasicBlock("else")
-    #         ifcont = module.curFun.appendBasicBlock("ifcont")
+    of TermKind.If:
+        var
+            thenbs = self.`elif`.mapIt(module.curFun.appendBasicBlock("then"))
+            elseb = module.curFun.appendBasicBlock("else")
+            ifcont = module.curFun.appendBasicBlock("ifcont")
 
-    #         thenvs: seq[LValue] = @[]
+            thenvs: seq[LValue] = @[]
 
-    #     for i in 0..<thenbs.len:
-    #         if i == thenbs.len-1:
-    #             discard module.curBuilder.condBr(self.`elif`[i][0].codegen(module), thenbs[i], elseb)
-    #         else:
-    #             var elifb = module.curFun.appendBasicBlock("elif")
-    #             discard module.curBuilder.condBr(self.`elif`[i][0].codegen(module), thenbs[i], elifb)
-    #             module.curBuilder.atEndOf(elifb)
-    #             module.curBB = elifb
-    #     for i in 0..<thenbs.len:
-    #         module.curBuilder.atEndOf(thenbs[i])
-    #         module.curBB = thenbs[i]
-    #         let thenv = self.`elif`[i][1].term.codegen(module)
-    #         thenvs.add thenv
-    #         module.curBuilder.br(ifcont)
+        for i in 0..<thenbs.len:
+            if i == thenbs.len-1:
+                discard module.curBuilder.condBr(self.`elif`[i][0].codegen(module), thenbs[i], elseb)
+            else:
+                var elifb = module.curFun.appendBasicBlock("elif")
+                discard module.curBuilder.condBr(self.`elif`[i][0].codegen(module), thenbs[i], elifb)
+                module.curBuilder.atEndOf(elifb)
+                module.curBB = elifb
+        for i in 0..<thenbs.len:
+            module.curBuilder.atEndOf(thenbs[i])
+            module.curBB = thenbs[i]
+            let thenv = self.`elif`[i][1].term.codegen(module)
+            thenvs.add thenv
+            module.curBuilder.br(ifcont)
 
-    #     module.curBuilder.atEndOf(elseb)
-    #     module.curBB = elseb
-    #     let elsev = self.`else`.term.codegen(module)
-    #     module.curBuilder.br(ifcont)
+        module.curBuilder.atEndOf(elseb)
+        module.curBB = elseb
+        let elsev = self.`else`.term.codegen(module)
+        module.curBuilder.br(ifcont)
 
-    #     module.curBuilder.atEndOf(ifcont)
-    #     module.curBB = ifcont
-    #     if self.typ == Value.Unit:
-    #         nil
-    #     else:
-    #         let phi = module.curBuilder.phi(newLType(self.typ, module), "")
-    #         phi.addIncoming(thenvs.zip(thenbs) & @[(elsev, elseb)])
-    #         phi
-    # of TermKind.Asign:
-    #     let
-    #         sym = self.pat.sym
-    #         name = self.pat.name
-    #     discard module.curBuilder.store(self.val.codegen(module, global), self.pat.codegen(module, global, lval=true), $self)
-    #     nil
+        module.curBuilder.atEndOf(ifcont)
+        module.curBB = ifcont
+        if self.typ == Value.Unit:
+            nil
+        else:
+            let phi = module.curBuilder.phi(newLType(self.typ, module), "")
+            phi.addIncoming(thenvs.zip(thenbs) & @[(elsev, elseb)])
+            phi
+    of TermKind.Asign:
+        let
+            sym = self.pat.sym
+            name = self.pat.name
+        discard module.curBuilder.store(self.val.codegen(module, global), self.pat.codegen(module, global, lval=true), $self)
+        nil
+    of TermKind.Malloc:
+        let
+            size = module.targetdata.sizeofT(newLType(self.typ, module)) div 8
+            p = module.curBuilder.call(module.malloc, @[module.cxt.intType(32).constInt((size * self.mallocsize.intval.uint).int)])
+        module.curBuilder.bitcast(p, newLType(self.typ, module))
     of TermKind.Discard:
         discard self.term.codegen(module)
         nil

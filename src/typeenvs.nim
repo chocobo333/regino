@@ -168,7 +168,7 @@ proc inst*(typ: ref Value, env: TypeEnv, subs: Table[GenType, ref Value] = initT
     result = case typ.kind
     of ValueKind.Bottom..ValueKind.String:
         typ.deepCopy
-    of ValueKind.IntV..ValueKind.StringV:
+    of ValueKind.BoolV..ValueKind.StringV:
         typ.deepCopy
     # of ValueKind.List:
     #     nil
@@ -259,8 +259,8 @@ proc inst*(t: Term): Term =
         Term.Unit
     of TermKind.U:
         Term.U(t.level)
-    # of TermKind.Bool:
-    #     $self.boolval
+    of TermKind.Bool:
+        Term.Bool(t.boolval)
     of TermKind.Integer:
         Term.Integer(t.intval, t.bits)
     of TermKind.Float:
@@ -282,8 +282,8 @@ proc inst*(t: Term): Term =
         Term.Record(t.members.map(it => it.inst))
     of TermKind.Let:
         Term.Let(t.iddef.inst)
-    # of TermKind.Var:
-    #     fmt"var {self.iddef}"
+    of TermKind.Var:
+        Term.Var(t.iddef.inst)
     of TermKind.Const:
         Term.Const(t.iddef.inst)
     # of TermKind.Typedef:
@@ -293,11 +293,8 @@ proc inst*(t: Term): Term =
         Term.Funcdef(t.fn.inst)
     of TermKind.FunctionInst:
         Term.FunctionInst(t.pfn, t.instargs.map(inst))
-    # of TermKind.If:
-    #     let
-    #         elift = self.`elif`.mapIt(&"elif {it[0]}:\n{($it[1]).indent(2)}").join("\n")[2..^1]
-    #         elset = ($self.`else`).indent(2)
-    #     &"{elift}\nelse:\n{elset}"
+    of TermKind.If:
+        Term.If(t.`elif`.mapIt((it[0].inst, it[1].inst)), t.`else`.inst)
     # of TermKind.When:
     #     ""
     of TermKind.Case:
@@ -306,14 +303,12 @@ proc inst*(t: Term): Term =
     #     ""
     # of TermKind.For:
     #     ""
-    # of TermKind.Loop:
-    #     let s = $self.body
-    #     &"loop {self.label}\n{s.indent(2)}"
-    # of TermKind.Block:
-    #     let s = $self.body
-    #     &"block {self.label}\n{s.indent(2)}"
-    # of TermKind.Asign:
-    #     fmt"{self.pat} = {self.val}"
+    of TermKind.Loop:
+        Term.Loop(t.label, t.`block`.inst)
+    of TermKind.Block:
+        Term.Block(t.label, t.`block`.inst)
+    of TermKind.Asign:
+        Term.Asign(t.pat.inst, t.val.inst)
     of TermKind.Typeof:
         Term.Typeof(t.term.inst)
     of TermKind.Malloc:
