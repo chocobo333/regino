@@ -18,6 +18,7 @@ type
         Let
         Var
         Const
+        Typedef
         Asign
         Funcdef
         Meta
@@ -25,14 +26,16 @@ type
     Statement* = ref StatementObject
     StatementObject = object
         loc*: Location
-        case kind: StatementKind
+        case kind*: StatementKind
         of StatementKind.Block, StatementKind.Loop:
-            label*: Ident
+            label*: Option[Ident]
             `block`*: Suite
         of StatementKind.While:
             branch*: ElifBranch
         of StatementKind.Let, StatementKind.Var, StatementKind.Const:
             iddef*: IdentDef
+        of StatementKind.Typedef:
+            iddefs*: seq[IdentDef]
         of StatementKind.For, StatementKind.Asign:
             pat*: Pattern
             val*: Expression
@@ -42,9 +45,9 @@ type
         of StatementKind.Meta:
             meta*: Metadata
         of StatementKind.Expression:
-            expression: Expression
+            expression*: Expression
     Suite* = object
-        stms*: seq[Statement]
+        stmts*: seq[Statement]
         scope*: Scope
     ElifBranch* = tuple[cond: Expression, suite: Suite]
     ElseBranch* = Suite
@@ -83,16 +86,16 @@ type
     ExpressionObject = object
         loc*: Location
         typ*: Value
-        case kind: ExpressionKind
+        case kind*: ExpressionKind
         of ExpressionKind.Literal:
-            val: Literal
+            litval*: Literal
         of ExpressionKind.Ident:
             ident*: Ident
         of ExpressionKind.Pair:
             first*: Expression
             second*: Expression
         of ExpressionKind.Record:
-            members*: Table[string, Expression]
+            members*: seq[(string, Expression)]
         of ExpressionKind.If:
             elifs*: seq[ElifBranch]
             elseb*: ElseBranch
@@ -108,7 +111,7 @@ type
         of ExpressionKind.Malloc:
             mtype*: Expression
             msize*: Expression
-    LiteralKind {.pure.} = enum
+    LiteralKind* {.pure.} = enum
         unit
         bool
         integer
@@ -118,23 +121,23 @@ type
         Univ
     Literal* = ref LiteralObject
     LiteralObject = object
-        case kind: LiteralKind
+        case kind*: LiteralKind
         of LiteralKind.unit:
             nil
         of LiteralKind.bool:
-            boolval: bool
+            boolval*: bool
         of LiteralKind.integer:
-            intval: BiggestInt
-            intbits: uint
+            intval*: BiggestInt
+            intbits*: uint
         of LiteralKind.float:
-            floatval: BiggestFloat
-            floatbits: uint
+            floatval*: BiggestFloat
+            floatbits*: uint
         of LiteralKind.char:
-            charval: char
+            charval*: char
         of LiteralKind.string:
-            strval: string
+            strval*: string
         of LiteralKind.Univ:
-            level: uint
+            level*: uint
     Ident* = object
         name*: string
         loc*: Location
@@ -148,17 +151,17 @@ type
         UnderScore
     Pattern* = ref PatternObject
     PatternObject = object
-        case kind: PatternKind
+        case kind*: PatternKind
         of PatternKind.Literal:
             litval*: Literal
         of PatternKind.Ident:
-            ident: Ident
+            ident*: Ident
         of PatternKind.Dot:
-            cls*: Pattern
-            member*: Ident
+            lhs*: Pattern
+            rhs*: Ident
         of PatternKind.Bracket:
-            container*: Pattern
-            accessor*: seq[Expression]
+            callee*: Pattern
+            args*: seq[Expression]
         of PatternKind.Pair:
             first*: Pattern
             second*: Pattern
@@ -175,7 +178,7 @@ type
             nil
         of MetadataKind.Userdef:
             name*: string
-        param*: seq[Expression]
+        params*: seq[Expression]
     ValueKind {.pure.} = enum
         Literal
         Bottom

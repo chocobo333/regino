@@ -16,3 +16,14 @@ proc string*(_: typedesc[Literal], val: string): Literal =
     Literal(kind: LiteralKind.string, strval: val)
 proc Univ*(_: typedesc[Literal], level: uint): Literal =
     Literal(kind: LiteralKind.Univ, level: level)
+
+converter toLiteral*(self: bool): Literal =
+    Literal.bool(self)
+converter toLiteral*(self: int): Literal =
+    Literal.integer(self)
+converter toLiteral*(self: float): Literal =
+    Literal.float(self)
+converter toLiteral*(self: char): Literal =
+    Literal.char(self)
+converter toLiteral*(self: string): Literal =
+    Literal.string(self)
