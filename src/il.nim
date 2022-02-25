@@ -24,7 +24,8 @@ type
     TermKind* {.pure.} = enum
         Failed
         bottom
-        `()`    # is term, `()`: Unit: U
+        Bottom
+        unit
         Unit    # is type
         U       # Universe_0 or Type_0
         Bool
@@ -33,22 +34,19 @@ type
         Char
         String
         Id
-        # Lambda
-        # List
+        Lambda
+        Array
         Tuple
         Record  # named tuple
         Let
         Var
         Const
-        # Typedef
         Funcdef
-        FuncdefInst
-        FunctionInst
         If
-        # When
+        When
         Case
-        # While
-        # For
+        While
+        For
         Loop
         Block
         Asign
@@ -56,14 +54,105 @@ type
         Malloc
         Discard
         Apply
-        # Projection
         Meta
         Seq
-        Us
 
+    Term* = ref TermObject # not nil
+    TermObject = object
+        loc*: Location
+        typ*: ref Value
+        inserted*: bool
+        case kind*: TermKind
+        of TermKind.Failed:
+            nil
+        of TermKind.bottom, TermKind.Bottom:
+            nil
+        of TermKind.unit, TermKind.Unit:
+            nil
+        of TermKind.U:
+            level*: int
+        of Bool:
+            boolval*: bool
+        of Integer:
+            intval*: BiggestInt
+            bits*: uint
+        of Float:
+            floatval*: BiggestFloat
+        of Char:
+            charval*: char
+        of String:
+            strval*: string
+        of TermKind.Id:
+            name*: string
+        of Lambda:
+            param*: IdentDefs
+            body*: Body
+        of Seq, TermKind.Tuple, TermKind.Array:
+            terms*: seq[Term]
+        of TermKind.Record:
+            members*: Table[string, Term]
+        of Let, Var, Const:
+            iddef*: IdentDef
+        of Funcdef, FuncdefInst:
+            fn*: Function
+        of FunctionInst:
+            pfn*: Term
+            instargs*: seq[Term]
+        of If, When:
+            `elif`*: seq[(Term, Body)]
+            `else`*: Body
+        of Case:
+            matcher*: Term
+            branches*: seq[(Term, Term)]
+        of While:
+            cond*: Term
+            wbody*: Body
+        of Loop, Block:
+            label*: Ident
+            `block`*: Body
+        of For, Asign:
+            pat*: Term
+            val*: Term
+            forbody*: Body # for For
+        of Typeof, TermKind.Discard:
+            term*: Term
+        of Malloc:
+            malloctype*: Term
+            mallocsize*: Term
+        of Apply:
+            callee*: Term
+            args*: seq[Term]
+        # of Projection:
+        #     container*: Term
+        #     index*: range[0..1]
+        of TermKind.Meta:
+            metadata*: Metadata
+
+    PatternKind* {.pure.} = enum
+        Ident
+        Dot
+        Bracket
+        Pair
+        UnderScore
+    Pattern* = ref PatternObject
+    PatternObject = object
+        case kind: PatternKind
+        of PatternKind.Ident:
+            ident: Ident
+        of PatternKind.Dot:
+            cls*: Pattern
+            member*: Ident
+        of PatternKind.Bracket:
+            container*: Pattern
+            accessor*: seq[Term]
+        of PatternKind.Pair:
+            first*: Pattern
+            second*: Pattern
+        of PatternKind.UnderScore:
+            nil
     IdentDefs* = seq[IdentDef]
     IdentDef* = object
-        pat*: Term
+        pat*: Pattern
         typ*: Option[Term]
         default*: Option[Term]
     Ident* = ref TermObject # not nil  # suppose to be of TermKind.Id Pattern?
@@ -110,86 +199,9 @@ type
     FunctionMetadata* = ImportLL..ImportLL
     NoBodyMetadata* = ImportLL..ImportLL
 
-    Term* = ref TermObject # not nil
-    TermObject = object
-        loc*: Location
-        typ*: ref Value
-        inserted*: bool
-        case kind*: TermKind
-        of TermKind.Failed:
-            nil
-        of TermKind.bottom:
-            nil
-        of TermKind.`()`, TermKind.Unit:
-            nil
-        of TermKind.U:
-            level*: int
-        of Bool:
-            boolval*: bool
-        of Integer:
-            intval*: BiggestInt
-            bits*: uint
-        of Float:
-            floatval*: BiggestFloat
-        of Char:
-            charval*: char
-        of String:
-            strval*: string
-        of TermKind.Id:
-            name*: string
-        # of Lambda:
-        #     param*: IdentDefs
-        #     body*: Body
-        # of Seq, TermKind.Tuple, TermKind.List:
-        of Seq, TermKind.Tuple:
-            terms*: seq[Term]
-        of TermKind.Record:
-            members*: Table[string, Term]
-        of Let, Var, Const:
-            iddef*: IdentDef
-        # of Typedef:
-        #     typedefs*: IdentDefs
-        of Funcdef, FuncdefInst:
-            fn*: Function
-        of FunctionInst:
-            pfn*: Term
-            instargs*: seq[Term]
-        of If: # When
-            `elif`*: seq[(Term, Body)]
-            `else`*: Body
-        of Case:
-            matcher*: Term
-            branches*: seq[(Term, Term)]
-        # of While:
-        #     cond*: Term
-        #     wbody*: Body
-        of Loop, Block:
-            label*: Ident
-            `block`*: Body
-        # of For, Asign:
-        of Asign:
-            pat*: Term
-            val*: Term
-            # forbody*: Body # for For
-        of Typeof, TermKind.Discard:
-            term*: Term
-        of Malloc:
-            malloctype*: Term
-            mallocsize*: Term
-        of Apply:
-            callee*: Term
-            args*: seq[Term]
-        # of Projection:
-        #     container*: Term
-        #     index*: range[0..1]
-        of TermKind.Meta:
-            metadata*: Metadata
-        of TermKind.Us:
-            nil
-
     ValueKind* {.pure.} = enum
         Bottom
-        `()` # (): unit: U
+        unit
         Unit
         U
         Bool
@@ -197,15 +209,15 @@ type
         Float
         Char
         String
-        # List
+        Array
         Ptr
         Pair
-        # Tuple
         Record  # named tuple
         Pi
-        # Sigma
+        Sum
+        Trait
         Typedesc # singleton
-        # Distinct
+        Distinct
         Var
         Intersection
         Union
@@ -228,7 +240,7 @@ type
         # name: string # TODO:
         case kind*: ValueKind
         # of Bottom, Top, ValueKind.Unit, ValueKind.Bool, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
-        of Bottom, ValueKind.`()`, ValueKind.Unit, ValueKind.Bool, ValueKind.Float, ValueKind.Char, ValueKind.String:
+        of ValueKind.Bottom, ValueKind.unit, ValueKind.Unit, ValueKind.Bool, ValueKind.Float, ValueKind.Char, ValueKind.String:
             nil
         of ValueKind.Integer:
             bits*: uint
