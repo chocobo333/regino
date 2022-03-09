@@ -31,8 +31,14 @@ proc `$`*(self: Literal): string =
         self.strval.escape
     of LiteralKind.Univ:
         fmt"Type{self.level}"
+import nre
 proc `$`*(self: Ident): string =
-    self.name
+    let
+        re = re"(*UTF8)^[_\p{L}\p{Nl}ー][_\p{L}\p{N}ー]*$"
+    if self.name.match(re).isSome:
+        self.name
+    else:
+        fmt"`{self.name}`"
 proc `$`*(self: Suite): string =
     self.stmts.map(`$`).join("\n").indent(2)
 proc `$`*(self: ElifBranch): string =
@@ -44,28 +50,48 @@ proc `$`*(self: Expression): string =
         $self.litval
     of ExpressionKind.Ident:
         $self.ident
-    of ExpressionKind.Pair:
-        fmt"({self.first}, {self.second})"
+    of ExpressionKind.Tuple:
+        let s = self.exprs.join(", ")
+        fmt"({s})"
+    of ExpressionKind.Seq:
+        let s = self.exprs.join(", ")
+        fmt"[{s}]"
     of ExpressionKind.Record:
         let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
         fmt"({members})"
     of ExpressionKind.If:
         let
             elifs = self.elifs.map(`$`).join("\n")[2..^1]
-            elseb = $self.elseb
-        &"{elifs}\nelse\n{elseb}"
+            elseb = if self.elseb.isSome:
+                &"\nelse\n{self.elseb.get}"
+            else:
+                ""
+        &"{elifs}{elseb}"
     of ExpressionKind.Case:
         ""
-    of ExpressionKind.Apply:
+    of ExpressionKind.Call:
         let args = self.args.join(", ")
         fmt"{self.callee}({args})"
+    of ExpressionKind.Command:
+        let args = self.args.join(", ")
+        fmt"{self.callee} {args}"
     of ExpressionKind.Dot:
         fmt"{self.lhs}.{self.rhs}"
+    of ExpressionKind.Binary:
+        fmt"{self.lhs} {self.op} {self.rhs}"
+    of ExpressionKind.Prefix:
+        fmt"{self.op}{self.expression}"
+    of ExpressionKind.Postfix:
+        fmt"{self.expression}{self.op}"
     of ExpressionKind.Bracket:
         let args = self.args.join(", ")
         fmt"{self.callee}[{args}]"
     of ExpressionKind.Malloc:
         fmt"malloc({self.mtype}, {self.msize})"
+    of ExpressionKind.Typeof:
+        fmt"typeof({self.`typeof`})"
+    of ExpressionKind.Fail:
+        fmt"failed term"
 proc `$`*(self: Metadata): string =
     let params =
         if self.params.len == 0:
@@ -93,8 +119,12 @@ proc `$`*(self: Pattern): string =
     of PatternKind.Bracket:
         let args = self.args.join(", ")
         fmt"{self.callee}[{args}]"
-    of PatternKind.Pair:
-        fmt"({self.first}, {self.second})"
+    of PatternKind.Tuple:
+        let s = self.patterns.map(`$`).join(", ")
+        fmt"({s})"
+    of PatternKind.Record:
+        let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+        fmt"({members})"
     of PatternKind.UnderScore:
         "_"
 proc `$`*(self: IdentDef): string =
@@ -105,10 +135,15 @@ proc `$`*(self: IdentDef): string =
     pat & typ & default
 proc `$`*(self: FunctionParam): string =
     let
-        implicit = self.implicit.map(`$`).join(", ")
+        implicit = block:
+            let imp = self.implicit.map(`$`).join(", ")
+            if self.implicit.len == 0:
+                ""
+            else:
+                fmt"[{imp}]"
         params = self.params.map(`$`).join(", ")
         rety = if self.rety.isNone: "" else: fmt" -> {self.rety.get}"
-    fmt"[implicit](params){rety}"
+    fmt"{implicit}({params}){rety}"
 proc `$`*(self: Function): string =
     let
         metadata = if self.metadata.isNone: "" else: fmt" {self.metadata.get}"
@@ -130,25 +165,37 @@ proc `$`*(self: Statement): string =
             &"loop\n{self.`block`}"
         else:
             &"loop {self.label.get}\n{self.`block`}"
-    of StatementKind.Let:
-        fmt"let {self.iddef}"
-    of StatementKind.Var:
-        fmt"var {self.iddef}"
-    of StatementKind.Const:
-        fmt"const {self.iddef}"
-    of StatementKind.Typedef:
+    of StatementKind.LetSection:
+        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
+        &"let\n{iddefs}"
+    of StatementKind.VarSection:
+        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
+        &"var\n{iddefs}"
+    of StatementKind.ConstSection:
+        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
+        &"const\n{iddefs}"
+    of StatementKind.TypeSection:
         let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
         &"type\n{iddefs}"
     of StatementKind.Asign:
         fmt"{self.pat} = {self.val}"
     of StatementKind.Funcdef:
-        ""
+        $self.fn
     of StatementKind.Meta:
         $self.meta
+    of StatementKind.Discard:
+        if self.`discard`.isSome:
+            fmt"discard {self.`discard`.get}"
+        else:
+            fmt"discard"
+    of StatementKind.Comments:
+        "#" & self.comments.join("\n#")
     of StatementKind.Expression:
         $self.expression
+    of StatementKind.Fail:
+        "failed term"
 proc `$`*(self: Program): string =
-    "program"
+    self.map(`$`).join("\n")
 
 when isMainModule:
     import stmts
@@ -158,11 +205,11 @@ when isMainModule:
     import suites
     import branches
     let
-        a = Expression.Ident("a")
+        a = Expression.Id("a")
         b = Expression.literal(3)
         c = Expression.Dot(a, b)
         d = Expression.Bracket(c, [a, b])
-        e = Expression.If([newElif(a, @[Statement a])], newSuite([Statement a]))
+        e = Expression.If([newElif(a, @[Statement a])], some newSuite([Statement a]))
     echo c
     echo d
     echo e

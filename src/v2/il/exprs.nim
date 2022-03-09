@@ -1,25 +1,43 @@
 
+import options
+
 import il
 import ../lineinfos
 
 
 proc literal*(_: typedesc[Expression], val: Literal, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Literal, litval: val, loc: loc)
-proc Ident*(_: typedesc[Expression], ident: Ident, loc: Location = newLocation()): Expression =
+proc Id*(_: typedesc[Expression], ident: Ident, loc: Location = ident.loc): Expression =
     Expression(kind: ExpressionKind.Ident, ident: ident, loc: loc)
-proc Pair*(_: typedesc[Expression], first, second: Expression, loc: Location = newLocation()): Expression =
-    Expression(kind: ExpressionKind.Pair, first: first, second: second, loc: loc)
+proc Tuple*(_: typedesc[Expression], exprs: seq[Expression], loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Tuple, exprs: exprs, loc: loc)
+proc Seq*(_: typedesc[Expression], exprs: seq[Expression], loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Seq, exprs: exprs, loc: loc)
 proc Record*(_: typedesc[Expression], members: seq[(string, Expression)], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Record, members: members, loc: loc)
-proc If*(_: typedesc[Expression], elifs: openArray[ElifBranch], elseb: ElseBranch, loc: Location = newLocation()): Expression =
+proc If*(_: typedesc[Expression], elifs: openArray[ElifBranch], elseb: Option[ElseBranch], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.If, elifs: @elifs, elseb: elseb, loc: loc)
 proc Case*(_: typedesc[Expression], ofs: seq[OfBranch], default: ElseBranch, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Case, ofs: ofs, default: default, loc: loc)
-proc Apply*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
-    Expression(kind: ExpressionKind.Apply, callee: callee, args: @args, loc: loc)
-proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, loc: Location = newLocation()): Expression =
+proc Call*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Call, callee: callee, args: @args, loc: loc)
+proc Command*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Command, callee: callee, args: @args, loc: loc)
+proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, loc: Location = newLocation(lhs.loc.uri, lhs.loc.range.a, rhs.loc.range.b)): Expression =
     Expression(kind: ExpressionKind.Dot, lhs: lhs, rhs: rhs, loc: loc)
+proc Binary*(_: typedesc[Expression], op: Ident, lhs, rhs: Expression, loc: Location = newLocation(lhs.loc.uri, lhs.loc.range.a, rhs.loc.range.b)): Expression =
+    Expression(kind: ExpressionKind.Binary, op: op, lhs: lhs, rhs: rhs, loc: loc)
+proc Prefix*(_: typedesc[Expression], op: Ident, expression: Expression, loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Prefix, op: op, expression: expression, loc: loc)
+proc Postfix*(_: typedesc[Expression], op: Ident, expression: Expression, loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Postfix, op: op, expression: expression, loc: loc)
 proc Bracket*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Bracket, callee: callee, args: @args, loc: loc)
 proc Malloc*(_: typedesc[Expression], mtype: Expression, msize: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Malloc, mtype: mtype, msize: msize, loc: loc)
+proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Typeof, `typeof`: `typeof`, loc: loc)
+proc Fail*(_: typedesc[Expression], loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Fail, loc: loc)
+
+proc empty*(_: typedesc[Expression]): Expression = Expression.Fail
