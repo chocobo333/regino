@@ -71,6 +71,7 @@ proc Nodent(self: ref Source): Option[int]
 proc Stmt(self: ref Source): Option[Statement]
 proc StmtList(self: ref Source): Option[seq[Statement]]
 proc Expr(self: ref Source): Option[Expression]
+proc TypeExpr(self: ref Source): Option[TypeExpression]
 proc Patt(self: ref Source): Option[Pattern]
 proc ArgList(self: ref Source): Option[seq[Expression]]
 
@@ -92,6 +93,7 @@ let
     elset   = s"else"
     fort    = s"for"
     intt    = s"in"
+    ist     = s"is"
     whilet  = s"while"
     loop    = s"loop"
     falset  = s"false"
@@ -116,7 +118,7 @@ let
     arr     = s"->" ^ sp(0)
     tlt     = s"<:" ^ sp(0)
 
-    arrowop = %p"[\p{Sm}*/\\?!%&$^@-]*[->|=>|~>]" @ (it => newIdent(it[0], it[1]))
+    arrowop = %p"[\p{Sm}*/\\?!%&$^@-]*(->|=>|~>)" @ (it => newIdent(it[0], it[1]))
     asgnop = %p"[\p{Sm}*/\\?!%&$^@-]*=" @@
         proc(it: Option[(string, Location)]): Option[Ident] =
             if it.isSome:
@@ -205,9 +207,7 @@ let
         Char,
     )
 
-    Tuple = %delimited(lpar, Expr^*(comma), ?comma+rpar) @
-        proc(it: (seq[Expression], Location)): Expression =
-            Expression.Tuple(it[0], it[1])
+    Tuple = %delimited(lpar, Expr^*(comma), ?comma+rpar) @ (it => Expression.Tuple(it[0], it[1]))
     Record = %delimited(
         lpar,
         (Id + ?(preceded(colon, Expr)))^*comma,
@@ -217,7 +217,7 @@ let
             let
                 members = it[0].mapIt(
                     (
-                        it[0].name,
+                        it[0],
                         if it[1].isSome:
                             it[1].get
                         else:
@@ -226,8 +226,15 @@ let
                 )
             Expression.Record(members, it[1])
 
+    Typeof = %delimited(s"typeof" + lpar, Expr, rpar) @ (it => Expression.Typeof(it[0], it[1]))
+    Malloc = %delimited(s"malloc" + lpar, Expr + preceded(comma, Expr), rpar) @ (it => Expression.Malloc(it[0][0], it[0][1], it[1]))
+    Ref = %preceded(s"ref" + sp1, Expr) @ (it => Expression.Ref(it[0], it[1]))
+    FnType = %(delimited(s"func" + lpar, Expr ^* comma, rpar) + preceded(arr, Expr)) @ (it => Expression.FnType(it[0][0], it[0][1], it[1]))
+
     Atom = %(?Operators + alt(
         %Literal @ (it => Expression.literal(it[0], it[1])),
+        Typeof, Malloc, Ref,
+        FnType,
         Id @ (it => Expression(kind: ExpressionKind.Ident, ident: it, loc: it.loc)),
         delimited(lpar, Expr, rpar),
         Tuple,
@@ -297,7 +304,7 @@ let
         ArrowExpr,
         # ArrowExpr > Suite                               @ (it => akCall.newTreeNode(it))
     )
-    IdPattern = Id @ (it => Pattern(kind: PatternKind.Ident, ident: it))
+    IdPattern = Id + ?delimited(lbra, Expr,rbra) @ (it => Pattern(kind: PatternKind.Ident, ident: it[0], index: it[1]))
     UnderScore = s"_" @ (it => Pattern.UnderScore)
     LiteralPattern = Literal @ (it => Pattern.literal(it))
     TuplePattern = delimited(lpar, Patt ^* comma, ?comma+rpar) @ (it => Pattern(kind: PatternKind.Tuple, patterns: it))
@@ -326,15 +333,6 @@ let
         ) @ (it => newIdentDef(it[0], it[1][0], it[1][1])),
         Patt @ (it => newIdentDef(it))
     )
-    Section = alt(
-        preceded(sp1, IdentDef) @ (it => @[it]),
-        delimited(Indent, IdentDef ^+ Nodent, Dedent)
-    )
-
-    LetSection = %(preceded(s"let", Section)) @ (it => Statement.LetSection(it[0], it[1]))
-    VarSection = %(preceded(s"var", Section)) @ (it => Statement.Varsection(it[0], it[1]))
-    ConstSection = %(preceded(s"const", Section)) @ (it => Statement.ConstSection(it[0], it[1]))
-    TypeSection = %(preceded(s"type", Section)) @ (it => Statement.TypeSection(it[0], it[1]))
     GenParamList = GenIdentDef ^* comma
     ParamList = IdentDef ^* comma
     GenParams = delimited(
@@ -389,19 +387,53 @@ let
                 Metadata.SubType(args)
             else:
                 Metadata.UserDef(id.name, args)
-    FuncDef = preceded(
-        fun > sp1,
+    FuncDef = (terminated(alt(fun @ (it => false), s"prop" @ (it => true)), sp1) +
         Id + ?GenParams + Params + ?Metadata + alt(NoBody, Suite @ (it => some it))
-    ) @ (it => (it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1], it[1])) @
-        proc(it: (Ident, Option[seq[IdentDef]], (seq[IdentDef], Option[Expression]), Option[il.Metadata], Option[il.Suite])): Function =
+    ) @ (it => (it[0][0][0][0][0], it[0][0][0][0][1], it[0][0][0][1], it[0][0][1], it[0][1], it[1])) @
+        proc(it: (bool, Ident, Option[seq[IdentDef]], (seq[IdentDef], Option[Expression]), Option[il.Metadata], Option[il.Suite])): Function =
             let
-                (id, imp, prms, meta, body) = it
+                (isProp, id, imp, prms, meta, body) = it
             Function(
+                isProp: isProp,
                 id: id,
                 param: FunctionParam(implicit: imp.get(@[]), params: prms[0], rety: prms[1]),
                 metadata: meta,
                 suite: body
             )
+
+    Section = alt(
+        preceded(sp1, IdentDef) @ (it => @[it]),
+        delimited(Indent, IdentDef ^+ Nodent, Dedent)
+    )
+    ObjectElement = Id + preceded(colon, TypeExpr)
+    ObjectType = delimited(s"object" + Indent, ObjectElement ^* Nodent, Dedent) @ (it => TypeExpression.Object(it))
+    DistinctType = preceded(s"distinct" + sp1, TypeExpr) @ (it => TypeExpression.Distinct(it))
+    SumElement = alt(
+        Id + Tuple @ (it => SumType.UnnamedField(it[0], it[1].exprs)),
+        Id + Record @ (it => SumType.NamedField(it[0], it[1].members)),
+        Id @ (it => SumType.NoField(it)),
+    )
+    SumType = delimited(s"variant" + Indent, SumElement ^+ Nodent, Dedent) @ (it => TypeExpression.Sum(newSumType(it)))
+    IsTrait = Patt + preceded(ist ^ sp0, TypeExpr) @ (it => Trait.Is(it[0], it[1]))
+    FnTrait = FuncDef @ (it => Trait.Func(it))
+    TraitElement = alt(
+        IsTrait,
+        FnTrait,
+    )
+    TraitType = preceded(s"trait" + sp1, Patt + preceded(colon, Expr)) + ?delimited(s"with" ^ sp0 + Indent, TraitElement ^+ Nodent, Dedent) @ (it => TypeExpression.TraitT(newTrait(it[0][0], it[0][1], it[1].get(@[]))))
+
+    TypeDef = Id + ?GenParams + preceded(eq, TypeExpr) @ (it => newTypeDef(it[0][0], it[0][1], it[1]))
+
+    LetSection = %preceded(s"let", Section) @ (it => Statement.LetSection(it[0], it[1]))
+    VarSection = %preceded(s"var", Section) @ (it => Statement.Varsection(it[0], it[1]))
+    ConstSection = %preceded(s"const", Section) @ (it => Statement.ConstSection(it[0], it[1]))
+    TypeSection = %preceded(
+        s"type",
+        alt(
+            preceded(sp1, TypeDef) @ (it => @[it]),
+            delimited(Indent, TypeDef ^+ Nodent, Dedent)
+        )
+    ) @ (it => Statement.TypeSection(it[0], it[1]))
 
 #     # epression
     CondBranch = alt(
@@ -418,11 +450,13 @@ let
                 (elifs, elseb) = branches
                 (ifb, elifb) = elifs
             Expression.If(@[ifb] & elifb, elseb, loc)
-
-#     WhenExpr = (preceded(
-#         whent > sp1,
-#         CondBranch @ (it => akElifBranch.newTreeNode(it))
-#     ) > *preceded(Nodent, ElifBranch)) + ?preceded(Nodent, ElseBranch) @ (it => akWhenExpr.newTreeNode(it[0] & (if it[1].isSome: @[it[1].get] else: @[])))
+    WhenExpr = %(preceded(whent > sp1, CondBranch) + *preceded(Nodent, ElifBranch) + ?preceded(Nodent, ElseBranch)) @
+        proc(it: (((ElifBranch, seq[ElifBranch]), Option[il.ElseBranch]), Location)): Expression =
+            let
+                (branches, loc) = it
+                (elifs, elseb) = branches
+                (ifb, elifb) = elifs
+            Expression.When(@[ifb] & elifb, elseb, loc)
 
     LoopStmt = preceded(
         loop > colon,
@@ -435,10 +469,7 @@ let
             Stmt @ (it => @[it])
         ) @ (it => newSuite(it))
     ) @ (it => Statement.Loop(it))
-    # LambdaDef: AstNode = preceded(
-    #     s"lambda" + sp1,
-    #     terminated(Id, sp0 + colon) > SimplExpr
-    # )                                                   @ (it => akLambdaDef.newTreeNode(it))
+    LambdaDef = %(preceded(s"func", Params) + Suite) @ (it => Expression.Lambda(it[0][0], it[0][1], it[1]))
 
 
 #     # atom
@@ -523,11 +554,28 @@ proc Stmt(self: ref Source): Option[Statement] =
 proc Expr(self: ref Source): Option[Expression] =
     alt(
         IfExpr,
-        # WhenExpr,
-        # LambdaDef,
+        WhenExpr,
+        LambdaDef,
         # ForExpr,
         SimplExpr
     )(self)
+proc TypeExpr(self: ref Source): Option[TypeExpression] =
+    let
+        isRef = (s"ref" + sp1)(self)
+        typ = alt(
+            ObjectType,
+            SumType,
+            TraitType,
+            Expr @ (it => TypeExpression.Expr(it))
+        )(self)
+    proc r(self: TypeExpression): TypeExpression =
+        result = self
+        result.isRef = true
+    if isRef.isSome:
+        typ.map(r)
+    else:
+        typ
+
 proc Patt(self: ref Source): Option[Pattern] =
     alt(
         UnderScore,
@@ -546,16 +594,42 @@ proc ArgList(self: ref Source): Option[seq[Expression]] =
 
 when isMainModule:
     let
-        src = Source.from(" abc ")
-        word = p"\w+"
-    echo Expr(Source.from("3"))
-    echo Comment(Source.from("#aa\n#bb"))
-    echo Stmt(Source.from("#aa\n#bb")).get
-    echo StmtList(Source.from("discard 3\ndiscard 4")).get
-    let
-        src2 = Source.from(
+        src = Source.from(
             """
 ![link: "arith.ll"]
+![link: "io.ll"]
+![link: "int.ll"]
+![link: "string.ll"]
+
+type
+    bool = typeof(false)
+    int = typeof(0)
+    int32 = typeof(0'i32)
+    float = typeof(0.0)
+    string = typeof("")
+    char = typeof('a')
+
+    ptr[T] = typeof(malloc(T, 1))
+
+type
+    A = ref bool
+    yen = distinct int
+    B = object
+        a: int
+        b: float
+    C = variant
+        A
+        B(a, b)
+    List[T] = ref variant
+        Nil
+        Cons(T, List[T])
+    Tree[T] = ref variant
+        Leaf(T)
+        Node(lhs: Tree[T], rhs: Tree[T])
+
+type
+    pair[T, U] = (T, U)
+
 
 if true:
     3
@@ -570,7 +644,7 @@ let a = 1
 
 var
     b = 3
-    c = 4
+    c = 4 * 3
 a = 3
 discard a
 loop:
@@ -580,8 +654,20 @@ func `$`(a: bool) -> string ![subtype]:
         "true"
     else:
         "false"
+a[3] = 3
+let
+    a: func(bool) -> string = `$`
+    a: b = 3
+    a: ref typeof(3)
+type
+    Magma = trait (T, op): (Type, func(T, T) -> T)
+    SemiGroup = trait (T, op): (Type, func(T, T) -> T) with
+        prop associtive(x, y, z: T) -> op(x, op(y, z)) == op(op(x, y), z)
+when true:
+    3
+func(a: bool): 3
 """
         )
-        p = Program(src2).get
+        p = Program(src).get
     echo p
-    echo src2.errs
+    echo src.errs
