@@ -19,8 +19,8 @@ proc VarSection*(_: typedesc[Statement], iddefs: openarray[IdentDef], loc: Locat
     Statement(kind: StatementKind.VarSection, iddefs: @iddefs, loc: loc)
 proc ConstSection*(_: typedesc[Statement], iddefs: openarray[IdentDef], loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.ConstSection, iddefs: @iddefs, loc: loc)
-proc TypeSection*(_: typedesc[Statement], iddefs: openarray[IdentDef], loc: Location = newLocation()): Statement =
-    Statement(kind: StatementKind.TypeSection, iddefs: @iddefs, loc: loc)
+proc TypeSection*(_: typedesc[Statement], typedefs: openarray[TypeDef], loc: Location = newLocation()): Statement =
+    Statement(kind: StatementKind.TypeSection, typedefs: @typedefs, loc: loc)
 proc Asign*(_: typedesc[Statement], pat: Pattern, op: Ident, val: Expression, loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Asign, pat: pat, op: op, val: val, loc: loc)
 proc Funcdef*(_: typedesc[Statement], fn: Function, loc: Location = newLocation()): Statement =

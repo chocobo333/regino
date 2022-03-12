@@ -9,6 +9,8 @@ import il
 
 proc `$`*(self: Statement): string
 proc `$`*(self: Expression): string
+proc `$`*(self: FunctionParam): string
+proc `$`*(self: TypeExpression): string
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.unit:
@@ -39,6 +41,8 @@ proc `$`*(self: Ident): string =
         self.name
     else:
         fmt"`{self.name}`"
+proc `$$`*(self: Ident): string =
+    self.name
 proc `$`*(self: Suite): string =
     self.stmts.map(`$`).join("\n").indent(2)
 proc `$`*(self: ElifBranch): string =
@@ -67,6 +71,14 @@ proc `$`*(self: Expression): string =
             else:
                 ""
         &"{elifs}{elseb}"
+    of ExpressionKind.When:
+        let
+            elifs = "when" & self.elifs.map(`$`).join("\n")[4..^1]
+            elseb = if self.elseb.isSome:
+                &"\nelse\n{self.elseb.get}"
+            else:
+                ""
+        &"{elifs}{elseb}"
     of ExpressionKind.Case:
         ""
     of ExpressionKind.Call:
@@ -78,20 +90,34 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.Dot:
         fmt"{self.lhs}.{self.rhs}"
     of ExpressionKind.Binary:
-        fmt"{self.lhs} {self.op} {self.rhs}"
+        fmt"{self.lhs} {$$self.op} {self.rhs}"
     of ExpressionKind.Prefix:
-        fmt"{self.op}{self.expression}"
+        fmt"{$self.op}{self.expression}"
     of ExpressionKind.Postfix:
-        fmt"{self.expression}{self.op}"
+        fmt"{self.expression}{$self.op}"
     of ExpressionKind.Bracket:
         let args = self.args.join(", ")
         fmt"{self.callee}[{args}]"
+    of ExpressionKind.Lambda:
+        let
+            params = $self.param
+            suite = $self.body
+        if suite.count('\n') == 0:
+            &"func{params}: {suite[2..^1]}"
+        else:
+            &"func{params}:\n{suite}"
     of ExpressionKind.Malloc:
         fmt"malloc({self.mtype}, {self.msize})"
     of ExpressionKind.Typeof:
         fmt"typeof({self.`typeof`})"
+    of ExpressionKind.Ref:
+        fmt"ref {self.`ref`}"
+    of ExpressionKind.FnType:
+        let args = self.args.join(", ")
+        fmt"func({args}) -> {self.rety}"
     of ExpressionKind.Fail:
         fmt"failed term"
+
 proc `$`*(self: Metadata): string =
     let params =
         if self.params.len == 0:
@@ -113,7 +139,10 @@ proc `$`*(self: Pattern): string =
     of PatternKind.Literal:
         $self.litval
     of PatternKind.Ident:
-        self.ident.name
+        if self.index.isSome:
+            fmt"{self.ident}[{self.index.get}]"
+        else:
+            $self.ident
     of PatternKind.Dot:
         fmt"{self.lhs}.{self.rhs}"
     of PatternKind.Bracket:
@@ -133,6 +162,17 @@ proc `$`*(self: IdentDef): string =
         typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
         default = if self.default.isNone: "" else: fmt" = {self.default.get}"
     pat & typ & default
+proc `$`*(self: TypeDef): string =
+    let
+        id = $self.id
+        params =
+            if self.params.isNone:
+                ""
+            else:
+                let params = self.params.get.map(`$`).join(", ")
+                fmt"[{params}]"
+        typ = $self.typ
+    fmt"{id}{params} = {typ}"
 proc `$`*(self: FunctionParam): string =
     let
         implicit = block:
@@ -146,9 +186,10 @@ proc `$`*(self: FunctionParam): string =
     fmt"{implicit}({params}){rety}"
 proc `$`*(self: Function): string =
     let
+        fn = ["func", "prop"][int self.isProp]
         metadata = if self.metadata.isNone: "" else: fmt" {self.metadata.get}"
         suite = if self.suite.isNone: "" else: fmt"{self.suite.get}"
-    &"func {self.id}{self.param}{metadata}:\n{suite}"
+    &"{fn} {self.id}{self.param}{metadata}:\n{suite}"
 proc `$`*(self: Statement): string =
     case self.kind
     of StatementKind.Block:
@@ -175,8 +216,8 @@ proc `$`*(self: Statement): string =
         let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
         &"const\n{iddefs}"
     of StatementKind.TypeSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"type\n{iddefs}"
+        let typedefs = self.typedefs.map(`$`).join("\n").indent(2)
+        &"type\n{typedefs}"
     of StatementKind.Asign:
         fmt"{self.pat} = {self.val}"
     of StatementKind.Funcdef:
@@ -194,8 +235,140 @@ proc `$`*(self: Statement): string =
         $self.expression
     of StatementKind.Fail:
         "failed term"
+proc `$`*(self: SumConstructor): string =
+    $self.id & (
+        case self.kind
+        of SumConstructorKind.NoField:
+            ""
+        of SumConstructorKind.UnnamedField:
+            let types = self.types.join(", ")
+            fmt"({types})"
+        of SumConstructorKind.NamedField:
+            proc `$`(field: (Ident, Expression)): string =
+                let
+                    (id, typ) = field
+                fmt"{id}: {typ}"
+            let fields = self.fields.map(`$`).join(", ")
+            fmt"({fields})"
+    )
+proc `$`*(self: SumType): string =
+    let cons = self.constructors.join("\n").indent(2)
+    &"variant\n{cons}"
+proc `$`*(self: Trait): string =
+    case self.kind
+    of TraitKind.Is:
+        let
+            val = $self.val
+            pat = $self.pat
+        fmt"{pat} is {val}"
+    of TraitKind.Func:
+        let fn = $self.fn
+        fmt"{fn}"
+
+proc `$`*(self: TraitType): string =
+    let traits =
+        if self.traits.len == 0:
+            ""
+        else:
+            "\n" & self.traits.map(`$`).join("\n").indent(2)
+    &"trait {self.pat}: {self.typ}{traits}"
+proc `$`*(self: TypeExpression): string =
+    result = if self.isRef:
+        "ref "
+    else:
+        ""
+    result &= (
+        case self.kind
+        of TypeExpressionKind.Object:
+            let
+                members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join("\n").indent(2)
+            &"object\n{members}"
+        of TypeExpressionKind.Sum:
+            $self.sum
+        of TypeExpressionKind.Distinct:
+            fmt"distinct {self.base}"
+        of TypeExpressionKind.Trait:
+            $self.trait
+        of TypeExpressionKind.Expression:
+            $self.expression
+    )
 proc `$`*(self: Program): string =
     self.map(`$`).join("\n")
+
+proc treeRepr*(self: Ident): string =
+    "Ident\n" & ($self).indent(2)
+proc treeRepr*(self: Expression): string =
+    case self.kind
+    of ExpressionKind.Literal:
+        &"Lit\n  {self.litval}"
+    of ExpressionKind.Ident:
+        self.ident.treeRepr
+    of ExpressionKind.Tuple:
+        let s = self.exprs.join(", ")
+        fmt"({s})"
+    of ExpressionKind.Seq:
+        let s = self.exprs.join(", ")
+        fmt"[{s}]"
+    of ExpressionKind.Record:
+        let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+        fmt"({members})"
+    of ExpressionKind.If:
+        let
+            elifs = self.elifs.map(`$`).join("\n")[2..^1]
+            elseb = if self.elseb.isSome:
+                &"\nelse\n{self.elseb.get}"
+            else:
+                ""
+        &"{elifs}{elseb}"
+    of ExpressionKind.When:
+        let
+            elifs = "when" & self.elifs.map(`$`).join("\n")[4..^1]
+            elseb = if self.elseb.isSome:
+                &"\nelse\n{self.elseb.get}"
+            else:
+                ""
+        &"{elifs}{elseb}"
+    of ExpressionKind.Case:
+        ""
+    of ExpressionKind.Call:
+        let args = self.args.join(", ")
+        fmt"{self.callee}({args})"
+    of ExpressionKind.Command:
+        let args = self.args.join(", ")
+        fmt"{self.callee} {args}"
+    of ExpressionKind.Dot:
+        fmt"{self.lhs}.{self.rhs}"
+    of ExpressionKind.Binary:
+        "Infix\n" & (&"{self.op.treeRepr}\n{self.lhs.treeRepr}\n{self.rhs.treeRepr}").indent(2)
+    of ExpressionKind.Prefix:
+        fmt"{self.op}{self.expression}"
+    of ExpressionKind.Postfix:
+        fmt"{self.expression}{self.op}"
+    of ExpressionKind.Bracket:
+        let args = self.args.join(", ")
+        fmt"{self.callee}[{args}]"
+    of ExpressionKind.Lambda:
+        let
+            params = $self.param
+            suite = ($self.body).indent(2)
+        fmt"func{params}:\n{suite}"
+    of ExpressionKind.Malloc:
+        fmt"malloc({self.mtype}, {self.msize})"
+    of ExpressionKind.Typeof:
+        fmt"Typeof\n  {self.`typeof`.treeRepr}"
+    of ExpressionKind.Ref:
+        fmt"Ref\n  {self.`ref`.treeRepr}"
+    of ExpressionKind.FnType:
+        let args = self.args.join(", ")
+        fmt"func({args}) -> {self.rety}"
+    of ExpressionKind.Fail:
+        fmt"failed term"
+
+proc treeRepr*(self: IdentDef): string =
+    let
+        typ = self.typ.map(treeRepr).get("None")
+        default = self.default.map(treeRepr).get("None")
+    "IdentDef\n" & (&"{self.pat}\n{typ}\n{default}").indent(2)
 
 when isMainModule:
     import stmts

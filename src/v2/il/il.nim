@@ -35,8 +35,10 @@ type
             `block`*: Suite
         of StatementKind.While:
             branch*: ElifBranch
-        of StatementKind.LetSection, StatementKind.VarSection, StatementKind.ConstSection, StatementKind.TypeSection:
+        of StatementKind.LetSection, StatementKind.VarSection, StatementKind.ConstSection:
             iddefs*: seq[IdentDef]
+        of StatementKind.TypeSection:
+            typedefs*: seq[TypeDef]
         of StatementKind.For, StatementKind.Asign:
             pat*: Pattern
             val*: Expression
@@ -70,11 +72,16 @@ type
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
+    TypeDef* = object
+        id*: Ident
+        params*: Option[seq[IdentDef]]
+        typ*: TypeExpression
     FunctionParam* = object
         implicit*: seq[IdentDef]
         params*: seq[IdentDef]
         rety*: Option[Expression]
     Function* = object
+        isProp*: bool
         id*: Ident
         param*: FunctionParam
         metadata*: Option[Metadata]
@@ -86,6 +93,7 @@ type
         Seq
         Record
         If
+        When
         Case
         Call
         Command
@@ -94,8 +102,11 @@ type
         Binary
         Prefix
         Postfix
+        Lambda
         Malloc
         Typeof
+        Ref
+        FnType
         Fail
     Expression* = ref ExpressionObject
     ExpressionObject = object
@@ -109,74 +120,80 @@ type
         of ExpressionKind.Tuple, ExpressionKind.Seq:
             exprs*: seq[Expression]
         of ExpressionKind.Record:
-            members*: seq[(string, Expression)]
-        of ExpressionKind.If:
+            members*: seq[(Ident, Expression)]
+        of ExpressionKind.If, ExpressionKind.When:
             elifs*: seq[ElifBranch]
             elseb*: Option[ElseBranch]
         of ExpressionKind.Case:
             ofs*: seq[OfBranch]
             default*: ElseBranch
-        of ExpressionKind.Call, ExpressionKind.Command, ExpressionKind.Bracket:
+        of ExpressionKind.Call, ExpressionKind.Command, ExpressionKind.Bracket, ExpressionKind.FnType:
             callee*: Expression
             args*: seq[Expression]
+            rety*: Expression
         of ExpressionKind.Dot, ExpressionKind.Binary, ExpressionKind.Prefix, ExpressionKind.Postfix:
             lhs*: Expression
             rhs*: Expression
-            op*: Ident # for binary, unary
+            op*: Ident # for binary and unary
             expression*: Expression # for unary
+        of ExpressionKind.Lambda:
+            param*: FunctionParam
+            body*: Suite
         of ExpressionKind.Malloc:
             mtype*: Expression
             msize*: Expression
         of ExpressionKind.Typeof:
             `typeof`*: Expression
+        of ExpressionKind.Ref:
+            `ref`*: Expression
         of ExpressionKind.Fail:
             nil
-    Typedef* = object
-        pat*: Pattern
-        typeexpr*: TypeExpression
     TypeExpressionKind* {.pure.} = enum
         Object
         Sum
-        Ref
+        Distinct
         Trait
         Expression
     TypeExpression* = ref TypeExpressionObject
     TypeExpressionObject = object
-        case kind: TypeExpressionKind
+        isRef*: bool
+        case kind*: TypeExpressionKind
         of TypeExpressionKind.Object:
             members*: seq[(Ident, TypeExpression)]
         of TypeExpressionKind.Sum:
             sum*: SumType
-        of TypeExpressionKind.Ref:
-            pointee*: TypeExpression
+        of TypeExpressionKind.Distinct:
+            base*: TypeExpression
         of TypeExpressionKind.Trait:
             trait*: TraitType
         of TypeExpressionKind.Expression:
-            expression: Expression
+            expression*: Expression
     SumType* = object
-        constructors*: SumConstructor
+        constructors*: seq[SumConstructor]
     SumConstructorKind* {.pure.} = enum
-        NoFiled
+        NoField
         UnnamedField
         NamedField
     SumConstructor* = ref SumConstructorObject
     SumConstructorObject = object
         id*: Ident
-        case kind: SumConstructorKind
-        of SumConstructorKind.NoFiled:
+        case kind*: SumConstructorKind
+        of SumConstructorKind.NoField:
             nil
         of SumConstructorKind.UnnamedField:
-            types*: seq[TypeExpression]
+            types*: seq[Expression]
         of SumConstructorKind.NamedField:
-            fields*: seq[(Ident, TypeExpression)]
+            fields*: seq[(Ident, Expression)]
     TraitType* = object
-        traits*: Trait
+        pat*: Pattern
+        typ*: Expression
+        traits*: seq[Trait]
     Trait* = ref TraitObject
     TraitKind* = enum
         Is
         Func
     TraitObject = object
-        case kind: TraitKind
+        case kind*: TraitKind
         of TraitKind.Is:
             pat*: Pattern
             val*: TypeExpression
@@ -229,6 +246,7 @@ type
             litval*: Literal
         of PatternKind.Ident:
             ident*: Ident
+            index*: Option[Expression]
         of PatternKind.Dot:
             lhs*: Pattern
             rhs*: Ident

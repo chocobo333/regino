@@ -10,6 +10,9 @@ import il/[
     suites,
     identdefs,
     metas,
+    typeexprs,
+    sums,
+    traits,
     tos
 ]
 
@@ -23,4 +26,7 @@ export stmts
 export suites
 export identdefs
 export metas
+export typeexprs
+export sums
+export traits
 export tos
