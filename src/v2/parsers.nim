@@ -307,15 +307,18 @@ let
     IdPattern = Id + ?delimited(lbra, Expr,rbra) @ (it => Pattern(kind: PatternKind.Ident, ident: it[0], index: it[1]))
     UnderScore = s"_" @ (it => Pattern.UnderScore)
     LiteralPattern = Literal @ (it => Pattern.literal(it))
-    TuplePattern = delimited(lpar, Patt ^* comma, ?comma+rpar) @ (it => Pattern(kind: PatternKind.Tuple, patterns: it))
-    # RecordPattern: AstNode = delimited(
-    #     lpar,
-    #     (Id + ?(preceded(colon, Pattern)))^*comma,
-    #     ?comma+rpar
-    # )   @ (proc(a: auto): auto =
-    #         let ch = a.mapIt(akIdentDef.newTreeNode(if it[1].isSome: @[it[0], it[1].get] else: @[it[0]]))
-    #         akRecord.newTreeNode(ch)
-    #     )
+    TuplePattern = (?Id + delimited(lpar, Patt ^* comma, ?comma+rpar)) @ (it => Pattern(kind: PatternKind.Tuple, tag: it[0], patterns: it[1]))
+    RecordPattern = (?Id + delimited(
+        lpar,
+        (Id + ?(preceded(colon, Patt)) @
+            proc(it: (Ident, Option[Pattern])): (Ident, Pattern) =
+                if it[1].isSome:
+                    (it[0], it[1].get)
+                else:
+                    (it[0], Pattern(kind: PatternKind.Ident, ident: it[0]))
+        ) ^* comma,
+        ?comma+rpar
+    )) @ (it => Pattern(kind: PatternKind.Record, tag: it[0], members: it[1]))
     # BracketPattern: AstNode = IdPattern > delimited(lbra, separated1(Pattern, comma), rbra)    @ (it => akBracketExpr.newTreeNode(it))
 
 
@@ -457,6 +460,10 @@ let
                 (elifs, elseb) = branches
                 (ifb, elifb) = elifs
             Expression.When(@[ifb] & elifb, elseb, loc)
+    OfBranch = preceded(s"of" + sp1, Patt) + Suite @ (it => newOf(it[0], it[1]))
+    CaseExpr = %(delimited(s"case" + sp1, Expr, ?colon) + ?preceded(Nodent, OfBranch ^+ Nodent) + ?preceded(Nodent + s"default", Suite)) @
+        proc(it: (((Expression, Option[seq[il.OfBranch]]), Option[il.Suite]), Location)): Expression =
+            Expression.Case(it[0][0][0], it[0][0][1].get(@[]), it[0][1], it[1])
 
     LoopStmt = preceded(
         loop > colon,
@@ -508,7 +515,7 @@ proc Nodent(self: ref Source): Option[int] =
     else:
         it
 
-proc Program(self: ref Source): Option[Program] =
+proc Program*(self: ref Source): Option[Program] =
     alt(
         delimited(
             ?Nodent,
@@ -555,6 +562,7 @@ proc Expr(self: ref Source): Option[Expression] =
     alt(
         IfExpr,
         WhenExpr,
+        CaseExpr,
         LambdaDef,
         # ForExpr,
         SimplExpr
@@ -578,10 +586,11 @@ proc TypeExpr(self: ref Source): Option[TypeExpression] =
 
 proc Patt(self: ref Source): Option[Pattern] =
     alt(
+        LiteralPattern,
+        TuplePattern,
+        RecordPattern,
         UnderScore,
         IdPattern,
-        LiteralPattern,
-        TuplePattern
     )(self)
 proc ArgList(self: ref Source): Option[seq[Expression]] =
     let parser = alt(
@@ -591,6 +600,8 @@ proc ArgList(self: ref Source): Option[seq[Expression]] =
         @Expr,
     ) ^* comma
     parser(self)
+
+export parsers
 
 when isMainModule:
     let
@@ -666,6 +677,12 @@ type
 when true:
     3
 func(a: bool): 3
+func sum(l: List[int32]) -> int32:
+    case l
+    of Nil:
+        0
+    of Cons(head, tail):
+        head + sum(tail)
 """
         )
         p = Program(src).get

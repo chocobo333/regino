@@ -14,7 +14,7 @@ proc Bracket*(_: typedesc[Pattern], callee: Pattern, args: openArray[Expression]
     Pattern(kind: PatternKind.Bracket, callee: callee, args: @args)
 proc Tuple*(_: typedesc[Pattern], patterns: seq[Pattern]): Pattern =
     Pattern(kind: PatternKind.Tuple, patterns: patterns)
-proc Record*(_: typedesc[Pattern], members: seq[(string, Pattern)]): Pattern =
+proc Record*(_: typedesc[Pattern], members: seq[(Ident, Pattern)]): Pattern =
     Pattern(kind: PatternKind.Record, members: members)
 proc UnderScore*(_: typedesc[Pattern]): Pattern =
     Pattern(kind: PatternKind.UnderScore)

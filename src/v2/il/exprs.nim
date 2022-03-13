@@ -19,8 +19,8 @@ proc If*(_: typedesc[Expression], elifs: openArray[ElifBranch], elseb: Option[El
     Expression(kind: ExpressionKind.If, elifs: @elifs, elseb: elseb, loc: loc)
 proc When*(_: typedesc[Expression], elifs: openArray[ElifBranch], elseb: Option[ElseBranch], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.When, elifs: @elifs, elseb: elseb, loc: loc)
-proc Case*(_: typedesc[Expression], ofs: seq[OfBranch], default: ElseBranch, loc: Location = newLocation()): Expression =
-    Expression(kind: ExpressionKind.Case, ofs: ofs, default: default, loc: loc)
+proc Case*(_: typedesc[Expression], val: Expression, ofs: seq[OfBranch], default: Option[ElseBranch], loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Case, val: val, ofs: ofs, default: default, loc: loc)
 proc Call*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Call, callee: callee, args: @args, loc: loc)
 proc Command*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =

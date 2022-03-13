@@ -3,6 +3,7 @@ import strformat
 import strutils
 import sequtils
 import options
+import sugar
 
 import il
 
@@ -11,6 +12,8 @@ proc `$`*(self: Statement): string
 proc `$`*(self: Expression): string
 proc `$`*(self: FunctionParam): string
 proc `$`*(self: TypeExpression): string
+proc `$`*(self: Pattern): string
+proc `$`*(self: Suite): string
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.unit:
@@ -48,6 +51,9 @@ proc `$`*(self: Suite): string =
 proc `$`*(self: ElifBranch): string =
     let suite = $self.suite
     &"elif {self.cond}:\n{suite}"
+proc `$`*(self: OfBranch): string =
+    let suite = $self.suite
+    &"of {self.pat}:\n{suite}"
 proc `$`*(self: Expression): string =
     case self.kind
     of ExpressionKind.Literal:
@@ -80,7 +86,10 @@ proc `$`*(self: Expression): string =
                 ""
         &"{elifs}{elseb}"
     of ExpressionKind.Case:
-        ""
+        let
+            ofs = if self.ofs.len == 0: "" else: ("\n" & self.ofs.map(`$`).join("\n"))
+            default = "\n" & self.default.map(it => "default:\n" & $it).get("")
+        fmt"case {self.val}{ofs}{default}"
     of ExpressionKind.Call:
         let args = self.args.join(", ")
         fmt"{self.callee}({args})"
@@ -149,11 +158,15 @@ proc `$`*(self: Pattern): string =
         let args = self.args.join(", ")
         fmt"{self.callee}[{args}]"
     of PatternKind.Tuple:
-        let s = self.patterns.map(`$`).join(", ")
-        fmt"({s})"
+        let
+            tag = self.tag.map(`$`).get("")
+            s = self.patterns.map(`$`).join(", ")
+        fmt"{tag}({s})"
     of PatternKind.Record:
-        let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
-        fmt"({members})"
+        let
+            tag = self.tag.map(`$`).get("")
+            members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+        fmt"{tag}({members})"
     of PatternKind.UnderScore:
         "_"
 proc `$`*(self: IdentDef): string =

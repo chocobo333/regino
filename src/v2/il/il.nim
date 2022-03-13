@@ -125,8 +125,9 @@ type
             elifs*: seq[ElifBranch]
             elseb*: Option[ElseBranch]
         of ExpressionKind.Case:
+            val*: Expression
             ofs*: seq[OfBranch]
-            default*: ElseBranch
+            default*: Option[ElseBranch]
         of ExpressionKind.Call, ExpressionKind.Command, ExpressionKind.Bracket, ExpressionKind.FnType:
             callee*: Expression
             args*: seq[Expression]
@@ -253,10 +254,10 @@ type
         of PatternKind.Bracket:
             callee*: Pattern
             args*: seq[Expression]
-        of PatternKind.Tuple:
-            patterns*: seq[Pattern]
-        of PatternKind.Record:
-            members*: seq[(Ident, Pattern)]
+        of PatternKind.Tuple, PatternKind.Record:
+            tag*: Option[Ident]
+            patterns*: seq[Pattern] # for Tuple
+            members*: seq[(Ident, Pattern)] # for Record
         of PatternKind.UnderScore:
             nil
     MetadataKind* {.pure.} = enum
