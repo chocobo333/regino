@@ -33,6 +33,8 @@ proc Prefix*(_: typedesc[Expression], op: Ident, expression: Expression, loc: Lo
     Expression(kind: ExpressionKind.Prefix, op: op, expression: expression, loc: loc)
 proc Postfix*(_: typedesc[Expression], op: Ident, expression: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Postfix, op: op, expression: expression, loc: loc)
+proc Block*(_: typedesc[Expression], `block`: Suite, label: Option[Ident] = none(Ident), loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Block, `block`: `block`, label: label, loc: loc)
 proc Bracket*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Bracket, callee: callee, args: @args, loc: loc)
 proc Lambda*(_: typedesc[Expression], param: (seq[IdentDef], Option[Expression]), body: Suite, loc: Location = newLocation()): Expression =

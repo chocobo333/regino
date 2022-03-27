@@ -13,6 +13,10 @@ import il/[
     typeexprs,
     sums,
     traits,
+    scopes,
+    values,
+    tvs,
+    symbols,
     tos
 ]
 
@@ -29,4 +33,8 @@ export metas
 export typeexprs
 export sums
 export traits
+export scopes
+export values
+export tvs
+export symbols
 export tos

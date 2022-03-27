@@ -3,9 +3,13 @@ import strformat
 import strutils
 import sequtils
 import options
+import tables
+import sets
 import sugar
+import algorithm
 
 import il
+import ../lineinfos
 
 
 proc `$`*(self: Statement): string
@@ -104,6 +108,11 @@ proc `$`*(self: Expression): string =
         fmt"{$self.op}{self.expression}"
     of ExpressionKind.Postfix:
         fmt"{self.expression}{$self.op}"
+    of ExpressionKind.Block:
+        if self.label.isNone:
+            &"block:\n{self.`block`}"
+        else:
+            &"block: {self.label.get}\n{self.`block`}"
     of ExpressionKind.Bracket:
         let args = self.args.join(", ")
         fmt"{self.callee}[{args}]"
@@ -154,9 +163,9 @@ proc `$`*(self: Pattern): string =
             $self.ident
     of PatternKind.Dot:
         fmt"{self.lhs}.{self.rhs}"
-    of PatternKind.Bracket:
-        let args = self.args.join(", ")
-        fmt"{self.callee}[{args}]"
+    # of PatternKind.Bracket:
+    #     let args = self.args.join(", ")
+    #     fmt"{self.callee}[{args}]"
     of PatternKind.Tuple:
         let
             tag = self.tag.map(`$`).get("")
@@ -175,6 +184,9 @@ proc `$`*(self: IdentDef): string =
         typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
         default = if self.default.isNone: "" else: fmt" = {self.default.get}"
     pat & typ & default
+proc `$`*(self: GenTypeDef): string =
+    let ub = if self.ub.isSome: fmt" <:{self.ub.get}" else: ""
+    fmt"{self.id}{ub}"
 proc `$`*(self: TypeDef): string =
     let
         id = $self.id
@@ -197,6 +209,7 @@ proc `$`*(self: FunctionParam): string =
         params = self.params.map(`$`).join(", ")
         rety = if self.rety.isNone: "" else: fmt" -> {self.rety.get}"
     fmt"{implicit}({params}){rety}"
+
 proc `$`*(self: Function): string =
     let
         fn = ["func", "prop"][int self.isProp]
@@ -205,11 +218,6 @@ proc `$`*(self: Function): string =
     &"{fn} {self.id}{self.param}{metadata}:\n{suite}"
 proc `$`*(self: Statement): string =
     case self.kind
-    of StatementKind.Block:
-        if self.label.isNone:
-            &"block\n{self.`block`}"
-        else:
-            &"block {self.label.get}\n{self.`block`}"
     of StatementKind.For:
         &"for {self.pat} in {self.val}:\n{self.suite}"
     of StatementKind.While:
@@ -306,7 +314,141 @@ proc `$`*(self: TypeExpression): string =
             $self.expression
     )
 proc `$`*(self: Program): string =
-    self.map(`$`).join("\n")
+    self.stmts.map(`$`).join("\n")
+
+proc `$`*(self: TypeVar): string =
+    let
+        c = toSeq('a'..'z')
+        n = c.len
+    var
+        id = self.id - 1
+    while id > n:
+        let
+            index = id mod n
+        result.add c[index]
+        id = id div n
+    result.add c[id mod n]
+    result.add "'"
+    result.reverse
+proc `$`*(self: Value): string =
+    case self.kind
+    of ValueKind.Literal:
+        $self.litval
+    of ValueKind.Bottom:
+        "Bottom"
+    of ValueKind.Unit:
+        "Unit"
+    of ValueKind.Bool:
+        "bool"
+    of ValueKind.Integer:
+        if self.bits == 0:
+            "int"
+        else:
+            fmt"int'i{self.bits}"
+    of ValueKind.Float:
+        if self.bits == 0:
+            "float"
+        else:
+            fmt"float'f{self.bits}"
+    of ValueKind.Char:
+        "char"
+    of ValueKind.String:
+        "string"
+    of ValueKind.Pair:
+        fmt"({self.first}, {self.second})"
+    of ValueKind.Array:
+        fmt"array[{self.base}]"
+    of ValueKind.ArrayV:
+        let vals = self.vals.join(", ")
+        fmt"[{vals}]"
+    of ValueKind.Record:
+        var res = "("
+        for (id, val) in self.members.pairs:
+            res.add fmt"{id}: {val}, "
+        res[0..^3] & ")"
+    of ValueKind.Ptr:
+        fmt"ptr {self.pointee}"
+    of ValueKind.Pi:
+        let
+            imp =
+                if self.implicit.len == 0:
+                    ""
+                else:
+                    let imp = self.implicit.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+                    fmt"[{imp}]"
+            params =
+                if self.params.len == 0:
+                    ""
+                else:
+                    let params = self.params.join(", ")
+                    fmt"({params})"
+        fmt"{imp}{params} -> {self.rety}"
+    of ValueKind.Sum:
+        "Sum"
+    of ValueKind.Trait:
+        "Trait"
+    of ValueKind.Singleton:
+        fmt"sigleton[{self.base}]"
+    of ValueKind.Distinct:
+        fmt"distinct {self.base}"
+    of ValueKind.Intersection:
+        toSeq(self.types).join("^")
+    of ValueKind.Union:
+        toSeq(self.types).join"\/"
+    of ValueKind.Var:
+        $self.tv
+    of ValueKind.Gen:
+        $self.gt
+    of ValueKind.Link:
+        $self.to
+
+proc `$`*(self: Symbol): string =
+    let
+        kind =
+            if self.kind == SymbolKind.Typ:
+                "Type"
+            else:
+                $self.kind
+        id = if self.global:
+            $self.decl
+        else:
+            $self.decl
+        typ = $self.typ
+        impl =
+            case self.kind
+            of SymbolKind.Func:
+                "..."
+            of SymbolKind.Var..SymbolKind.Const:
+                $self.impl_iddef
+            of SymbolKind.Typ:
+                $self.impl_typedef
+        loc = self.decl.loc
+    fmt"{loc}: ({kind}){id}: {typ} ({impl})"
+proc `$`*(self: Scope): string =
+    var
+        tmp = self
+        scopes: seq[Table[string, seq[Symbol]]]
+        consts: seq[Table[string, seq[Symbol]]]
+    while not tmp.isNil:
+        scopes.add tmp.syms
+        consts.add tmp.consts
+        tmp = tmp.parent
+    result = if scopes.foldl(a + b.len, 0) == 0:
+        "{}"
+    else:
+        for scope in scopes:
+            for (key, val) in scope.pairs:
+                result &= &"\"{key}\": {val},\n"
+        &"{{\n{result[0..^3].indent(2)}\n}}"
+    result.add "\n"
+    result.add if consts.foldl(a + b.len, 0) == 0:
+        "{}"
+    else:
+        var ret: string
+        for scope in consts:
+            for (key, val) in scope.pairs:
+                ret &= &"\"{key}\" = {val},\n"
+        &"{{\n{ret[0..^3].indent(2)}\n}}"
 
 proc treeRepr*(self: Ident): string =
     "Ident\n" & ($self).indent(2)
@@ -360,6 +502,11 @@ proc treeRepr*(self: Expression): string =
     of ExpressionKind.Bracket:
         let args = self.args.join(", ")
         fmt"{self.callee}[{args}]"
+    of ExpressionKind.Block:
+        if self.label.isNone:
+            &"block:\n{self.`block`}"
+        else:
+            &"block: {self.label.get}\n{self.`block`}"
     of ExpressionKind.Lambda:
         let
             params = $self.param

@@ -9,9 +9,10 @@ from llvm import nil
 
 
 type
-    Program* = seq[Statement]
+    Program* = ref object
+        stmts*: seq[Statement]
+        scope*: Scope
     StatementKind* {.pure.} = enum
-        Block
         For
         While
         Loop
@@ -30,7 +31,7 @@ type
     StatementObject = object
         loc*: Location
         case kind*: StatementKind
-        of StatementKind.Block, StatementKind.Loop:
+        of StatementKind.Loop:
             label*: Option[Ident]
             `block`*: Suite
         of StatementKind.While:
@@ -56,7 +57,7 @@ type
             expression*: Expression
         of StatementKind.Fail:
             nil
-    Suite* = object
+    Suite* = ref object
         stmts*: seq[Statement]
         scope*: Scope
     ElifBranch* = tuple[cond: Expression, suite: Suite]
@@ -68,19 +69,23 @@ type
         consts*: Table[string, seq[Symbol]]
         typeOrder*: Order[Value]  # cumulative
         converters*: Table[(Value, Value), Ident]
-    IdentDef* = object
+    IdentDef* = ref object
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
-    TypeDef* = object
+    TypeDef* = ref object
         id*: Ident
-        params*: Option[seq[IdentDef]]
+        params*: Option[seq[GenTypeDef]]
         typ*: TypeExpression
-    FunctionParam* = object
-        implicit*: seq[IdentDef]
+    GenTypeDef* = ref object
+        id*: Ident
+        ub*: Option[Expression]
+    FunctionParam* = ref object
+        implicit*: seq[GenTypeDef]
         params*: seq[IdentDef]
         rety*: Option[Expression]
-    Function* = object
+        scope*: Scope
+    Function* = ref object
         isProp*: bool
         id*: Ident
         param*: FunctionParam
@@ -102,6 +107,7 @@ type
         Binary
         Prefix
         Postfix
+        Block
         Lambda
         Malloc
         Typeof
@@ -137,6 +143,9 @@ type
             rhs*: Expression
             op*: Ident # for binary and unary
             expression*: Expression # for unary
+        of ExpressionKind.Block:
+            label*: Option[Ident]
+            `block`*: Suite
         of ExpressionKind.Lambda:
             param*: FunctionParam
             body*: Suite
@@ -228,7 +237,7 @@ type
             strval*: string
         of LiteralKind.Univ:
             level*: uint
-    Ident* = object
+    Ident* = ref object
         name*: string
         loc*: Location
         typ*: Value
@@ -236,12 +245,13 @@ type
         Literal
         Ident
         Dot
-        Bracket
+        # Bracket
         Tuple
         Record
         UnderScore
     Pattern* = ref PatternObject
     PatternObject = object
+        typ*: Value
         case kind*: PatternKind
         of PatternKind.Literal:
             litval*: Literal
@@ -251,9 +261,9 @@ type
         of PatternKind.Dot:
             lhs*: Pattern
             rhs*: Ident
-        of PatternKind.Bracket:
-            callee*: Pattern
-            args*: seq[Expression]
+        # of PatternKind.Bracket:
+        #     callee*: Pattern
+        #     args*: seq[Expression]
         of PatternKind.Tuple, PatternKind.Record:
             tag*: Option[Ident]
             patterns*: seq[Pattern] # for Tuple
@@ -272,7 +282,7 @@ type
         of MetadataKind.Userdef:
             name*: string
         params*: seq[Expression]
-    ValueKind {.pure.} = enum
+    ValueKind* {.pure.} = enum
         Literal
         Bottom
         Unit
@@ -283,6 +293,7 @@ type
         String
         Pair
         Array
+        ArrayV
         Record
         Ptr
         Pi
@@ -297,7 +308,8 @@ type
         Link
     Value* = ref ValueObject
     ValueObject = object
-        case kind: ValueKind
+        symbol*: Option[Symbol]
+        case kind*: ValueKind
         of ValueKind.Literal:
             litval*: Literal
         of ValueKind.Bottom, ValueKind.Unit, ValueKind.Bool:
@@ -311,18 +323,22 @@ type
             second*: Value
         of ValueKind.Array, ValueKind.Singleton, ValueKind.Distinct:
             base*: Value
+        of ValueKind.ArrayV:
+            vals*: seq[Value]
         of ValueKind.Record:
             members*: Table[Ident, Value]
         of ValueKind.Ptr:
             pointee*: Value
         of ValueKind.Pi:
-            implicit*: seq[(Expression, Value)]
+            implicit*: seq[(Pattern, Value)]
             params*: seq[Value]
             rety*: Value
         of ValueKind.Sum:
             cons*: Table[Ident, Value]
         of ValueKind.Trait:
-            methods*: Function
+            paty*: (Pattern, Value)
+            iss*: seq[(Pattern, Value)]
+            fns*: seq[Function]
         of ValueKind.Intersection, ValueKind.Union:
             types*: HashSet[Value]
         of ValueKind.Var:
@@ -347,10 +363,16 @@ type
         Typ
         Func
     SymbolId = int
-    Symbol* = ref object
-    SymbolObject = object
+    Symbol* = ref SymbolObject
+    SymbolObject* = object
         id*: SymbolId
-        kind*: SymbolKind
+        case kind*: SymbolKind
+        of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const:
+            impl_iddef*: IdentDef
+        of SymbolKind.Typ:
+            impl_typedef*: TypeDef
+        else:
+            nil
         global*: bool
         decl*: Ident
         val*: Value

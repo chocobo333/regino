@@ -5,8 +5,6 @@ import il
 import ../lineinfos
 
 
-proc Block*(_: typedesc[Statement], `block`: Suite, label: Option[Ident] = none(Ident), loc: Location = newLocation()): Statement =
-    Statement(kind: StatementKind.Block, `block`: `block`, label: label, loc: loc)
 proc For*(_: typedesc[Statement], pat: Pattern, val: Expression, suite: Suite, loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Asign, pat: pat, val: val, suite: suite, loc: loc)
 proc While*(_: typedesc[Statement], branch: ElifBranch, loc: Location = newLocation()): Statement =
