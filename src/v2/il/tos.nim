@@ -185,7 +185,7 @@ proc `$`*(self: IdentDef): string =
         default = if self.default.isNone: "" else: fmt" = {self.default.get}"
     pat & typ & default
 proc `$`*(self: GenTypeDef): string =
-    let ub = if self.ub.isSome: fmt" <:{self.ub.get}" else: ""
+    let ub = if self.ub.isSome: fmt" <: {self.ub.get}" else: ""
     fmt"{self.id}{ub}"
 proc `$`*(self: TypeDef): string =
     let
