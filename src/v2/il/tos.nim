@@ -330,6 +330,12 @@ proc `$`*(self: TypeVar): string =
     result.add c[id mod n]
     result.add "'"
     result.reverse
+proc `$`*(self: Value): string
+proc `$`*(self: GenericType): string =
+    self.id.name
+proc `$$`*(self: GenericType): string =
+    let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {self.ub}" else: ""
+    fmt"{self.id.name}{ub}"
 proc `$`*(self: Value): string =
     case self.kind
     of ValueKind.Literal:
@@ -374,7 +380,7 @@ proc `$`*(self: Value): string =
                 if self.implicit.len == 0:
                     ""
                 else:
-                    let imp = self.implicit.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+                    let imp = self.implicit.map(`$$`).join(", ")
                     fmt"[{imp}]"
             params =
                 if self.params.len == 0:
@@ -410,19 +416,21 @@ proc `$`*(self: Symbol): string =
             else:
                 $self.kind
         id = if self.global:
-            $self.decl
+            $self.id
         else:
-            $self.decl
+            $self.id
         typ = $self.typ
         impl =
             case self.kind
             of SymbolKind.Func:
                 "..."
-            of SymbolKind.Var..SymbolKind.Const:
-                $self.impl_iddef
+            of SymbolKind.Var..SymbolKind.Param:
+                $self.decl_iddef
             of SymbolKind.Typ:
-                $self.impl_typedef
-        loc = self.decl.loc
+                $self.decl_typedef
+            of SymbolKind.GenParam:
+                $self.decl_gendef
+        loc = self.id.loc
     fmt"{loc}: ({kind}){id}: {typ} ({impl})"
 proc `$`*(self: Scope): string =
     var

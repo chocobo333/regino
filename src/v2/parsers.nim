@@ -329,14 +329,10 @@ let
         ) @ (it => newIdentDef(it[0], it[1][0], it[1][1])),
         Patt @ (it => newIdentDef(it))
     )
-    GenIdentDef = alt(
-        Patt + alt(
-            ?preceded(colon, Expr) + (preceded(tlt, Expr) @ (it => some it)),
-            (preceded(colon, Expr) @ (it => some it) ) + ?preceded(eq, Expr)
-        ) @ (it => newIdentDef(it[0], it[1][0], it[1][1])),
-        Patt @ (it => newIdentDef(it))
+    GenTypeDef = alt(
+        Id + ?preceded(tlt, Expr) @ (it => newGenTypedef(it[0], it[1]))
     )
-    GenParamList = GenIdentDef ^* comma
+    GenParamList = GenTypeDef ^* comma
     ParamList = IdentDef ^* comma
     GenParams = delimited(
         lbra,
@@ -393,7 +389,7 @@ let
     FuncDef = (terminated(alt(fun @ (it => false), s"prop" @ (it => true)), sp1) +
         Id + ?GenParams + Params + ?Metadata + alt(NoBody, Suite @ (it => some it))
     ) @ (it => (it[0][0][0][0][0], it[0][0][0][0][1], it[0][0][0][1], it[0][0][1], it[0][1], it[1])) @
-        proc(it: (bool, Ident, Option[seq[IdentDef]], (seq[IdentDef], Option[Expression]), Option[il.Metadata], Option[il.Suite])): Function =
+        proc(it: (bool, Ident, Option[seq[GenTypeDef]], (seq[IdentDef], Option[Expression]), Option[il.Metadata], Option[il.Suite])): Function =
             let
                 (isProp, id, imp, prms, meta, body) = it
             Function(
@@ -477,6 +473,7 @@ let
         ) @ (it => newSuite(it))
     ) @ (it => Statement.Loop(it))
     LambdaDef = %(preceded(s"func", Params) + Suite) @ (it => Expression.Lambda(it[0][0], it[0][1], it[1]))
+    BlockExpr = %(preceded(s"block", ?preceded(sp1, Id) + Suite)) @ (it => Expression.Block(it[0][1], it[0][0], it[1]))
 
 
 #     # atom
@@ -495,6 +492,8 @@ proc Indent(self: ref Source): Option[int] =
     else:
         it
 proc Dedent(self: ref Source): Option[int] =
+    if (Eof)(self).isSome:
+        return some 0
     let it = (&NewLine)(self)
     if it.isSome:
         let n = it.get
@@ -521,11 +520,11 @@ proc Program*(self: ref Source): Option[Program] =
             ?Nodent,
             StmtList,
             preceded(?Nodent, Eof)
-        ),
+        ) @ (it => Program(stmts: it)),
         %success(seq[Statement]) @
-            proc(it: (seq[Statement], Location)): seq[Statement] =
+            proc(it: (seq[Statement], Location)): Program =
                 self.errs.add ParseError(loc: it[1], msg: @["program"])
-                it[0]
+                Program(stmts: it[0])
     )(self)
 
 proc StmtList(self: ref Source): Option[seq[Statement]] =
@@ -564,6 +563,7 @@ proc Expr(self: ref Source): Option[Expression] =
         WhenExpr,
         CaseExpr,
         LambdaDef,
+        BlockExpr,
         # ForExpr,
         SimplExpr
     )(self)

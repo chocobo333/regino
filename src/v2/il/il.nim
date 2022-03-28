@@ -330,7 +330,7 @@ type
         of ValueKind.Ptr:
             pointee*: Value
         of ValueKind.Pi:
-            implicit*: seq[(Pattern, Value)]
+            implicit*: seq[GenericType]
             params*: seq[Value]
             rety*: Value
         of ValueKind.Sum:
@@ -360,21 +360,24 @@ type
         Var
         Let
         Const
+        Param
         Typ
+        GenParam
         Func
     SymbolId = int
     Symbol* = ref SymbolObject
     SymbolObject* = object
-        id*: SymbolId
+        id*: Ident
         case kind*: SymbolKind
-        of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const:
-            impl_iddef*: IdentDef
+        of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const, SymbolKind.Param:
+            decl_iddef*: IdentDef
         of SymbolKind.Typ:
-            impl_typedef*: TypeDef
+            decl_typedef*: TypeDef
+        of SymbolKind.GenParam:
+            decl_gendef*: GenTypeDef
         else:
             nil
         global*: bool
-        decl*: Ident
         val*: Value
         typ*: Value
         use*: seq[Location]
