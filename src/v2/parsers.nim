@@ -54,6 +54,18 @@ proc make(self: TrailerObj, exp: Expression, endpos: Position): Expression =
 
 proc Fail(self: ref Source): Option[Location] =
     self.pos.map(it => newLocation(self.uri, it, it))
+proc Expected[T](p: proc(s: ref Source): Option[T], msg: string): proc(self: ref Source): Option[T] =
+    proc parse(self: ref Source): Option[T] =
+        let
+            loc = self.Fail()
+            res = p(self)
+        if res.isSome:
+            res
+        else:
+            self.errs.add ParseError(loc: loc.get, msg: @[msg])
+            success(T)(self)
+
+    parse
 proc Err[T](parser: proc(self: ref Source): Option[T], err: ParseError, loc: Option[Location] = none(Location)): proc(self: ref Source): Option[T] =
     proc parse(self: ref Source): Option[T] =
         let
@@ -436,8 +448,7 @@ let
 
 #     # epression
     CondBranch = alt(
-        terminated(Expr, sp0) + Suite,
-        # preceded(sp0, Fail > Suite) @ (it => (errs.add ParseError(loc: it[0].loc, msg: @["expression"]); it))
+        terminated(Expected(Expr, "expression"), sp0) + Suite,
     ) @ (it => newElif(it[0], it[1]))
     ElifBranch = preceded(elift > sp1, CondBranch)
     ElseBranch = preceded(terminated(elset, sp0), Suite)

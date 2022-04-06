@@ -25,14 +25,30 @@ type
 proc `$`*(self: ref Source): string =
     self.src
 
-proc `from`*(_: typedesc[Source], str: string): ref Source =
+proc `from`*(_: typedesc[Source], str: string, uri: string = ""): ref Source =
     new result
     result[] = Source(
         src: str,
         line: 0,
         character: 0,
         abs: 0,
-        uri: initUri(),
+        uri: uri.parseUri,
+        indent: @[0],
+        errs: @[]
+    )
+
+proc open*(_: typedesc[Source], filename: string): ref Source =
+    new result
+    let
+        f = open(filename)
+    defer:
+        f.close()
+    result[] = Source(
+        src: f.readAll,
+        line: 0,
+        character: 0,
+        abs: 0,
+        uri: filename.parseUri,
         indent: @[0],
         errs: @[]
     )
