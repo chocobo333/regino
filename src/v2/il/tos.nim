@@ -446,6 +446,12 @@ proc `$`*(self: Scope): string =
     else:
         for scope in scopes:
             for (key, val) in scope.pairs:
+                let
+                    val =
+                        if val.len == 1:
+                            $val[0]
+                        else:
+                            val.map(`$`).join("\n").indent(2)
                 result &= &"\"{key}\": {val},\n"
         &"{{\n{result[0..^3].indent(2)}\n}}"
     result.add "\n"

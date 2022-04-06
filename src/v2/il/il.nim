@@ -375,8 +375,8 @@ type
             decl_typedef*: TypeDef
         of SymbolKind.GenParam:
             decl_gendef*: GenTypeDef
-        else:
-            nil
+        of SymbolKind.Func:
+            decl_funcdef*: Function
         global*: bool
         val*: Value
         typ*: Value

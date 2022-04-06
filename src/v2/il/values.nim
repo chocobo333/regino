@@ -45,10 +45,17 @@ proc Singleton*(_: typedesc[Value], base: Value): Value =
     Value(kind: ValueKind.Singleton, base: base)
 proc Distinct*(_: typedesc[Value], base: Value): Value =
     Value(kind: ValueKind.Distinct, base: base)
-proc Intersection*(_: typedesc[Value], types: seq[Value]): Value =
-    Value(kind: ValueKind.Intersection, types: types.toHashSet)
 proc Intersection*(_: typedesc[Value], types: HashSet[Value]): Value =
-    Value(kind: ValueKind.Intersection, types: types)
+    case types.len
+    of 0:
+        assert false, ""
+        Value.Unit
+    of 1:
+        toSeq(types.items)[0]
+    else:
+        Value(kind: ValueKind.Intersection, types: types)
+proc Intersection*(_: typedesc[Value], types: seq[Value]): Value =
+    Value.Intersection(types.toHashSet)
 proc Union*(_: typedesc[Value], types: seq[Value]): Value =
     Value(kind: ValueKind.Union, types: types.toHashSet)
 proc Union*(_: typedesc[Value], types: HashSet[Value]): Value =
@@ -58,7 +65,10 @@ proc Var*(_: typedesc[Value], tv: TypeVar): Value =
 proc Gen*(_: typedesc[Value], gen: GenericType): Value =
     Value(kind: ValueKind.Gen, gt: gen)
 proc Link*(_: typedesc[Value], to: Value): Value =
-    Value(kind: ValueKind.Link, to: to)
+    if to.kind == ValueKind.Link:
+        Value.Link(to.to)
+    else:
+        Value(kind: ValueKind.Link, to: to)
 proc Univ*(_: typedesc[Value], level: uint = 0): Value =
     Value.literal(Literal(kind: LiteralKind.Univ, level: level))
 
@@ -121,7 +131,9 @@ proc compilable*(self: Value): bool =
         self.litval.kind != LiteralKind.Univ
     of ValueKind.Bottom:
         false
-    of ValueKind.Unit..ValueKind.String:
+    of ValueKind.Unit:
+        true
+    of ValueKind.Bool..ValueKind.String:
         true
     of ValueKind.Ptr:
         self.pointee.compilable
@@ -232,3 +244,61 @@ proc typ*(self: Value): Value =
         Value.Univ
     of ValueKind.Link:
         self.to.typ
+
+import literals
+proc `==`*(t1, t2: Value): bool =
+    if t1.kind == t2.kind:
+        case t1.kind
+        of ValueKind.Literal:
+            t1.litval == t2.litval
+        of ValueKind.Bottom:
+            true
+        of ValueKind.Unit:
+            true
+        of ValueKind.Bool:
+            true
+        of ValueKind.Integer:
+            t1.bits == t2.bits
+        of ValueKind.Float:
+            t1.bits == t2.bits
+        of ValueKind.Char:
+            true
+        of ValueKind.String:
+            true
+        of ValueKind.Pair:
+            t1.first == t2.first and t1.second == t2.second
+        of ValueKind.Array:
+            t1.base == t2.base
+        of ValueKind.ArrayV:
+            true
+        of ValueKind.Record:
+            true
+        of ValueKind.Ptr:
+            t1.pointee == t2.pointee
+        of ValueKind.Pi:
+            t1.implicit == t2.implicit and
+            t1.params == t2.params and
+            t1.rety == t2.rety
+        of ValueKind.Sum:
+            true
+        of ValueKind.Trait:
+            true
+        of ValueKind.Singleton:
+            t1.base == t2.base
+        of ValueKind.Distinct:
+            t1.base == t2.base
+        of ValueKind.Intersection:
+            t1.types == t2.types
+        of ValueKind.Union:
+            t1.types == t2.types
+        of ValueKind.Var:
+            t1.tv.id == t2.tv.id
+        of ValueKind.Gen:
+            t1.gt == t2.gt
+        of ValueKind.Link:
+            t1.to == t2.to
+    else:
+        false
+
+when isMainModule:
+    assert Value.Integer == Value.Integer

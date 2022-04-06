@@ -29,8 +29,8 @@ proc Discard*(_: typedesc[Statement], dis: Option[Expression] = none(Expression)
     Statement(kind: StatementKind.Discard, `discard`: dis, loc: loc)
 proc Comments*(_: typedesc[Statement], comments: seq[string], loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Comments, comments: comments, loc: loc)
-proc Expr*(_: typedesc[Statement], exp: Expression, loc: Location = newLocation()): Statement =
-    Statement(kind: StatementKind.Expression, expression: exp, loc: loc)
+proc Expr*(_: typedesc[Statement], exp: Expression): Statement =
+    Statement(kind: StatementKind.Expression, expression: exp, loc: exp.loc)
 proc Fail*(_: typedesc[Statement], loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Fail, loc: loc)
 
