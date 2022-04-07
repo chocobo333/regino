@@ -3,7 +3,6 @@ import sets
 import tables
 import sequtils
 import options
-import algorithm
 import strformat
 import sugar
 
@@ -20,7 +19,15 @@ type
         constraints*: seq[Constraint]
         tvconstraints*: seq[Constraint]
         interconstraints*: seq[Constraint]
-    Constraint* = (Value, Value)   # for t1 <= t2
+        errs*: seq[TypeError]
+    Constraint* = (Value, Value, TypeError)   # for t1 <= t2
+
+converter to*(self: (Value, Value)): Constraint =
+    (self[0], self[1], TypeError.Subtype(self[0], self[1]))
+proc `==`*(self, other: Constraint): bool =
+    self[0] == other[0] and self[1] == other[1]
+proc `$`*(self: Constraint): string =
+    $(self[0], self[1])
 
 
 proc Var*(_: typedesc[Value], env: TypeEnv): Value =
@@ -154,12 +161,12 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
             if t1.isUniv:
                 t1.litval.level <= t2.litval.level
             else:
-                echo t1.kind
+                debug t1.kind
                 raise newException(TypeError, "notimplemented")
     elif t1.kind == t2.kind:
         case t1.kind
-        # of ValueKind.Literal:
-        #     t1.level <= t2.level
+        of ValueKind.Literal:
+            false
         of ValueKind.Bottom:
             true
         of ValueKind.Unit:
@@ -187,11 +194,11 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
         of ValueKind.Singleton:
             env.`<=`(t1.base, t2.base)
         of ValueKind.Var:
-            false
+            env.`<=`(t1.tv.ub, t2.tv.lb)
         of ValueKind.Link:
             env.`<=`(t1.to, t2.to)
         else:
-            echo t1.kind
+            debug t1.kind
             raise newException(TypeError, "notimplemented")
     # elif t1.kind == ValueKind.Sigma and t2.kind == ValueKind.Sigma:
     #     `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
@@ -208,7 +215,8 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
     elif t2.kind == ValueKind.Var:
         env.`<=`(t1, t2.tv.lb)
     else:
-        env.scope.typeOrder.path(t1, t2).isSome
+        # env.scope.typeOrder.path(t1, t2).isSome
+        (t1, t2) in env.scope.typeOrder
 proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
     proc `<=`(t1, t2: Value): bool =
         env.`<=`(t1, t2)
@@ -243,7 +251,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
                 none(seq[Constraint])
         of ValueKind.Var:
             if t1.tv.lb <= t2.tv.ub:
-                some @[(t1, t2)]
+                some @[(t1, t2).to]
             else:
                 none(seq[Constraint])
         else:
@@ -255,7 +263,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
         # else:
         #     some @[(t1, t2)]
         if t1 <= t2.tv.ub:
-            some @[(t1, t2)]
+            some @[(t1, t2).to]
         else:
             none(seq[Constraint])
     elif t1.kind == ValueKind.Var:
@@ -264,7 +272,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
         # else:
         #     some @[(t1, t2)]
         if t1.tv.lb <= t2:
-            some @[(t1, t2)]
+            some @[(t1, t2).to]
         else:
             none(seq[Constraint])
     else:
@@ -278,36 +286,9 @@ template setTypeEnv*(env: TypeEnv): untyped =
         env.`<=`(t1, t2)
     proc `<=?`(t1, t2: Value): Option[seq[Constraint]] =
         env.`<=?`(t1, t2)
+    # proc `==`(t1, t2: Value): bool =
+    #     t1 <= t2 and t2 <= t1
 
-proc bindtv*(self: TypeEnv, t1, t2: Value) =
-    case t2.kind
-    of ValueKind.Var:
-        let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
-        t1[] = Value.Link(t2)[]
-        t1.symbol = symbol
-    of ValueKind.Link:
-        self.bindtv(t1, t2.to)
-    else:
-        if t1.kind in {ValueKind.Intersection, ValueKind.Union}:
-            t1[] = t2[]
-        else:
-            let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
-            t1[] = t2[]
-            t1.symbol = symbol
-proc simplify*(self: TypeEnv, t: Value): Value {.discardable.} =
-    setTypeEnv(self)
-    result = t
-    assert t.kind == ValueKind.Var
-    if t.tv.lb.kind == ValueKind.Intersection:
-        let
-            tmp = t.tv.lb.types.filter(it => it <= t.tv.ub)
-        self.bindtv(t.tv.lb, Value.Intersection(tmp))
-    if t.tv.ub.kind == ValueKind.Union:
-        let
-            tmp = t.tv.ub.types.filter(it => t.tv.lb <= it)
-        self.bindtv(t.tv.ub, Value.Union(tmp))
-    if t.tv.ub <= t.tv.lb:
-        self.bindtv(t, t.tv.lb)
 
 proc lub*(self: TypeEnv, t1, t2: Value): Value =
     setTypeEnv(self)

@@ -19,13 +19,7 @@
 # cstring = typeof("")
 # func ptrGet[T](self: ptr[T], n: int) -> T ![builtin: "ptrGet"]
 # func ptrSet[T](self: ptr[T], n: int, val: T) -> T ![builtin: "ptrSet"]
-# const
-#     ref[T] = distinct ptr[T]
-#     seq[T] = (size: int, len: int, p: ptr[T])
-#     Monoid = trait (_, op): ([T], (T, T) -> T) with
-#         func unit(_: singleton (T, op)) -> T
-#         prop unitNeutral(x: T) -> (op((T, op).unit, x) == x, op(x, (T, op).unit) == x)
-#         prop associtive(x, y, z: T) -> op(x, op(y, z)) == op(op(x, y), z)
+
 
 # type
 #     ptr[T] = typeof(malloc(T, 1))
@@ -87,11 +81,11 @@ func `$`[T <: string, U <: string]((a, b): (T, U)) -> string:
     let a: string = a
     a
 
-# func toInt(a: bool) -> int ![subtype]:
-#     if a:
-#         1
-#     else:
-#         0
+func toInt(a: bool) -> int ![subtype]:
+    if a:
+        1
+    else:
+        0
 func `$`(a: bool) -> string ![subtype]:
     if a:
         "true"
@@ -116,7 +110,13 @@ func fib(n: int) -> int:
 # var d = 4
 # d = 5
 # echo d
+func f(a: int) -> int:
+    3
+func f(a: int) -> float:
+    4.5
 let
-    a = 1
-    b: int = 2
+    a = 3
+    b: int = f(3)
+echo a
+echo b
 0

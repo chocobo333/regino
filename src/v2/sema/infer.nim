@@ -14,17 +14,28 @@ import ../errors
 import ../utils
 
 
-proc coerceRelation*(self: TypeEnv, t1, t2: Value) =
+proc coerceRelation*(self: TypeEnv, t1, t2: Value, err: TypeError = TypeError.Subtype(t1, t2)) =
     # coerce the relation for t1 <= t2
     if t1.kind == t2.kind and t1.kind in {ValueKind.Bottom..ValueKind.Bool, ValueKind.Char, ValueKind.String}:
         discard
     elif t1.kind == t2.kind and t1.kind in {ValueKind.Integer, ValueKind.Float} and t1.bits == t2.bits:
         discard
     else:
-        self.constraints.add (t1, t2)
+        self.constraints.add (t1, t2, err)
 proc coerceEq*(self: TypeEnv, t1, t2: Value) =
     self.coerceRelation(t1, t2)
     self.coerceRelation(t2, t1)
+proc coerceEq*(self: TypeEnv, t1, t2: Value, err: TypeError) =
+    self.coerceRelation(t1, t2, err)
+    self.coerceRelation(t2, t1, err)
+
+proc addTypeRelation*(self: TypeEnv, t1, t2: Value, fn: Ident) =
+    setTypeEnv(self)
+    # assert t1.kind == ValueKind.Typedesc
+    # assert t2.kind == ValueKind.Typedesc
+    # assert not (t2.`typedesc` <= t1.`typedesc`)
+    self.scope.typeOrder.add (t1, t2)
+    self.scope.converters[(t1, t2)] = fn
 
 import macros
 macro coerce*(self: TypeEnv, rel: untyped): untyped =
@@ -37,6 +48,19 @@ macro coerce*(self: TypeEnv, rel: untyped): untyped =
     elif op.strVal == "<=":
         quote:
             `self`.coerceRelation(`l`, `r`)
+    else:
+        error fmt"permitted is {l} == {r} or {l} <= {r}.", op
+        newEmptyNode()
+macro coerce*(self: TypeEnv, rel: untyped, err: typed): untyped =
+    rel.expectKind(nnkInfix)
+    let
+        (op, l, r) = (rel[0], rel[1], rel[2])
+    if op.strVal == "==":
+        quote:
+            `self`.coerceEq(`l`, `r`, `err`)
+    elif op.strVal == "<=":
+        quote:
+            `self`.coerceRelation(`l`, `r`, `err`)
     else:
         error fmt"permitted is {l} == {r} or {l} <= {r}.", op
         newEmptyNode()
@@ -62,10 +86,10 @@ proc likelihoodimpl*(self: TypeEnv, t1, t2: Value): int =
                 ret += self.likelihoodimpl(t1.rety, t2.rety)
                 ret
         else:
-            echo t1
-            echo t2
-            echo t1.symbol
-            echo t2.symbol
+            debug t1
+            debug t2
+            debug t1.symbol
+            debug t2.symbol
             assert false, "notimplemented"
             0
     elif t1.kind == ValueKind.Var:
@@ -87,8 +111,8 @@ proc likelihoodimpl*(self: TypeEnv, t1, t2: Value): int =
             tmp = self.scope.typeOrder.path(t1, t2)
         tmp.get(@[]).len * 10
     else:
-        echo t1
-        echo t2
+        debug t1
+        debug t2
         assert false, "notimplemented"
         0
 proc likelihood*(self: TypeEnv, t1, t2: Value): seq[(Value, int)] =
@@ -96,19 +120,50 @@ proc likelihood*(self: TypeEnv, t1, t2: Value): seq[(Value, int)] =
     assert t2.kind != ValueKind.Intersection
     t1.types.mapIt((it, self.likelihoodimpl(it, t2)))
 
-proc resolveRelation(self: TypeEnv, t1, t2: Value) =
+proc bindtv*(self: TypeEnv, t1, t2: Value) =
+    case t2.kind
+    of ValueKind.Var:
+        let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
+        t1[] = Value.Link(t2)[]
+        t1.symbol = symbol
+    of ValueKind.Link:
+        self.bindtv(t1, t2.to)
+    else:
+        if t1.kind in {ValueKind.Intersection, ValueKind.Union}:
+            t1[] = t2[]
+        else:
+            let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
+            t1[] = t2[]
+            t1.symbol = symbol
+proc simplify*(self: TypeEnv, t: Value): Value {.discardable.} =
+    setTypeEnv(self)
+    result = t
+    assert t.kind == ValueKind.Var
+    if t.tv.lb.kind == ValueKind.Intersection:
+        let
+            tmp = t.tv.lb.types.filter(it => it <= t.tv.ub)
+        self.bindtv(t.tv.lb, Value.Intersection(tmp))
+    if t.tv.ub.kind == ValueKind.Union:
+        let
+            tmp = t.tv.ub.types.filter(it => t.tv.lb <= it)
+        self.bindtv(t.tv.ub, Value.Union(tmp))
+    if t.tv.ub <= t.tv.lb:
+        self.bindtv(t, t.tv.lb)
+
+proc resolveRelation(self: TypeEnv, t1, t2: Value, err: TypeError) =
     # implies t1 < t2
-    # setTypeEnv(self)
     setTypeEnv(self)
     # TODO: should change function name
     if t1.kind == ValueKind.Link:
-        self.resolveRelation(t1.to, t2)
+        self.resolveRelation(t1.to, t2, err)
     elif t2.kind == ValueKind.Link:
-        self.resolveRelation(t1, t2.to)
+        self.resolveRelation(t1, t2.to, err)
+    elif t1 <= t2:
+        return
     elif t1 == t2:
         return
     # elif t1.kind == ValueKind.Gen:
-    #     self.resolveRelation(t1.gen.ub, t2)
+    #     self.resolveRelation(t1.gt.ub, t2)
     # elif t2.kind == ValueKind.Gen:
     #     self.resolveRelation(t1, t2.gen.ub)
     elif t1.kind == t2.kind:
@@ -118,11 +173,11 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
         # of ValueKind.List:
         #     self.resolveRelation(t1.base, t2.base)
         of ValueKind.Pair:
-            self.resolveRelation(t1.first, t2.first)
-            self.resolveRelation(t1.second, t2.second)
+            self.resolveRelation(t1.first, t2.first, err)
+            self.resolveRelation(t1.second, t2.second, err)
         of ValueKind.Record:
             for member in t2.members.keys:
-                self.resolveRelation(t1.members[member], t2.members[member])
+                self.resolveRelation(t1.members[member], t2.members[member], err)
         # of ValueKind.Sigma:
         #     self.resolveRelation(t1.first, t2.first)
         #     self.resolveRelation(t1.second, t2.second)
@@ -137,10 +192,10 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
         #     raise newException(TypeError, "notimplemented")
         of ValueKind.Pi:
             for (t1, t2) in t1.params.zip(t2.params):
-                self.resolveRelation(t2, t1)
-            self.resolveRelation(t1.rety, t2.rety)
+                self.resolveRelation(t2, t1, err)
+            self.resolveRelation(t1.rety, t2.rety, err)
         of ValueKind.Singleton:
-            self.resolveRelation(t1.base, t2.base)
+            self.resolveRelation(t1.base, t2.base, err)
         of ValueKind.Var:
             t1.tv.ub = self.lub(t1.tv.ub, t2.tv.ub)
             t2.tv.lb = self.glb(t1.tv.lb, t2.tv.lb)
@@ -149,11 +204,11 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
             if t1.kind == ValueKind.Var and t2.kind == ValueKind.Var:
                 self.tvconstraints.add (t1, t2)
         else:
-            echo t1
-            echo t2
-            echo $t1.symbol
-            echo t2.symbol
-            echo self.constraints
+            debug t1
+            debug t2
+            debug $t1.symbol
+            debug t2.symbol
+            debug self.constraints
             raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
     else:
         if t1.kind == ValueKind.Var:
@@ -175,10 +230,11 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
             # elif t1 <= t2.tv.lb:
             #     discard
             else:
-                echo t1
-                echo t2.tv.ub
-                echo t1 <= t2.tv.ub
-                raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+                debug t1
+                debug t2.tv.ub
+                debug t1 <= t2.tv.ub
+                self.errs.add err
+                raise err.new
             self.simplify(t2)
         elif t1.kind == ValueKind.Intersection:
             let
@@ -204,8 +260,8 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
                         tmp = Value.Intersection(t1.types.map(it => it.rety))
                     if not (tmp <= t2.rety):
                         self.interconstraints.add (tmp, t2.rety)
-                echo t1
-                echo t2
+                debug t1
+                debug t2
                 let
                     likeli = self.likelihood(t1, t2)
                 if likeli.anyIt(it[1] >= cvar):
@@ -260,14 +316,14 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
         elif t1 <= t2:
             discard
         else:
-            echo t1
-            echo t2
-            echo t1.symbol
-            echo t2.symbol
-            echo t1.kind
-            echo t2.kind
-            echo self.constraints
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            debug t1
+            debug t2
+            debug t1.symbol
+            debug t2.symbol
+            debug t1.kind
+            debug t2.kind
+            debug self.constraints
+            self.errs.add err
 
 proc resolveRelationsPartially*(self: TypeEnv) =
     var tmp: seq[Constraint]
@@ -275,8 +331,8 @@ proc resolveRelationsPartially*(self: TypeEnv) =
         self.constraints.reverse
         while self.constraints.len > 0:
             let
-                (t1, t2) = self.constraints.pop
-            self.resolveRelation(t1, t2)
+                (t1, t2, err) = self.constraints.pop
+            self.resolveRelation(t1, t2, err)
         var
             ord = newOrder[Value]()
             f = false
@@ -287,12 +343,12 @@ proc resolveRelationsPartially*(self: TypeEnv) =
             continue
         for cons in self.tvconstraints:
             let
-                (t1, t2) = cons
+                (t1, t2, err) = cons
                 path = ord.path(t2, t1)
             if path.isSome:
                 for (t1, t2) in path.get:
-                    self.resolveRelation(t1, t2)
-                self.resolveRelation(t1, t2)
+                    self.resolveRelation(t1, t2, err)
+                self.resolveRelation(t1, t2, err)
                 for t2 in path.get.mapIt(it[0]):
                     self.bindtv(t2, t1)
                 self.constraints = self.tvconstraints & self.interconstraints
@@ -301,7 +357,7 @@ proc resolveRelationsPartially*(self: TypeEnv) =
                 f = true
                 break
             else:
-                ord.add cons
+                ord.add (t1, t2)
         if f: continue
         self.constraints = self.tvconstraints & self.interconstraints
         self.tvconstraints = @[]
@@ -318,8 +374,8 @@ proc resolveRelations*(self: TypeEnv) =
         self.constraints.reverse
         while self.constraints.len > 0:
             let
-                (t1, t2) = self.constraints.pop
-            self.resolveRelation(t1, t2)
+                (t1, t2, err) = self.constraints.pop
+            self.resolveRelation(t1, t2, err)
         var
             ord = newOrder[Value]()
             f = false
@@ -330,12 +386,12 @@ proc resolveRelations*(self: TypeEnv) =
             continue
         for cons in self.tvconstraints:
             let
-                (t1, t2) = cons
+                (t1, t2, err) = cons
                 path = ord.path(t2, t1)
             if path.isSome:
                 for (t1, t2) in path.get:
-                    self.resolveRelation(t1, t2)
-                self.resolveRelation(t1, t2)
+                    self.resolveRelation(t1, t2, err)
+                self.resolveRelation(t1, t2, err)
                 for t2 in path.get.mapIt(it[0]):
                     self.bindtv(t2, t1)
                 self.constraints = self.tvconstraints & self.interconstraints
@@ -344,7 +400,7 @@ proc resolveRelations*(self: TypeEnv) =
                 f = true
                 break
             else:
-                ord.add cons
+                ord.add (t1, t2)
         if f: continue
         self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var).map(it => self.simplify(it))
         for e in self.tvs:

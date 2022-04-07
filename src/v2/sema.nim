@@ -1,6 +1,8 @@
 
 import il
 import typeenv
+import errors
+import utils
 
 import sema/[
     scopes,
@@ -8,12 +10,15 @@ import sema/[
 ]
 
 
-proc sema*(self: Program) =
+proc sema*(self: Program): seq[TypeError] =
     let
         mainScope = self.setScope()
         env = newTypeEnv(mainScope)
-    echo self.infer(env)
-    echo mainScope
+        rety = self.infer(env)
+    self.check(env)
+    debug env.errs
+    # debug mainScope
+    env.errs
 
 
 when isMainModule:
@@ -23,8 +28,6 @@ when isMainModule:
         f = open("test/test.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
+        errs = program.sema
     f.close
-
-    echo program
-
-    program.sema
+    # echo program.scope

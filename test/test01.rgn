@@ -1,12 +1,23 @@
 
 ![link: "arith.ll"]
 
-const
+type
     string = typeof("")
+    int = typeof(0)
 func echo(s: string) ![importll]
+func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `+`(a: int, b: int) -> int:
+    `add@int32/int32int32`(a, b)
 
 let
     a = "Hello world!"
     b = 3
 echo a
-echo b
+# echo b
+
+let
+    a = 1
+    b: int = 2
+    c = "sss"
+discard a
+# discard 1 + 3

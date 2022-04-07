@@ -3,13 +3,20 @@ import macros
 import tables
 import sets
 import sugar
+import strformat
 
 
 macro suite*(label: untyped, body: untyped): untyped =
     body
 
 template debug*(exp: untyped): untyped =
-    debugEcho exp.astToStr, " : ", exp
+    when defined(release):
+        discard
+    else:
+        let
+            info = instantiationInfo()
+        debugEcho info.filename, "(", info.line, ", ", info.column, ") ", exp.astToStr, " : ", exp
+
 
 iterator reversed*[T](s: seq[T]): T =
     for i in countdown(s.len-1, 0):

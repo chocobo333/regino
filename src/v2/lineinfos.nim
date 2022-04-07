@@ -25,7 +25,7 @@ proc `<=`*(self, other: Position): bool =
         self.line <= other.line
 
 proc `$`*(self: Location): string =
-    fmt"{self.uri}({self.`range`.a.line+1}, {self.`range`.a.character+1})"
+    fmt"{self.uri.path}({self.`range`.a.line+1}, {self.`range`.a.character+1})"
 proc `end`*(self: Location): Location =
     Location(
         uri: self.uri,

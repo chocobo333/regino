@@ -48,7 +48,7 @@ proc Distinct*(_: typedesc[Value], base: Value): Value =
 proc Intersection*(_: typedesc[Value], types: HashSet[Value]): Value =
     case types.len
     of 0:
-        assert false, ""
+        # assert false, ""
         Value.Unit
     of 1:
         toSeq(types.items)[0]
@@ -71,6 +71,15 @@ proc Link*(_: typedesc[Value], to: Value): Value =
         Value(kind: ValueKind.Link, to: to)
 proc Univ*(_: typedesc[Value], level: uint = 0): Value =
     Value.literal(Literal(kind: LiteralKind.Univ, level: level))
+
+proc dual*(self: Value): Value =
+    case self.kind
+    of ValueKind.Intersection:
+        Value.Union(self.types)
+    of ValueKind.Union:
+        Value.Intersection(self.types)
+    else:
+        self
 
 proc hash*(self: Value): Hash =
     result = self.kind.int

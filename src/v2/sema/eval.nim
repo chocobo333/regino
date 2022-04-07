@@ -3,9 +3,14 @@ import options
 import sequtils
 import sugar
 import sets
+import tables
 
 import ../il
 import ../typeenv
+import ../errors
+
+import ../orders
+import ../utils
 
 import infer as _
 
@@ -22,7 +27,7 @@ proc infer*(self: Suite, env: TypeEnv): Value =
         return Value.Unit
     env.enter(self.scope):
         for s in self.stmts[0..^2]:
-            env.coerce(s.infer(env) == Value.Unit)
+            env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
         result = self.stmts[^1].infer(env)
     env.resolveRelationsPartially()
 proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
@@ -33,13 +38,14 @@ proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
 proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     let
         syms = env.lookupId(self.name)
-    case syms.len
+    result = case syms.len
     of 0:
         Value.Var(env)
     of 1:
         syms[0].typ.inst(env)
     else:
         Value.Intersection(syms.mapIt(it.typ.inst(env)))
+    self.typ = result
 proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
     result = case self.kind
     of ExpressionKind.Literal:
@@ -75,6 +81,11 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             args = self.args.mapIt(it.infer(env, global))
             callee = self.callee.infer(env, global)
         env.coerce(callee <= Value.Arrow(args, tv))
+        # TODO: a
+        if callee.kind == ValueKind.Intersection:
+            env.coerce(tv <= Value.Intersection(toSeq(callee.types).filterIt(it.kind == ValueKind.Pi).mapIt(it.rety)))
+        else:
+            env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Dot:
         Value.Unit
@@ -87,11 +98,15 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             rhs = self.rhs.infer(env, global)
             op = self.op.infer(env, global)
         env.coerce(op <= Value.Arrow(@[lhs, rhs], tv))
+        env.coerce(Value.Arrow(@[Value.Unit, Value.Unit], tv) <= op.dual) # i dont know whether this is correct.
         tv
-    of ExpressionKind.Prefix:
-        Value.Unit
-    of ExpressionKind.Postfix:
-        Value.Unit
+    of ExpressionKind.Prefix, ExpressionKind.Postfix:
+        let
+            tv = Value.Var(env)
+            exp = self.expression.infer(env, global)
+            op = self.op.infer(env, global)
+        env.coerce(op <= Value.Arrow(@[exp], tv))
+        tv
     of ExpressionKind.Block:
         self.`block`.infer(env)
     of ExpressionKind.Lambda:
@@ -119,18 +134,10 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
     of PatternKind.Ident:
         # TODO: index
         if asign:
-            let
-                syms = env.lookupId(self.ident.name)
-            case syms.len
-            of 0:
-                Value.Var(env)
-            of 1:
-                syms[0].typ.inst(env)
-            else:
-                Value.Intersection(syms.mapIt(it.typ.inst(env)))
+            self.ident.infer(env, global)
         else:
             let res = Value.Var(env)
-            # self.ident.typ = res
+            self.ident.typ = res
             res
     of PatternKind.Dot:
         Value.Unit # TODO:
@@ -214,6 +221,10 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
         if fn.suite.isSome:
             let infered = fn.suite.get.infer(env)
             env.coerce(infered <= rety)
+    if fn.metadata.isSome:
+        if fn.metadata.get.kind == MetadataKind.Subtype:
+            assert fn.param.params.len == 1, "converter must take only one argument."
+            env.addTypeRelation(sym.typ.params[0], rety, fn.id)
 
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     result = case self.kind
@@ -282,12 +293,15 @@ proc infer*(self: Program, env: TypeEnv): Value =
     if self.stmts.len == 0:
         return Value.Unit
     for s in self.stmts[0..^2]:
-        env.coerce(s.infer(env) == Value.Unit)
+        env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
     result = self.stmts[^1].infer(env)
-    echo env.constraints
+    debug env.constraints
     env.resolveRelations()
-    echo env.constraints
-    echo env.tvs
+    debug env.constraints
+    debug env.tvs
+    for e in env.tvs:
+        debug e.tv.lb
+        debug e.tv.ub
 
 proc eval*(self: Literal): Value =
     Value.literal(self)
@@ -303,6 +317,98 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of TypeExpressionKind.Expression:
         self.expression.eval(env, global)
+
+proc check(self: Expression, env: TypeEnv) =
+    if self.typ.kind == ValueKind.Link:
+        env.bindtv(self.typ, self.typ.to)
+    if self.typ.kind == ValueKind.Var:
+        if self.kind == ExpressionKind.Ident and self.typ.symbol.isNone:
+            # TypeError.Undefined(self.ident, self.loc)
+            discard
+        else:
+            env.errs.add TypeError.Undeciable(self.loc)
+    case self.kind
+    of ExpressionKind.Literal:
+        discard
+    of ExpressionKind.Ident:
+        if self.typ.symbol.isNone:
+            env.errs.add TypeError.Undefined(self.ident, self.loc)
+        discard
+    of ExpressionKind.Tuple:
+        for e in self.exprs:
+            e.check(env)
+    of ExpressionKind.Seq:
+        discard
+    of ExpressionKind.Record:
+        discard
+    of ExpressionKind.If:
+        discard
+    of ExpressionKind.When:
+        discard
+    of ExpressionKind.Case:
+        discard
+    of ExpressionKind.Call, ExpressionKind.Command:
+        discard
+    of ExpressionKind.Dot:
+        discard
+    of ExpressionKind.Bracket:
+        discard
+    of ExpressionKind.Binary:
+        discard
+    of ExpressionKind.Prefix, ExpressionKind.Postfix:
+        discard
+    of ExpressionKind.Block:
+        discard
+    of ExpressionKind.Lambda:
+        discard
+    of ExpressionKind.Malloc:
+        discard
+    of ExpressionKind.Typeof:
+        discard
+    of ExpressionKind.Ref:
+        discard
+    of ExpressionKind.FnType:
+        discard
+    of ExpressionKind.Fail:
+        discard
+proc check(self: Statement, env: TypeEnv) =
+    case self.kind
+    of StatementKind.For:
+        discard
+    of StatementKind.While:
+        discard
+    of StatementKind.Loop:
+        discard
+    of StatementKind.LetSection:
+        discard
+    of StatementKind.VarSection:
+        discard
+    of StatementKind.ConstSection:
+        discard
+    of StatementKind.TypeSection:
+        discard
+    of StatementKind.Asign:
+        discard
+    of StatementKind.Funcdef:
+        discard
+    of StatementKind.Meta:
+        discard
+    of StatementKind.Discard:
+        if self.`discard`.isSome:
+            self.`discard`.get.check(env)
+    of StatementKind.Comments:
+        discard
+    of StatementKind.Expression:
+        self.expression.check(env)
+    of StatementKind.Fail:
+        discard
+proc check(self: Suite, env: TypeEnv) =
+    env.enter(self.scope):
+        for s in self.stmts:
+            s.check(env)
+proc check*(self: Program, env: TypeEnv) =
+    for s in self.stmts:
+        s.check(env)
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     discard self.infer(env, global)
     case self.kind

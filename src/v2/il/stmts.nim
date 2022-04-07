@@ -38,3 +38,11 @@ converter toStmt*(self: Expression): Statement =
     Statement.Expr(self)
 
 proc empty*(_: typedesc[Statement]): Statement = Statement.Fail
+
+import values
+proc typ*(self: Statement): Value =
+    case self.kind
+    of StatementKind.Expression:
+        self.expression.typ
+    else:
+        Value.Unit
