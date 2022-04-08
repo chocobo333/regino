@@ -10,6 +10,7 @@ type
         Subtype
         Undeciable
         Undefined
+        NoSuite
     TypeError* = object of CatchableError
         loc*: Location
         case kind: TypeErrorKind
@@ -21,6 +22,8 @@ type
             nil
         of TypeErrorKind.Undefined:
             id: Ident
+        of TypeErrorKind.NoSuite:
+            nil
 
 proc `$`*(self: TypeError): string =
     case self.kind
@@ -32,6 +35,8 @@ proc `$`*(self: TypeError): string =
         fmt"type of this term is undiciable"
     of TypeErrorKind.Undefined:
         fmt"ident `{self.id}` is not defined"
+    of TypeErrorKind.NoSuite:
+        fmt"no block"
 
 proc new*(self: TypeError): ref TypeError =
     newException(TypeError, $self)
@@ -44,3 +49,5 @@ proc Undeciable*(_: typedesc[TypeError], loc: Location = newLocation()): TypeErr
     TypeError(kind: TypeErrorKind.Undeciable, loc: loc)
 proc Undefined*(_: typedesc[TypeError], id: Ident, loc: Location = newLocation()): TypeError =
     TypeError(kind: TypeErrorKind.Undefined, id: id, loc: loc)
+proc NoSuite*(_: typedesc[TypeError], loc: Location = newLocation()): TypeError =
+    TypeError(kind: TypeErrorKind.NoSuite, loc: loc)
