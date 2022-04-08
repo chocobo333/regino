@@ -359,7 +359,6 @@ proc check(self: Expression, env: TypeEnv) =
             let suite = self.elseb.get
             suite.check(env)
             assert suite.typ <= self.typ
-        debug self.typ
     of ExpressionKind.When:
         discard
     of ExpressionKind.Case:
