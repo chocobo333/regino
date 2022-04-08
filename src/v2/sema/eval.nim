@@ -27,7 +27,8 @@ proc infer*(self: Suite, env: TypeEnv): Value =
         return Value.Unit
     env.enter(self.scope):
         for s in self.stmts[0..^2]:
-            env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
+            discard s.infer(env)
+            # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
         result = self.stmts[^1].infer(env)
     env.resolveRelationsPartially()
 proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
@@ -293,7 +294,8 @@ proc infer*(self: Program, env: TypeEnv): Value =
     if self.stmts.len == 0:
         return Value.Unit
     for s in self.stmts[0..^2]:
-        env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
+        discard s.infer(env)
+        # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
     result = self.stmts[^1].infer(env)
     debug env.constraints
     env.resolveRelations()
@@ -318,7 +320,9 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
     of TypeExpressionKind.Expression:
         self.expression.eval(env, global)
 
+proc check(self: Suite, env: TypeEnv)
 proc check(self: Expression, env: TypeEnv) =
+    setTypeEnv(env)
     if self.typ.kind == ValueKind.Link:
         env.bindtv(self.typ, self.typ.to)
     if self.typ.kind == ValueKind.Var:
@@ -342,7 +346,19 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Record:
         discard
     of ExpressionKind.If:
-        discard
+        for e in self.elifs:
+            let
+                cond = e.cond
+                suite = e.suite
+            cond.check(env)
+            suite.check(env)
+            assert cond.typ == Value.Bool
+            assert suite.typ <= self.typ
+        if self.elseb.isSome:
+            let suite = self.elseb.get
+            suite.check(env)
+            assert suite.typ <= self.typ
+        debug self.typ
     of ExpressionKind.When:
         discard
     of ExpressionKind.Case:
@@ -404,11 +420,17 @@ proc check(self: Statement, env: TypeEnv) =
         discard
 proc check(self: Suite, env: TypeEnv) =
     env.enter(self.scope):
-        for s in self.stmts:
+        for s in self.stmts[0..^2]:
             s.check(env)
+            if s.typ != Value.Unit:
+                env.errs.add TypeError.Discard(s)
+        self.stmts[^1].check(env)
 proc check*(self: Program, env: TypeEnv) =
-    for s in self.stmts:
+    for s in self.stmts[0..^2]:
         s.check(env)
+        if s.typ != Value.Unit:
+            env.errs.add TypeError.Discard(s)
+    self.stmts[^1].check(env)
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     discard self.infer(env, global)
     case self.kind
