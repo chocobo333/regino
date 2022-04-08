@@ -451,6 +451,7 @@ let
 #     # epression
     CondBranch = alt(
         terminated(Expected(Expr, "expression"), sp0) + Suite,
+        terminated(Expected(Expr, "expression"), sp0) + (preceded(colon, %success(int)) @ (it => newSuite(@[Statement.Fail(it[1])]))),
     ) @ (it => newElif(it[0], it[1]))
     ElifBranch = preceded(elift > sp1, CondBranch)
     ElseBranch = preceded(terminated(elset, sp0), Suite)
