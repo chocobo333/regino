@@ -85,7 +85,66 @@ proc addIdent*(self: TypeEnv, sym: Symbol) =
 
 
 proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable[GenericType, Value]()): Value =
-    typ
+    let sym = typ.symbol
+    result = case typ.kind
+    of ValueKind.Literal..ValueKind.String:
+        typ.deepCopy
+    of ValueKind.Pair:
+        Value.Pair(typ.first.inst(env, subs), typ.second.inst(env, subs))
+    of ValueKind.Array:
+        Value.Array(typ.base.inst(env, subs))
+    of ValueKind.Singleton:
+        Value.Singleton(typ.base.inst(env, subs))
+    of ValueKind.Distinct:
+        Value.Distinct(typ.base.inst(env, subs))
+    of ValueKind.ArrayV:
+        Value.Array(typ.vals.mapIt(it.inst(env, subs)))
+    of ValueKind.Record:
+        Value.Record(typ.members.map(it => it.inst(env, subs)))
+    of ValueKind.Ptr:
+        Value.Ptr(typ.pointee.inst(env, subs))
+    of ValueKind.Pi:
+        let
+            inst = proc(value: Value): Value = 
+                case value.kind
+                of ValueKind.Gen:
+                    if value.gt in subs:
+                        subs[value.gt]
+                    else:
+                        value
+                else:
+                    value
+        Value.Pi(
+            @[],
+            typ.params.mapIt(inst(it)),
+            inst(typ.rety)
+        )
+    of ValueKind.Sum:
+        Value.Sum(typ.cons.map(it => it.inst(env, subs)))
+    of ValueKind.Trait:
+        Value.trait(
+            (typ.paty[0], typ.paty[1].inst(env, subs)),
+            typ.iss.mapIt((it[0], it[1].inst(env, subs))),
+            typ.fns
+        )
+    of ValueKind.Intersection:
+        Value.Intersection(typ.types.map(it => it.inst(env, subs)))
+    of ValueKind.Union:
+        Value.Union(typ.types.map(it => it.inst(env, subs)))
+    of ValueKind.Var:
+        typ
+    of ValueKind.Gen:
+        if typ.gt in subs:
+            subs[typ.gt]
+        else:
+            typ
+    of ValueKind.Link:
+        Value.Link(typ.inst(env, subs))
+    else:
+        typ
+    result.symbol = sym
+    
+
     # let sym = typ.symbol
     # result = case typ.kind
     # of ValueKind.Bottom..ValueKind.String:
@@ -132,6 +191,8 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     #     else:
     #         typ
     # result.symbol = sym
+
+    # typ
 
 proc `<=`*(t1, t2: Value): bool {.error.}
 proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
