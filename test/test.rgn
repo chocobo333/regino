@@ -117,10 +117,6 @@ func f(a: int) -> float:
 let
     a = 3
     b: int = f(3)
-if e:
-    3
-else:
-    4
 echo a
 echo b
 0
