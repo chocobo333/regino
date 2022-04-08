@@ -342,7 +342,8 @@ proc check(self: Expression, env: TypeEnv) =
         for e in self.exprs:
             e.check(env)
     of ExpressionKind.Seq:
-        discard
+        for e in self.exprs:
+            e.check(env)
     of ExpressionKind.Record:
         discard
     of ExpressionKind.If:
@@ -364,7 +365,10 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Case:
         discard
     of ExpressionKind.Call, ExpressionKind.Command:
-        discard
+        # TODO: insert converter
+        self.callee.check(env)
+        for arg in self.args:
+            arg.check(env)
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
@@ -420,12 +424,18 @@ proc check(self: Statement, env: TypeEnv) =
         discard
 proc check(self: Suite, env: TypeEnv) =
     env.enter(self.scope):
+        if self.isFailed:
+            # TODO: Suite have to have parameter `loc`
+            env.errs.add TypeError.NoSuite(self.loc)
+            return
         for s in self.stmts[0..^2]:
             s.check(env)
             if s.typ != Value.Unit:
                 env.errs.add TypeError.Discard(s)
         self.stmts[^1].check(env)
 proc check*(self: Program, env: TypeEnv) =
+    if self.stmts.len == 0:
+        return
     for s in self.stmts[0..^2]:
         s.check(env)
         if s.typ != Value.Unit:
