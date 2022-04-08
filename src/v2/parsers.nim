@@ -211,12 +211,14 @@ let
     )
     String = strlit     @ (it => Literal.str(it[1..^2]))
     Char = charlit      @ (it => Literal.char(it[1]))
+    Unit = lpar + rpar  @ (it => Literal.unit)
     Literal = alt(
         Float,
         Int,
         Boolean,
         String,
         Char,
+        Unit
     )
 
     Tuple = %delimited(lpar, Expr^*(comma), ?comma+rpar) @ (it => Expression.Tuple(it[0], it[1]))
