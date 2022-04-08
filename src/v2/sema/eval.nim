@@ -15,7 +15,8 @@ import ../utils
 import infer as _
 
 
-proc eval*(self: Program)
+proc eval*(self: Program, env: TypeEnv): Value
+proc eval*(self: Suite, env: TypeEnv): Value
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
 proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
@@ -465,18 +466,16 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Record:
         Value.Unit
     of ExpressionKind.If:
-        let
-            conds = self.elifs.mapIt(it.cond.infer(env, global))
-            thens = self.elifs.mapIt(it.suite.infer(env))
-            elset = self.elseb.map(it => it.infer(env))
-            tv = Value.Var(env)
-        for cond in conds:
-            env.coerce(cond == Value.Bool)
-        for t in thens:
-            env.coerce(t <= tv)
-        if elset.isSome:
-            env.coerce(elset.get <= tv)
-        tv
+        var ret = Value.Bottom
+        for `elif` in self.elifs & self.elseb.map(it => @[newElif(Expression.literal(true), it)]).get(@[]):
+            let
+                cond = `elif`.cond
+                suite = `elif`.suite
+            if cond.eval(env).litval.boolval == false:
+                continue
+            ret = suite.eval(env)
+            break
+        ret
     of ExpressionKind.When:
         Value.Unit
     of ExpressionKind.Case:
@@ -511,6 +510,41 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Fail:
         Value.Bottom
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
-    Value.Unit
-proc eval*(self: Program) =
-    discard
+    case self.kind
+    of StatementKind.For:
+        Value.Unit
+    of StatementKind.While:
+        Value.Unit
+    of StatementKind.Loop:
+        Value.Unit
+    of StatementKind.LetSection:
+        Value.Unit
+    of StatementKind.VarSection:
+        Value.Unit
+    of StatementKind.ConstSection:
+        Value.Unit
+    of StatementKind.TypeSection:
+        Value.Unit
+    of StatementKind.Asign:
+        Value.Unit
+    of StatementKind.Funcdef:
+        Value.Unit
+    of StatementKind.Meta:
+        Value.Unit
+    of StatementKind.Discard:
+        Value.Unit
+    of StatementKind.Comments:
+        Value.Unit
+    of StatementKind.Expression:
+        self.expression.eval(env, global)
+    of StatementKind.Fail:
+        Value.Unit
+proc eval*(self: Suite, env: TypeEnv): Value =
+    env.enter self.scope:
+        for s in self.stmts:
+            result = s.eval(env)
+proc eval*(self: Program, env: TypeEnv): Value =
+    # discard self.infer(env)
+    # self.check(env)
+    for s in self.stmts:
+        result = s.eval(env, true)
