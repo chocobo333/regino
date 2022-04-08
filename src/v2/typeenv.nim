@@ -20,14 +20,14 @@ type
         tvconstraints*: seq[Constraint]
         interconstraints*: seq[Constraint]
         errs*: seq[TypeError]
-    Constraint* = (Value, Value, TypeError)   # for t1 <= t2
+    Constraint* = (Value, Value)   # for t1 <= t2
 
-converter to*(self: (Value, Value)): Constraint =
-    (self[0], self[1], TypeError.Subtype(self[0], self[1]))
+# converter to*(self: (Value, Value)): Constraint =
+#     (self[0], self[1], TypeError.Subtype(self[0], self[1]))
 proc `==`*(self, other: Constraint): bool =
     self[0] == other[0] and self[1] == other[1]
-proc `$`*(self: Constraint): string =
-    $(self[0], self[1])
+# proc `$`*(self: Constraint): string =
+#     $(self[0], self[1])
 
 
 proc Var*(_: typedesc[Value], env: TypeEnv): Value =
@@ -251,7 +251,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
                 none(seq[Constraint])
         of ValueKind.Var:
             if t1.tv.lb <= t2.tv.ub:
-                some @[(t1, t2).to]
+                some @[(t1, t2)]
             else:
                 none(seq[Constraint])
         else:
@@ -263,7 +263,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
         # else:
         #     some @[(t1, t2)]
         if t1 <= t2.tv.ub:
-            some @[(t1, t2).to]
+            some @[(t1, t2)]
         else:
             none(seq[Constraint])
     elif t1.kind == ValueKind.Var:
@@ -272,7 +272,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
         # else:
         #     some @[(t1, t2)]
         if t1.tv.lb <= t2:
-            some @[(t1, t2).to]
+            some @[(t1, t2)]
         else:
             none(seq[Constraint])
     else:
