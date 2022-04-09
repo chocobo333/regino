@@ -220,6 +220,9 @@ jsonSchema:
         position: Position
     HoverParams extends TextDocumentPositionParams:
         workDoneToken ?: int or string
+    DeclarationParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+        partialResultToken ?: int or string # ProgressToken
     MarkedString:
         language: string
         value: string
@@ -532,6 +535,8 @@ jsonSchema:
         label ?: string
     HoverOptions:
         workDoneProgress ?: bool
+    DeclarationOptions:
+        workDoneProgress ?: bool
     SemanticTokensLegend:
         tokenTypes: string[]
         tokenModifiers: string[]
@@ -545,7 +550,7 @@ jsonSchema:
         # completionProvider ?: CompletionOptions
         hoverProvider ?: bool or HoverOptions
         # signatureHelpProvider ?: SignatureHelpOptions
-        # declarationProvider ?: bool or DeclarationOptions or DeclarationRegistrationOptions
+        declarationProvider ?: bool or DeclarationOptions# or DeclarationRegistrationOptions
         # definitionProvider ?: bool or DefinitionOptions
         # typeDefinitionProvider ?: bool or TypeDefinitionOptions or TypeDefinitionRegistrationOptions
         # implementationProvider ?: bool or ImplementationOptions or ImplementationRegistrationOptions
@@ -605,6 +610,7 @@ export
     DidChangeTextDocumentParams,
     TextDocumentPositionParams,
     HoverParams,
+    DeclarationParams,
     MarkedString,
     MarkupContent,
     Hover,
@@ -682,6 +688,7 @@ export
     WorkDoneProgressOptions,
     DocumentSymbolOptions,
     HoverOptions,
+    DeclarationOptions,
     SemanticTokensLegend,
     SemanticTokensOptions,
     ServerCapabilities,

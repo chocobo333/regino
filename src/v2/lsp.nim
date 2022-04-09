@@ -20,7 +20,7 @@ import
     # codegen,
     utils,
     errors
-import lineinfos except Position
+import lineinfos except Position, Location
 type rPosition = lineinfos.Position
 import projects
 
@@ -95,7 +95,7 @@ proc `textDocument/publishDiagnostics`(uri: string, diags: seq[Diagnostic]): (st
 proc publishDiagnostics(textDocument: TextDocument, diags: seq[Diagnostic]) =
     textDocument.s.notify `textDocument/publishDiagnostics`(textDocument.uri, diags)
 
-proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration, project: Project) =
+proc initialize(s: Stream, msg: RequestMessage, configuration: var Configuration, project: Project) =
     if msg.params.isValid(InitializeParams, allowExtra=true):
         let
             params = InitializeParams(msg.params)
@@ -108,7 +108,7 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
         configuration.tokenTypes = tokenTypes
         configuration.tokenModifiers = tokenModifiers
         configuration.documentSymbol = documentSymbol
-        s.window.logMessage("Got initilize request")
+        s.window.logMessage("Got initialize request")
         s.respond(msg):
             InitializeResult.create(
                 ServerCapabilities.create(
@@ -117,6 +117,7 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
                         some TextDocumentSyncKind.Full.int
                     ),
                     some true, # Hover
+                    some true, # declaration
                     some DocumentSymbolOptions.create(
                         none(bool),
                         some "regino"
@@ -130,7 +131,8 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
                     #     some false,
                     #     some true
                     # ),
-                    none SemanticTokensOptions
+                    none SemanticTokensOptions,
+
                 ),
                 some ServerInfo.create(
                     "regino-languages-server",
@@ -166,6 +168,27 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configu
                 ).JsonNode
     else:
         s.window.logMessage("[textDocument/hover]: valid params")
+proc `textDocument/declaration`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(DeclarationParams):
+        let
+            params = DeclarationParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                focus = program.find(pos)
+            if focus.isSome and focus.get.typ.symbol.isSome:
+                let
+                    loc = focus.get.typ.symbol.get.loc
+                s.respond(msg):
+                    loc.to.JsonNode
+                return
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/declaration]: valid params")
 proc collectSymbol(self: Scope): Option[JsonNode] =
     var res = newJArray()
     for syms in self.syms.values:
@@ -567,12 +590,14 @@ proc Lsp*(): int =
                 `method` = msg.`method`
             case `method`
             of "initialize":
-                outstream.initilize(msg, configuration, project)
+                outstream.initialize(msg, configuration, project)
             of "shutdown":
                 outstream.respond(msg):
                     newJNull()
             of "textDocument/hover":
                 outstream.`textDocument/hover`(msg, configuration, project)
+            of "textDocument/declaration":
+                outstream.`textDocument/declaration`(msg, configuration, project)
             of "textDocument/documentSymbol":
                 outstream.`textDocument/documentSymbol`(msg, configuration, project)
             # of "textDocument/semanticTokens/full":
@@ -584,7 +609,7 @@ proc Lsp*(): int =
                 params = msg.params
             case `method`
             of "initialized":
-                outstream.window.logMessage("initilized.")
+                outstream.window.logMessage("initialized.")
             of "exit":
                 break
             of "textDocument/didOpen":

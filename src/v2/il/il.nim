@@ -166,6 +166,7 @@ type
         Expression
     TypeExpression* = ref TypeExpressionObject
     TypeExpressionObject = object
+        loc*: Location
         isRef*: bool
         case kind*: TypeExpressionKind
         of TypeExpressionKind.Object:
@@ -251,6 +252,7 @@ type
         UnderScore
     Pattern* = ref PatternObject
     PatternObject = object
+        loc*: Location
         typ*: Value
         case kind*: PatternKind
         of PatternKind.Literal:

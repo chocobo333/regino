@@ -49,6 +49,9 @@ proc newLocation*(uri: Uri = initUri(), a: Position = newPosition(), b: Position
         `range`: a..b
     )
 
+proc `..`*(a, b: Location): Location =
+    newLocation(a.uri, a.`range`.a, b.`range`.b)
+
 proc toLocation*(self: Spanned, uri: Uri): Location =
     newLocation(uri, self.pos, self.endpos)
 proc newLocation*(uri: Uri, a, b: Spanned): Location =
