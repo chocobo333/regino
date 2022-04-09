@@ -14,20 +14,21 @@ import ../errors
 import ../utils
 
 
-proc coerceRelation*(self: TypeEnv, t1, t2: Value, err: TypeError = TypeError.Subtype(t1, t2)) =
+# proc coerceRelation*(self: TypeEnv, t1, t2: Value, err: TypeError = TypeError.Subtype(t1, t2)) =
+proc coerceRelation*(self: TypeEnv, t1, t2: Value) =
     # coerce the relation for t1 <= t2
     if t1.kind == t2.kind and t1.kind in {ValueKind.Bottom..ValueKind.Bool, ValueKind.Char, ValueKind.String}:
         discard
     elif t1.kind == t2.kind and t1.kind in {ValueKind.Integer, ValueKind.Float} and t1.bits == t2.bits:
         discard
     else:
-        self.constraints.add (t1, t2, err)
+        self.constraints.add (t1, t2)
 proc coerceEq*(self: TypeEnv, t1, t2: Value) =
     self.coerceRelation(t1, t2)
     self.coerceRelation(t2, t1)
-proc coerceEq*(self: TypeEnv, t1, t2: Value, err: TypeError) =
-    self.coerceRelation(t1, t2, err)
-    self.coerceRelation(t2, t1, err)
+# proc coerceEq*(self: TypeEnv, t1, t2: Value, err: TypeError) =
+#     self.coerceRelation(t1, t2, err)
+#     self.coerceRelation(t2, t1, err)
 
 proc addTypeRelation*(self: TypeEnv, t1, t2: Value, fn: Ident) =
     setTypeEnv(self)
@@ -150,14 +151,14 @@ proc simplify*(self: TypeEnv, t: Value): Value {.discardable.} =
     if t.tv.ub <= t.tv.lb:
         self.bindtv(t, t.tv.lb)
 
-proc resolveRelation(self: TypeEnv, t1, t2: Value, err: TypeError) =
+proc resolveRelation(self: TypeEnv, t1, t2: Value) =
     # implies t1 < t2
     setTypeEnv(self)
     # TODO: should change function name
     if t1.kind == ValueKind.Link:
-        self.resolveRelation(t1.to, t2, err)
+        self.resolveRelation(t1.to, t2)
     elif t2.kind == ValueKind.Link:
-        self.resolveRelation(t1, t2.to, err)
+        self.resolveRelation(t1, t2.to)
     elif t1 <= t2:
         return
     elif t1 == t2:
@@ -173,11 +174,11 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value, err: TypeError) =
         # of ValueKind.List:
         #     self.resolveRelation(t1.base, t2.base)
         of ValueKind.Pair:
-            self.resolveRelation(t1.first, t2.first, err)
-            self.resolveRelation(t1.second, t2.second, err)
+            self.resolveRelation(t1.first, t2.first)
+            self.resolveRelation(t1.second, t2.second)
         of ValueKind.Record:
             for member in t2.members.keys:
-                self.resolveRelation(t1.members[member], t2.members[member], err)
+                self.resolveRelation(t1.members[member], t2.members[member])
         # of ValueKind.Sigma:
         #     self.resolveRelation(t1.first, t2.first)
         #     self.resolveRelation(t1.second, t2.second)
@@ -192,10 +193,10 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value, err: TypeError) =
         #     raise newException(TypeError, "notimplemented")
         of ValueKind.Pi:
             for (t1, t2) in t1.params.zip(t2.params):
-                self.resolveRelation(t2, t1, err)
-            self.resolveRelation(t1.rety, t2.rety, err)
+                self.resolveRelation(t2, t1)
+            self.resolveRelation(t1.rety, t2.rety)
         of ValueKind.Singleton:
-            self.resolveRelation(t1.base, t2.base, err)
+            self.resolveRelation(t1.base, t2.base)
         of ValueKind.Var:
             t1.tv.ub = self.lub(t1.tv.ub, t2.tv.ub)
             t2.tv.lb = self.glb(t1.tv.lb, t2.tv.lb)
@@ -233,8 +234,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value, err: TypeError) =
                 debug t1
                 debug t2.tv.ub
                 debug t1 <= t2.tv.ub
-                self.errs.add err
-                raise err.new
+                raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
             self.simplify(t2)
         elif t1.kind == ValueKind.Intersection:
             let
@@ -323,7 +323,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value, err: TypeError) =
             debug t1.kind
             debug t2.kind
             debug self.constraints
-            self.errs.add err
+            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
 
 proc resolveRelationsPartially*(self: TypeEnv) =
     var tmp: seq[Constraint]
@@ -331,8 +331,8 @@ proc resolveRelationsPartially*(self: TypeEnv) =
         self.constraints.reverse
         while self.constraints.len > 0:
             let
-                (t1, t2, err) = self.constraints.pop
-            self.resolveRelation(t1, t2, err)
+                (t1, t2) = self.constraints.pop
+            self.resolveRelation(t1, t2)
         var
             ord = newOrder[Value]()
             f = false
@@ -343,12 +343,12 @@ proc resolveRelationsPartially*(self: TypeEnv) =
             continue
         for cons in self.tvconstraints:
             let
-                (t1, t2, err) = cons
+                (t1, t2) = cons
                 path = ord.path(t2, t1)
             if path.isSome:
                 for (t1, t2) in path.get:
-                    self.resolveRelation(t1, t2, err)
-                self.resolveRelation(t1, t2, err)
+                    self.resolveRelation(t1, t2)
+                self.resolveRelation(t1, t2)
                 for t2 in path.get.mapIt(it[0]):
                     self.bindtv(t2, t1)
                 self.constraints = self.tvconstraints & self.interconstraints
@@ -374,8 +374,8 @@ proc resolveRelations*(self: TypeEnv) =
         self.constraints.reverse
         while self.constraints.len > 0:
             let
-                (t1, t2, err) = self.constraints.pop
-            self.resolveRelation(t1, t2, err)
+                (t1, t2) = self.constraints.pop
+            self.resolveRelation(t1, t2)
         var
             ord = newOrder[Value]()
             f = false
@@ -386,12 +386,12 @@ proc resolveRelations*(self: TypeEnv) =
             continue
         for cons in self.tvconstraints:
             let
-                (t1, t2, err) = cons
+                (t1, t2) = cons
                 path = ord.path(t2, t1)
             if path.isSome:
                 for (t1, t2) in path.get:
-                    self.resolveRelation(t1, t2, err)
-                self.resolveRelation(t1, t2, err)
+                    self.resolveRelation(t1, t2)
+                self.resolveRelation(t1, t2)
                 for t2 in path.get.mapIt(it[0]):
                     self.bindtv(t2, t1)
                 self.constraints = self.tvconstraints & self.interconstraints
@@ -408,6 +408,11 @@ proc resolveRelations*(self: TypeEnv) =
                 if e.tv.lb.compilable:
                     self.bindtv(e, e.tv.lb)
                     f = true
+                # TODO: ????
+                elif e.tv.ub.compilable:
+                    self.bindtv(e, e.tv.ub)
+                    f = true
+
 
         if f:
             self.constraints = self.tvconstraints & self.interconstraints
