@@ -119,4 +119,5 @@ let
     b: int = f(3)
 echo a
 echo b
+let b: int = f(3)
 0

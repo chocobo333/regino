@@ -32,3 +32,7 @@ when isMainModule:
         errs = program.sema
     f.close
     # echo program.scope
+    echo program.stmts[^2].iddefs[0].default.get.typ
+    echo program.stmts[^2].iddefs[0].default.get.callee.typ
+    echo program.stmts[^2].iddefs[0].default.get.callee.kind
+    echo program.stmts[^2].iddefs[0].default.get.callee.typ.symbol
