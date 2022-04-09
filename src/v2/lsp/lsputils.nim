@@ -31,7 +31,7 @@ proc to*(self: lineinfos.Location): Location =
         self.range.to
     )
 
-proc `in`*(self: rPosition, term: Statement|Expression|Ident): bool =
+proc `in`*(self: rPosition, term: Statement|Expression|Ident|Pattern): bool =
     let r = term.loc.`range`
     self in r
 proc `in`*(self: rPosition, term: Suite): bool =
@@ -55,6 +55,9 @@ proc find*(self: Pattern, pos: rPosition): Option[Ident] =
     of PatternKind.Dot:
         none(Ident)
     of PatternKind.Tuple:
+        for e in self.patterns:
+            if pos in e:
+                return e.find(pos)
         none(Ident)
     of PatternKind.Record:
         none(Ident)

@@ -160,7 +160,6 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configu
                 if focus.typ.symbol.isSome:
                     data.add $focus.typ.symbol.get
                 data.add fmt"{focus.name}: {focus.typ}"
-            s.window.logMessage("[textDocument/hover]: " & $focus)
         s.respond(msg):
             if data.len == 0:
                 newJNull()
@@ -237,7 +236,6 @@ proc `textDocument/references`(s: Stream, msg: RequestMessage, configuration: Co
             newJNull()
     else:
         s.window.logMessage("[textDocument/references]: valid params")
-        s.window.logMessage("[textDocument/definition]: valid params")
 proc `textDocument/documentHighlight`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
     if msg.params.isValid(DocumentHighlightParams):
         let
