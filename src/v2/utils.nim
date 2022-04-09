@@ -34,7 +34,7 @@ proc filter*[T, U](self: Table[T, U], f: U -> bool): Table[T, U] =
     for (key, val) in self.pairs:
         if f(val):
             result[key] = val
-proc merge*[T, U](t1: Table[U, T], t2: Table[U, T]): Table[T, U] = 
+proc merge*[T, U](t1: Table[T, U], t2: Table[T, U]): Table[T, U] = 
     result = initTable[T, U]()
     for (key, val) in t1.pairs: result[key] = val
     for (key, val) in t2.pairs: result[key] = val

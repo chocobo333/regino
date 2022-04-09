@@ -109,19 +109,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
                 let
                     v = Value.Var(env)
                 (it, v)
-            ).toTable
-            # ng
-            # newSubs = typ.implicit.mapIt(block:
-            #     let
-            #         v = Value.Var(env)
-            #     (it, v)
-            # ).toTable.merge(subs)
-            # ok
-            # a = {1:2, 2:3, 4:5}.toTable
-            # b = {5:6, 6:7, 7:8}.toTable
-            # c = merge(a, b)
-        # for gen in typ.implicit:
-        #     subs[gen] = Value.Var(env)
+            ).toTable.merge(subs)
         Value.Arrow(
             typ.params.map(it => it.inst(env, newsubs)),
             typ.rety.inst(env, newsubs)
