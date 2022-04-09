@@ -337,7 +337,8 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Ident:
         if self.typ.symbol.isNone:
             env.errs.add TypeError.Undefined(self.ident, self.loc)
-        discard
+        else:
+            self.typ.symbol.get.use.add self.loc
     of ExpressionKind.Tuple:
         for e in self.exprs:
             e.check(env)

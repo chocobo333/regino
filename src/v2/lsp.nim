@@ -226,8 +226,9 @@ proc `textDocument/references`(s: Stream, msg: RequestMessage, configuration: Co
                 focus = program.find(pos)
             if focus.isSome and focus.get.typ.symbol.isSome:
                 let
-                    loc = focus.get.typ.symbol.get.loc
-                res.add loc.to.JsonNode
+                    use = focus.get.typ.symbol.get.use
+                for loc in use:
+                    res.add loc.to.JsonNode
                 s.respond(msg):
                     res
                 return
