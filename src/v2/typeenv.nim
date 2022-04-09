@@ -105,19 +105,26 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
         Value.Ptr(typ.pointee.inst(env, subs))
     of ValueKind.Pi:
         let
-            inst = proc(value: Value): Value = 
-                case value.kind
-                of ValueKind.Gen:
-                    if value.gt in subs:
-                        subs[value.gt]
-                    else:
-                        value
-                else:
-                    value
-        Value.Pi(
-            @[],
-            typ.params.mapIt(inst(it)),
-            inst(typ.rety)
+            newSubs = typ.implicit.mapIt(block:
+                let
+                    v = Value.Var(env)
+                (it, v)
+            ).toTable
+            # ng
+            # newSubs = typ.implicit.mapIt(block:
+            #     let
+            #         v = Value.Var(env)
+            #     (it, v)
+            # ).toTable.merge(subs)
+            # ok
+            # a = {1:2, 2:3, 4:5}.toTable
+            # b = {5:6, 6:7, 7:8}.toTable
+            # c = merge(a, b)
+        # for gen in typ.implicit:
+        #     subs[gen] = Value.Var(env)
+        Value.Arrow(
+            typ.params.map(it => it.inst(env, newsubs)),
+            typ.rety.inst(env, newsubs)
         )
     of ValueKind.Sum:
         Value.Sum(typ.cons.map(it => it.inst(env, subs)))
@@ -140,8 +147,6 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
             typ
     of ValueKind.Link:
         Value.Link(typ.inst(env, subs))
-    else:
-        typ
     result.symbol = sym
     
 
