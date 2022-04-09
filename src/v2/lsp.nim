@@ -157,7 +157,7 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configu
                 focus = program.find(pos)
             if focus.isSome:
                 let focus = focus.get
-                if focus.typ.symbol.isSome:
+                if not focus.typ.isNil and focus.typ.symbol.isSome:
                     data.add $focus.typ.symbol.get
                 data.add fmt"{focus.name}: {focus.typ}"
         s.respond(msg):
