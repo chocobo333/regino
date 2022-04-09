@@ -223,6 +223,15 @@ jsonSchema:
     DeclarationParams extends TextDocumentPositionParams:
         workDoneToken ?: int or string
         partialResultToken ?: int or string # ProgressToken
+    DefinitionParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+        partialResultToken ?: int or string # ProgressToken
+    ReferenceContext:
+        includeDeclaration: bool
+    ReferenceParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+        partialResultToken ?: int or string # ProgressToken
+        context: ReferenceContext
     MarkedString:
         language: string
         value: string
@@ -537,6 +546,10 @@ jsonSchema:
         workDoneProgress ?: bool
     DeclarationOptions:
         workDoneProgress ?: bool
+    DefinitionOptions:
+        workDoneProgress ?: bool
+    ReferenceOptions:
+        workDoneProgress ?: bool
     SemanticTokensLegend:
         tokenTypes: string[]
         tokenModifiers: string[]
@@ -551,10 +564,10 @@ jsonSchema:
         hoverProvider ?: bool or HoverOptions
         # signatureHelpProvider ?: SignatureHelpOptions
         declarationProvider ?: bool or DeclarationOptions# or DeclarationRegistrationOptions
-        # definitionProvider ?: bool or DefinitionOptions
+        definitionProvider ?: bool or DefinitionOptions
         # typeDefinitionProvider ?: bool or TypeDefinitionOptions or TypeDefinitionRegistrationOptions
         # implementationProvider ?: bool or ImplementationOptions or ImplementationRegistrationOptions
-        # referencesProvider ?: bool or ReferenceOptions
+        referencesProvider ?: bool or ReferenceOptions
         # documentHighlightProvider ?: bool or DocumentHighlightOptions
         documentSymbolProvider ?: bool or DocumentSymbolOptions
         # codeActionProvider ?: bool or CodeActionOptions
@@ -611,6 +624,9 @@ export
     TextDocumentPositionParams,
     HoverParams,
     DeclarationParams,
+    DefinitionParams,
+    ReferenceContext,
+    ReferenceParams,
     MarkedString,
     MarkupContent,
     Hover,
@@ -689,6 +705,8 @@ export
     DocumentSymbolOptions,
     HoverOptions,
     DeclarationOptions,
+    DefinitionOptions,
+    ReferenceOptions,
     SemanticTokensLegend,
     SemanticTokensOptions,
     ServerCapabilities,

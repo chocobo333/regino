@@ -118,6 +118,8 @@ proc initialize(s: Stream, msg: RequestMessage, configuration: var Configuration
                     ),
                     some true, # Hover
                     some true, # declaration
+                    some true, # definition
+                    some true, # reference
                     some DocumentSymbolOptions.create(
                         none(bool),
                         some "regino"
@@ -189,6 +191,50 @@ proc `textDocument/declaration`(s: Stream, msg: RequestMessage, configuration: C
             newJNull()
     else:
         s.window.logMessage("[textDocument/declaration]: valid params")
+proc `textDocument/definition`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(DefinitionParams):
+        let
+            params = DefinitionParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                focus = program.find(pos)
+            if focus.isSome and focus.get.typ.symbol.isSome:
+                let
+                    loc = focus.get.typ.symbol.get.loc
+                s.respond(msg):
+                    loc.to.JsonNode
+                return
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/definition]: valid params")
+proc `textDocument/references`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(ReferenceParams):
+        let
+            params = ReferenceParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        var res = newJArray()
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                focus = program.find(pos)
+            if focus.isSome and focus.get.typ.symbol.isSome:
+                let
+                    loc = focus.get.typ.symbol.get.loc
+                res.add loc.to.JsonNode
+                s.respond(msg):
+                    res
+                return
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/references]: valid params")
 proc collectSymbol(self: Scope): Option[JsonNode] =
     var res = newJArray()
     for syms in self.syms.values:
@@ -598,6 +644,10 @@ proc Lsp*(): int =
                 outstream.`textDocument/hover`(msg, configuration, project)
             of "textDocument/declaration":
                 outstream.`textDocument/declaration`(msg, configuration, project)
+            of "textDocument/definition":
+                outstream.`textDocument/definition`(msg, configuration, project)
+            of "textDocument/references":
+                outstream.`textDocument/references`(msg, configuration, project)
             of "textDocument/documentSymbol":
                 outstream.`textDocument/documentSymbol`(msg, configuration, project)
             # of "textDocument/semanticTokens/full":
