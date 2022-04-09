@@ -29,14 +29,5 @@ proc Func*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
 proc empty*(_: typedesc[Symbol]): Symbol = Symbol()
 
 import ../lineinfos
-import identdefs
 proc loc*(self: Symbol): Location =
-    case self.kind
-    of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const, SymbolKind.Param:
-        self.decl_iddef.loc
-    of SymbolKind.Typ:
-        self.decl_typedef.loc
-    of SymbolKind.GenParam:
-        self.decl_gendef.loc
-    of SymbolKind.Func:
-        self.decl_funcdef.id.loc
+    self.id.loc
