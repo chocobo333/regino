@@ -120,6 +120,7 @@ proc initialize(s: Stream, msg: RequestMessage, configuration: var Configuration
                     some true, # declaration
                     some true, # definition
                     some true, # reference
+                    some true, # documentHighlight
                     some DocumentSymbolOptions.create(
                         none(bool),
                         some "regino"
@@ -236,6 +237,39 @@ proc `textDocument/references`(s: Stream, msg: RequestMessage, configuration: Co
             newJNull()
     else:
         s.window.logMessage("[textDocument/references]: valid params")
+        s.window.logMessage("[textDocument/definition]: valid params")
+proc `textDocument/documentHighlight`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(DocumentHighlightParams):
+        let
+            params = DocumentHighlightParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        var res = newJArray()
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                focus = program.find(pos)
+            if focus.isSome and focus.get.typ.symbol.isSome:
+                let
+                    loc = focus.get.typ.symbol.get.loc
+                    use = focus.get.typ.symbol.get.use
+                for loc in use:
+                    res.add DocumentHighlight.create(
+                        loc.range.to,
+                        some DocumentHighlightKind.Text.int
+                    ).JsonNode
+                res.add DocumentHighlight.create(
+                    loc.range.to,
+                    some DocumentHighlightKind.Text.int
+                ).JsonNode
+                s.respond(msg):
+                    res
+                return
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/documentHighlight]: valid params")
 proc collectSymbol(self: Scope): Option[JsonNode] =
     var res = newJArray()
     for syms in self.syms.values:
@@ -649,6 +683,8 @@ proc Lsp*(): int =
                 outstream.`textDocument/definition`(msg, configuration, project)
             of "textDocument/references":
                 outstream.`textDocument/references`(msg, configuration, project)
+            of "textDocument/documentHighlight":
+                outstream.`textDocument/documentHighlight`(msg, configuration, project)
             of "textDocument/documentSymbol":
                 outstream.`textDocument/documentSymbol`(msg, configuration, project)
             # of "textDocument/semanticTokens/full":
