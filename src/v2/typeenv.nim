@@ -20,14 +20,14 @@ type
         tvconstraints*: seq[Constraint]
         interconstraints*: seq[Constraint]
         errs*: seq[TypeError]
-    Constraint* = (Value, Value, TypeError)   # for t1 <= t2
+    Constraint* = (Value, Value)   # for t1 <= t2
 
-converter to*(self: (Value, Value)): Constraint =
-    (self[0], self[1], TypeError.Subtype(self[0], self[1]))
+# converter to*(self: (Value, Value)): Constraint =
+#     (self[0], self[1], TypeError.Subtype(self[0], self[1]))
 proc `==`*(self, other: Constraint): bool =
     self[0] == other[0] and self[1] == other[1]
-proc `$`*(self: Constraint): string =
-    $(self[0], self[1])
+# proc `$`*(self: Constraint): string =
+#     $(self[0], self[1])
 
 
 proc Var*(_: typedesc[Value], env: TypeEnv): Value =
@@ -85,7 +85,59 @@ proc addIdent*(self: TypeEnv, sym: Symbol) =
 
 
 proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable[GenericType, Value]()): Value =
-    typ
+    let sym = typ.symbol
+    result = case typ.kind
+    of ValueKind.Literal..ValueKind.String:
+        typ.deepCopy
+    of ValueKind.Pair:
+        Value.Pair(typ.first.inst(env, subs), typ.second.inst(env, subs))
+    of ValueKind.Array:
+        Value.Array(typ.base.inst(env, subs))
+    of ValueKind.Singleton:
+        Value.Singleton(typ.base.inst(env, subs))
+    of ValueKind.Distinct:
+        Value.Distinct(typ.base.inst(env, subs))
+    of ValueKind.ArrayV:
+        Value.Array(typ.vals.mapIt(it.inst(env, subs)))
+    of ValueKind.Record:
+        Value.Record(typ.members.map(it => it.inst(env, subs)))
+    of ValueKind.Ptr:
+        Value.Ptr(typ.pointee.inst(env, subs))
+    of ValueKind.Pi:
+        let
+            newSubs = typ.implicit.mapIt(block:
+                let
+                    v = Value.Var(env)
+                (it, v)
+            ).toTable.merge(subs)
+        Value.Arrow(
+            typ.params.map(it => it.inst(env, newsubs)),
+            typ.rety.inst(env, newsubs)
+        )
+    of ValueKind.Sum:
+        Value.Sum(typ.cons.map(it => it.inst(env, subs)))
+    of ValueKind.Trait:
+        Value.trait(
+            (typ.paty[0], typ.paty[1].inst(env, subs)),
+            typ.iss.mapIt((it[0], it[1].inst(env, subs))),
+            typ.fns
+        )
+    of ValueKind.Intersection:
+        Value.Intersection(typ.types.map(it => it.inst(env, subs)))
+    of ValueKind.Union:
+        Value.Union(typ.types.map(it => it.inst(env, subs)))
+    of ValueKind.Var:
+        typ
+    of ValueKind.Gen:
+        if typ.gt in subs:
+            subs[typ.gt]
+        else:
+            typ
+    of ValueKind.Link:
+        Value.Link(typ.inst(env, subs))
+    result.symbol = sym
+    
+
     # let sym = typ.symbol
     # result = case typ.kind
     # of ValueKind.Bottom..ValueKind.String:
@@ -132,6 +184,8 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     #     else:
     #         typ
     # result.symbol = sym
+
+    # typ
 
 proc `<=`*(t1, t2: Value): bool {.error.}
 proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
@@ -251,7 +305,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
                 none(seq[Constraint])
         of ValueKind.Var:
             if t1.tv.lb <= t2.tv.ub:
-                some @[(t1, t2).to]
+                some @[(t1, t2)]
             else:
                 none(seq[Constraint])
         else:
@@ -263,7 +317,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
         # else:
         #     some @[(t1, t2)]
         if t1 <= t2.tv.ub:
-            some @[(t1, t2).to]
+            some @[(t1, t2)]
         else:
             none(seq[Constraint])
     elif t1.kind == ValueKind.Var:
@@ -272,7 +326,7 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
         # else:
         #     some @[(t1, t2)]
         if t1.tv.lb <= t2:
-            some @[(t1, t2).to]
+            some @[(t1, t2)]
         else:
             none(seq[Constraint])
     else:

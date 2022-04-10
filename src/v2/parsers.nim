@@ -211,12 +211,14 @@ let
     )
     String = strlit     @ (it => Literal.str(it[1..^2]))
     Char = charlit      @ (it => Literal.char(it[1]))
+    Unit = lpar + rpar  @ (it => Literal.unit)
     Literal = alt(
         Float,
         Int,
         Boolean,
         String,
         Char,
+        Unit
     )
 
     Tuple = %delimited(lpar, Expr^*(comma), ?comma+rpar) @ (it => Expression.Tuple(it[0], it[1]))
@@ -449,6 +451,7 @@ let
 #     # epression
     CondBranch = alt(
         terminated(Expected(Expr, "expression"), sp0) + Suite,
+        terminated(Expected(Expr, "expression"), sp0) + (preceded(colon, %success(int)) @ (it => newSuite(@[Statement.Fail(it[1])]))),
     ) @ (it => newElif(it[0], it[1]))
     ElifBranch = preceded(elift > sp1, CondBranch)
     ElseBranch = preceded(terminated(elset, sp0), Suite)

@@ -28,7 +28,7 @@ proc Pair*(_: typedesc[Value], first, second: Value): Value =
 proc Array*(_: typedesc[Value], base: Value): Value =
     Value(kind: ValueKind.Array, base: base)
 proc Array*(_: typedesc[Value], vals: seq[Value]): Value =
-    Value(kind: ValueKind.Array, vals: vals)
+    Value(kind: ValueKind.ArrayV, vals: vals)
 proc Record*(_: typedesc[Value], members: Table[Ident, Value]): Value =
     Value(kind: ValueKind.Record, members: members)
 proc Ptr*(_: typedesc[Value], pointee: Value): Value =
@@ -133,6 +133,9 @@ proc hash*(self: Value): Hash =
             0
     )
     result = !$result
+
+proc hash*(self: GenericType): Hash = 
+    self.id.name.hash
 
 proc compilable*(self: Value): bool =
     case self.kind
