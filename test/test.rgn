@@ -120,6 +120,7 @@ let
     (c, d) = (3, 4)
 echo a
 echo b
-# [0, 4]
+[0, 4]
 let b: int = f(3)
+echo $(3, 4)
 0
