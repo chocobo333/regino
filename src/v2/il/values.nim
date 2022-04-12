@@ -125,6 +125,8 @@ proc hash*(self: Value): Hash =
             0
         of ValueKind.Union:
             0
+        of ValueKind.Cons:
+            0
         of ValueKind.Var:
             0
         of ValueKind.Gen:
@@ -134,7 +136,7 @@ proc hash*(self: Value): Hash =
     )
     result = !$result
 
-proc hash*(self: GenericType): Hash = 
+proc hash*(self: GenericType): Hash =
     self.id.name.hash
 
 proc compilable*(self: Value): bool =
@@ -169,6 +171,8 @@ proc compilable*(self: Value): bool =
         false
     of ValueKind.Distinct:
         self.base.compilable
+    of ValueKind.Cons:
+        false
     of ValueKind.Link:
         self.to.compilable
     of ValueKind.Var:
@@ -250,6 +254,8 @@ proc typ*(self: Value): Value =
         Value.Univ
     of ValueKind.Union:
         Value.Univ
+    of ValueKind.Cons:
+        Value.Univ
     of ValueKind.Var:
         Value.Univ
     of ValueKind.Gen:
@@ -303,6 +309,8 @@ proc `==`*(t1, t2: Value): bool =
             t1.types == t2.types
         of ValueKind.Union:
             t1.types == t2.types
+        of ValueKind.Cons:
+            t1.implicit == t2.implicit and t1.rety == t2.rety
         of ValueKind.Var:
             t1.tv.id == t2.tv.id
         of ValueKind.Gen:

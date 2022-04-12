@@ -305,6 +305,7 @@ type
         Distinct
         Intersection
         Union
+        Cons
         Var
         Gen
         Link
@@ -331,9 +332,9 @@ type
             members*: Table[Ident, Value]
         of ValueKind.Ptr:
             pointee*: Value
-        of ValueKind.Pi:
+        of ValueKind.Pi, ValueKind.Cons:
             implicit*: seq[GenericType]
-            params*: seq[Value]
+            params*: seq[Value] # not concerned with `Cons`
             rety*: Value
         of ValueKind.Sum:
             cons*: Table[Ident, Value]

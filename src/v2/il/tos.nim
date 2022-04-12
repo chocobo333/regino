@@ -401,6 +401,10 @@ proc `$`*(self: Value): string =
         toSeq(self.types).join("^")
     of ValueKind.Union:
         toSeq(self.types).join"\/"
+    of ValueKind.Cons:
+        let
+            imp = self.implicit.map(`$$`).join(", ")
+        fmt"[{imp}]{self.rety}"
     of ValueKind.Var:
         $self.tv
     of ValueKind.Gen:
