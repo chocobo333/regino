@@ -62,8 +62,8 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         let
             tv = Value.Var(env)
             elements = self.exprs.mapIt(it.infer(env, global))
-        echo self.loc
-        echo elements
+        debug self.loc
+        debug elements
         for t in elements:
             env.coerce(t <= tv)
         Value.Array(tv)
@@ -294,7 +294,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
             if params.isNone:
                 # TODO: infer and check
                 # let tv = typ.infer(env)
-                # echo tv
+                # debug tv
                 # typ.check(env)
                 let
                     typ = typ.eval(env, global)

@@ -13,7 +13,7 @@ import sema/[
 
 
 proc sema*(self: Program): seq[TypeError] =
-    echo self.get(65).fn.param.rety.get.treeRepr
+    debug self.get(65).fn.param.rety.get.treeRepr
     let
         mainScope = self.setScope()
         env = newTypeEnv(mainScope)
@@ -34,8 +34,8 @@ when isMainModule:
         program = Program(Source.from(s)).get
         errs = program.sema
     f.close
-    # echo program.scope
-    echo program.stmts[^2].iddefs[0].default.get.typ
-    echo program.stmts[^2].iddefs[0].default.get.callee.typ
-    echo program.stmts[^2].iddefs[0].default.get.callee.kind
-    echo program.stmts[^2].iddefs[0].default.get.callee.typ.symbol
+    # debug program.scope
+    debug program.stmts[^2].iddefs[0].default.get.typ
+    debug program.stmts[^2].iddefs[0].default.get.callee.typ
+    debug program.stmts[^2].iddefs[0].default.get.callee.kind
+    debug program.stmts[^2].iddefs[0].default.get.callee.typ.symbol
