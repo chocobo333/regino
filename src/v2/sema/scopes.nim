@@ -15,7 +15,7 @@ proc setScope(self: Expression, parent: Scope) =
         discard
     of ExpressionKind.Ident:
         discard
-    of ExpressionKind.Tuple, ExpressionKind.Seq:
+    of ExpressionKind.Tuple, ExpressionKind.Array:
         for e in self.exprs:
             e.setScope(parent)
     of ExpressionKind.Record:

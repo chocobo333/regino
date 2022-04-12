@@ -117,7 +117,9 @@ func f(a: int) -> float:
 let
     a = 3
     b: int = f(3)
+    (c, d) = (3, 4)
 echo a
 echo b
+# [0, 4]
 let b: int = f(3)
 0

@@ -1,4 +1,6 @@
 
+import options
+
 import il
 import typeenv
 import errors
@@ -11,6 +13,7 @@ import sema/[
 
 
 proc sema*(self: Program): seq[TypeError] =
+    echo self.get(65).fn.param.rety.get.treeRepr
     let
         mainScope = self.setScope()
         env = newTypeEnv(mainScope)
@@ -18,7 +21,7 @@ proc sema*(self: Program): seq[TypeError] =
     self.check(env)
     debug env.errs
     # debug mainScope
-    echo self.eval(env)
+    debug self.eval(env)
     env.errs
 
 
@@ -26,7 +29,7 @@ when isMainModule:
     import parsers
     import options
     let
-        f = open("test/test05.rgn")
+        f = open("test/test.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
         errs = program.sema

@@ -11,8 +11,8 @@ proc Id*(_: typedesc[Expression], ident: Ident, loc: Location = ident.loc): Expr
     Expression(kind: ExpressionKind.Ident, ident: ident, loc: loc)
 proc Tuple*(_: typedesc[Expression], exprs: seq[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Tuple, exprs: exprs, loc: loc)
-proc Seq*(_: typedesc[Expression], exprs: seq[Expression], loc: Location = newLocation()): Expression =
-    Expression(kind: ExpressionKind.Seq, exprs: exprs, loc: loc)
+proc Array*(_: typedesc[Expression], exprs: seq[Expression], loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Array, exprs: exprs, loc: loc)
 proc Record*(_: typedesc[Expression], members: seq[(Ident, Expression)], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Record, members: members, loc: loc)
 proc If*(_: typedesc[Expression], elifs: openArray[ElifBranch], elseb: Option[ElseBranch], loc: Location = newLocation()): Expression =

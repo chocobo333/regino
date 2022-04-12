@@ -67,7 +67,7 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.Tuple:
         let s = self.exprs.join(", ")
         fmt"({s})"
-    of ExpressionKind.Seq:
+    of ExpressionKind.Array:
         let s = self.exprs.join(", ")
         fmt"[{s}]"
     of ExpressionKind.Record:
@@ -475,9 +475,8 @@ proc treeRepr*(self: Expression): string =
     of ExpressionKind.Tuple:
         let s = self.exprs.join(", ")
         fmt"({s})"
-    of ExpressionKind.Seq:
-        let s = self.exprs.join(", ")
-        fmt"[{s}]"
+    of ExpressionKind.Array:
+        "Array\n" & self.exprs.map(treeRepr).join("\n").indent(2)
     of ExpressionKind.Record:
         let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
         fmt"({members})"
@@ -503,16 +502,15 @@ proc treeRepr*(self: Expression): string =
         let args = self.args.join(", ")
         fmt"{self.callee}({args})"
     of ExpressionKind.Command:
-        let args = self.args.join(", ")
-        fmt"{self.callee} {args}"
+        "Command\n" & (@[self.callee] & self.args).map(treeRepr).join("\n").indent(2)
     of ExpressionKind.Dot:
         fmt"{self.lhs}.{self.rhs}"
     of ExpressionKind.Binary:
         "Infix\n" & (&"{self.op.treeRepr}\n{self.lhs.treeRepr}\n{self.rhs.treeRepr}").indent(2)
     of ExpressionKind.Prefix:
-        fmt"{self.op}{self.expression}"
+        "Prefix\n" & @[self.op.treeRepr, self.expression.treeRepr].join("\n").indent(2)
     of ExpressionKind.Postfix:
-        fmt"{self.expression}{self.op}"
+        "Postfix\n" & @[self.op.treeRepr, self.expression.treeRepr].join("\n").indent(2)
     of ExpressionKind.Bracket:
         let args = self.args.join(", ")
         fmt"{self.callee}[{args}]"

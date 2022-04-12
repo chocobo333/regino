@@ -95,7 +95,7 @@ type
         Literal
         Ident
         Tuple
-        Seq
+        Array
         Record
         If
         When
@@ -123,7 +123,7 @@ type
             litval*: Literal
         of ExpressionKind.Ident:
             ident*: Ident
-        of ExpressionKind.Tuple, ExpressionKind.Seq:
+        of ExpressionKind.Tuple, ExpressionKind.Array:
             exprs*: seq[Expression]
         of ExpressionKind.Record:
             members*: seq[(Ident, Expression)]

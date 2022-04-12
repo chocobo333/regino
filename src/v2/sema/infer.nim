@@ -377,10 +377,16 @@ proc resolveRelations*(self: TypeEnv) =
             let
                 (t1, t2) = self.constraints.pop
             self.resolveRelation(t1, t2)
+
+        debug self.constraints
+        debug self.tvconstraints
+        debug self.interconstraints
+
         var
             ord = newOrder[Value]()
             f = false
         if self.tvconstraints.filterIt(it[0].kind != ValueKind.Var or it[1].kind != ValueKind.Var).len != 0:
+            echo "hoge"
             self.constraints = self.tvconstraints & self.interconstraints
             self.tvconstraints = @[]
             self.interconstraints = @[]
@@ -403,6 +409,7 @@ proc resolveRelations*(self: TypeEnv) =
             else:
                 ord.add (t1, t2)
         if f: continue
+
         self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var).map(it => self.simplify(it))
         for e in self.tvs:
             if e notin ord.primal and e notin ord.dual:
