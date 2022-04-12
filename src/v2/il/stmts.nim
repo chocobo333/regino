@@ -46,3 +46,8 @@ proc typ*(self: Statement): Value =
         self.expression.typ
     else:
         Value.Unit
+
+proc get*(self: Program, line: int): Statement =
+    for s in self.stmts:
+        if line in s.loc.`range`.a.line..s.loc.`range`.b.line:
+            return s

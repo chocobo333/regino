@@ -11,6 +11,7 @@ import ../errors
 
 import ../orders
 import ../utils
+import ../lineinfos
 
 import infer as _
 
@@ -20,6 +21,7 @@ proc eval*(self: Suite, env: TypeEnv): Value
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
 proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
+proc check(self: Expression, env: TypeEnv)
 proc infer*(self: Literal): Value =
     self.typ
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
@@ -56,8 +58,16 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         self.ident.infer(env, global)
     of ExpressionKind.Tuple:
         self.exprs.mapIt(it.infer(env, global)).foldl(Value.Pair(a, b))
-    of ExpressionKind.Seq:
-        Value.Unit
+    of ExpressionKind.Array:
+        let
+            tv = Value.Var(env)
+            elements = self.exprs.mapIt(it.infer(env, global))
+        echo self.loc
+        echo elements
+        for t in elements:
+            env.coerce(t <= tv)
+        Value.Array(tv)
+        # Value.Unit
     of ExpressionKind.Record:
         Value.Unit
     of ExpressionKind.If:
@@ -147,6 +157,23 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
     of PatternKind.UnderScore:
         Value.Var(env)
     self.typ = result
+proc infer(self: TypeExpression, env: TypeEnv): Value =
+    case self.kind
+    of TypeExpressionKind.Object:
+        # TODO: ituka jissousuru
+        assert false, "notimplimented"
+        Value.Unit
+    of TypeExpressionKind.Sum:
+        assert false, "notimplimented"
+        Value.Unit
+    of TypeExpressionKind.Distinct:
+        assert false, "notimplimented"
+        Value.Unit
+    of TypeExpressionKind.Trait:
+        assert false, "notimplimented"
+        Value.Unit
+    of TypeExpressionKind.Expression:
+        self.expression.infer(env)
 proc addPat(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool = false) =
     ## register identifier on typeenv
     case pat.kind
@@ -246,7 +273,11 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 let t = default.get.infer(env, global)
                 env.coerce(t <= paty)
             if typ.isSome:
-                let t = typ.get.eval(env, global)
+                let
+                    typ = typ.get
+                    tv = typ.infer(env, global)
+                typ.check(env)
+                let t = typ.eval(env, global)
                 env.coerce(t == paty)
             env.addPat(iddef, global=global)
         Value.Unit
@@ -263,6 +294,8 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
             if params.isNone:
                 # TODO: infer and check
                 # let tv = typ.infer(env)
+                # echo tv
+                # typ.check(env)
                 let
                     typ = typ.eval(env, global)
                     sym = Symbol.Typ(id, typ, typedef, global)
@@ -305,25 +338,10 @@ proc infer*(self: Program, env: TypeEnv): Value =
         debug e.tv.lb
         debug e.tv.ub
 
-proc eval*(self: Literal): Value =
-    Value.literal(self)
-proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
-    case self.kind
-    of TypeExpressionKind.Object:
-        Value.Unit
-    of TypeExpressionKind.Sum:
-        Value.Unit
-    of TypeExpressionKind.Distinct:
-        Value.Unit
-    of TypeExpressionKind.Trait:
-        Value.Unit
-    of TypeExpressionKind.Expression:
-        self.expression.eval(env, global)
-
 proc check(self: Suite, env: TypeEnv)
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
-    # invalid
+    # TODO: invalid
     # if self.typ.kind == ValueKind.Link:
     #     env.bindtv(self.typ, self.typ.to)
     if self.typ.kind == ValueKind.Var:
@@ -345,7 +363,7 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Tuple:
         for e in self.exprs:
             e.check(env)
-    of ExpressionKind.Seq:
+    of ExpressionKind.Array:
         for e in self.exprs:
             e.check(env)
     of ExpressionKind.Record:
@@ -393,7 +411,7 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.FnType:
         discard
     of ExpressionKind.Fail:
-        discard
+        env.errs.add TypeError.SomethingWrong(self.loc)
 proc check(self: Statement, env: TypeEnv) =
     case self.kind
     of StatementKind.For:
@@ -452,6 +470,21 @@ proc check*(self: Program, env: TypeEnv) =
         if s.typ != Value.Unit:
             env.errs.add TypeError.Discard(s)
     self.stmts[^1].check(env)
+
+proc eval*(self: Literal): Value =
+    Value.literal(self)
+proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
+    case self.kind
+    of TypeExpressionKind.Object:
+        Value.Unit
+    of TypeExpressionKind.Sum:
+        Value.Unit
+    of TypeExpressionKind.Distinct:
+        Value.Unit
+    of TypeExpressionKind.Trait:
+        Value.Unit
+    of TypeExpressionKind.Expression:
+        self.expression.eval(env, global)
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     discard self.infer(env, global)
     case self.kind
@@ -471,7 +504,8 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
             Value.Intersection(syms.mapIt(it.val))
     of ExpressionKind.Tuple:
         self.exprs.mapIt(it.eval(env, global)).foldl(Value.Pair(a, b))
-    of ExpressionKind.Seq:
+    of ExpressionKind.Array:
+        # Value.Array(self.exprs.mapIt(it.eval(env)))
         Value.Unit
     of ExpressionKind.Record:
         Value.Unit

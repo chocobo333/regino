@@ -222,6 +222,10 @@ let
     )
 
     Tuple = %delimited(lpar, Expr^*(comma), ?comma+rpar) @ (it => Expression.Tuple(it[0], it[1]))
+    ## (expr, ...)
+    Arr = %delimited(lbra, Expr^*(comma), ?comma+rbra) @ (it => Expression.Array(it[0], it[1]))
+    ## [expr, ...]
+
     Record = %delimited(
         lpar,
         (Id + ?(preceded(colon, Expr)))^*comma,
@@ -252,6 +256,7 @@ let
         Id @ (it => Expression(kind: ExpressionKind.Ident, ident: it, loc: it.loc)),
         delimited(lpar, Expr, rpar),
         Tuple,
+        Arr,
         Record
     )) @
         proc(it: ((Option[Ident], Expression), Location)): Expression =
@@ -357,7 +362,8 @@ let
         lpar,
         ParamList,
         rpar
-    ) + ?(preceded(arr, Expr))
+    ) + ?(preceded(arr, AtomExprNotCommand))
+    # ) + ?(preceded(arr, Expr))
     Suite = alt(
         preceded(
             colon,
