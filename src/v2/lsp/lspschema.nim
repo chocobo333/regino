@@ -133,7 +133,7 @@ type
         number = "number"
         regexp = "regexp"
         operator = "operator"
-    SemanticTokenModifiers {.pure.} = enum
+    SemanticTokenModifiers* {.pure.} = enum
         declaration = "declaration"
         definition = "definition"
         readonly = "readonly"
@@ -144,6 +144,10 @@ type
         modification = "modification"
         documentation = "documentation"
         defaultLibrary = "defaultLibrary"
+    DocumentHighlightKind* = enum
+        Text = 1
+        Read = 2
+        Write = 3
 
 jsonSchema:
     Message:
@@ -220,6 +224,21 @@ jsonSchema:
         position: Position
     HoverParams extends TextDocumentPositionParams:
         workDoneToken ?: int or string
+    DeclarationParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+        partialResultToken ?: int or string # ProgressToken
+    DefinitionParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+        partialResultToken ?: int or string # ProgressToken
+    ReferenceContext:
+        includeDeclaration: bool
+    ReferenceParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+        partialResultToken ?: int or string # ProgressToken
+        context: ReferenceContext
+    DocumentHighlightParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+        partialResultToken ?: int or string # ProgressToken
     MarkedString:
         language: string
         value: string
@@ -229,6 +248,9 @@ jsonSchema:
     Hover:
         contents: string or string[] or MarkedString or MarkedString[] or MarkupContent
         "range" ?: Range
+    DocumentHighlight:
+        "range": Range
+        kind ?: int # DocumentHighlightKind
     DocumentSymbolParams extends WorkDoneProgressParams:
         partialResultToken ?: int or string # ProgressToken
         textDocument: TextDocumentIdentifier
@@ -532,6 +554,14 @@ jsonSchema:
         label ?: string
     HoverOptions:
         workDoneProgress ?: bool
+    DeclarationOptions:
+        workDoneProgress ?: bool
+    DefinitionOptions:
+        workDoneProgress ?: bool
+    ReferenceOptions:
+        workDoneProgress ?: bool
+    DocumentHighlightOptions:
+        workDoneProgress ?: bool
     SemanticTokensLegend:
         tokenTypes: string[]
         tokenModifiers: string[]
@@ -545,12 +575,12 @@ jsonSchema:
         # completionProvider ?: CompletionOptions
         hoverProvider ?: bool or HoverOptions
         # signatureHelpProvider ?: SignatureHelpOptions
-        # declarationProvider ?: bool or DeclarationOptions or DeclarationRegistrationOptions
-        # definitionProvider ?: bool or DefinitionOptions
+        declarationProvider ?: bool or DeclarationOptions# or DeclarationRegistrationOptions
+        definitionProvider ?: bool or DefinitionOptions
         # typeDefinitionProvider ?: bool or TypeDefinitionOptions or TypeDefinitionRegistrationOptions
         # implementationProvider ?: bool or ImplementationOptions or ImplementationRegistrationOptions
-        # referencesProvider ?: bool or ReferenceOptions
-        # documentHighlightProvider ?: bool or DocumentHighlightOptions
+        referencesProvider ?: bool or ReferenceOptions
+        documentHighlightProvider ?: bool or DocumentHighlightOptions
         documentSymbolProvider ?: bool or DocumentSymbolOptions
         # codeActionProvider ?: bool or CodeActionOptions
         # codeLensProvider ?: CodeLensOptions
@@ -605,9 +635,15 @@ export
     DidChangeTextDocumentParams,
     TextDocumentPositionParams,
     HoverParams,
+    DeclarationParams,
+    DefinitionParams,
+    ReferenceContext,
+    ReferenceParams,
+    DocumentHighlightParams,
     MarkedString,
     MarkupContent,
     Hover,
+    DocumentHighlight,
     DocumentSymbolParams,
     DocumentSymbol,
     SemanticTokensParams,
@@ -682,6 +718,10 @@ export
     WorkDoneProgressOptions,
     DocumentSymbolOptions,
     HoverOptions,
+    DeclarationOptions,
+    DefinitionOptions,
+    ReferenceOptions,
+    DocumentHighlightOptions,
     SemanticTokensLegend,
     SemanticTokensOptions,
     ServerCapabilities,

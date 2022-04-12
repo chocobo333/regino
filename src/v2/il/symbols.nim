@@ -29,3 +29,7 @@ proc Func*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
     typ.symbol = some result
 
 proc empty*(_: typedesc[Symbol]): Symbol = Symbol()
+
+import ../lineinfos
+proc loc*(self: Symbol): Location =
+    self.id.loc

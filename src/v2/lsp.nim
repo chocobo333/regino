@@ -20,7 +20,7 @@ import
     # codegen,
     utils,
     errors
-import lineinfos except Position
+import lineinfos except Position, Location
 type rPosition = lineinfos.Position
 import projects
 
@@ -95,7 +95,7 @@ proc `textDocument/publishDiagnostics`(uri: string, diags: seq[Diagnostic]): (st
 proc publishDiagnostics(textDocument: TextDocument, diags: seq[Diagnostic]) =
     textDocument.s.notify `textDocument/publishDiagnostics`(textDocument.uri, diags)
 
-proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration, project: Project) =
+proc initialize(s: Stream, msg: RequestMessage, configuration: var Configuration, project: Project) =
     if msg.params.isValid(InitializeParams, allowExtra=true):
         let
             params = InitializeParams(msg.params)
@@ -108,7 +108,7 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
         configuration.tokenTypes = tokenTypes
         configuration.tokenModifiers = tokenModifiers
         configuration.documentSymbol = documentSymbol
-        s.window.logMessage("Got initilize request")
+        s.window.logMessage("Got initialize request")
         s.respond(msg):
             InitializeResult.create(
                 ServerCapabilities.create(
@@ -117,6 +117,10 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
                         some TextDocumentSyncKind.Full.int
                     ),
                     some true, # Hover
+                    some true, # declaration
+                    some true, # definition
+                    some true, # reference
+                    some true, # documentHighlight
                     some DocumentSymbolOptions.create(
                         none(bool),
                         some "regino"
@@ -130,7 +134,8 @@ proc initilize(s: Stream, msg: RequestMessage, configuration: var Configuration,
                     #     some false,
                     #     some true
                     # ),
-                    none SemanticTokensOptions
+                    none SemanticTokensOptions,
+
                 ),
                 some ServerInfo.create(
                     "regino-languages-server",
@@ -152,10 +157,9 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configu
                 focus = program.find(pos)
             if focus.isSome:
                 let focus = focus.get
-                if focus.typ.symbol.isSome:
+                if not focus.typ.isNil and focus.typ.symbol.isSome:
                     data.add $focus.typ.symbol.get
                 data.add fmt"{focus.name}: {focus.typ}"
-            s.window.logMessage("[textDocument/hover]: " & $focus)
         s.respond(msg):
             if data.len == 0:
                 newJNull()
@@ -166,6 +170,104 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configu
                 ).JsonNode
     else:
         s.window.logMessage("[textDocument/hover]: valid params")
+proc `textDocument/declaration`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(DeclarationParams):
+        let
+            params = DeclarationParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                focus = program.find(pos)
+            if focus.isSome and focus.get.typ.symbol.isSome:
+                let
+                    loc = focus.get.typ.symbol.get.loc
+                s.respond(msg):
+                    loc.to.JsonNode
+                return
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/declaration]: valid params")
+proc `textDocument/definition`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(DefinitionParams):
+        let
+            params = DefinitionParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                focus = program.find(pos)
+            if focus.isSome and focus.get.typ.symbol.isSome:
+                let
+                    loc = focus.get.typ.symbol.get.loc
+                s.respond(msg):
+                    loc.to.JsonNode
+                return
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/definition]: valid params")
+proc `textDocument/references`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(ReferenceParams):
+        let
+            params = ReferenceParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        var res = newJArray()
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                focus = program.find(pos)
+            if focus.isSome and focus.get.typ.symbol.isSome:
+                let
+                    use = focus.get.typ.symbol.get.use
+                for loc in use:
+                    res.add loc.to.JsonNode
+                s.respond(msg):
+                    res
+                return
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/references]: valid params")
+proc `textDocument/documentHighlight`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(DocumentHighlightParams):
+        let
+            params = DocumentHighlightParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        var res = newJArray()
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                focus = program.find(pos)
+            if focus.isSome and focus.get.typ.symbol.isSome:
+                let
+                    loc = focus.get.typ.symbol.get.loc
+                    use = focus.get.typ.symbol.get.use
+                for loc in use:
+                    res.add DocumentHighlight.create(
+                        loc.range.to,
+                        some DocumentHighlightKind.Text.int
+                    ).JsonNode
+                res.add DocumentHighlight.create(
+                    loc.range.to,
+                    some DocumentHighlightKind.Text.int
+                ).JsonNode
+                s.respond(msg):
+                    res
+                return
+        s.respond(msg):
+            newJNull()
+    else:
+        s.window.logMessage("[textDocument/documentHighlight]: valid params")
 proc collectSymbol(self: Scope): Option[JsonNode] =
     var res = newJArray()
     for syms in self.syms.values:
@@ -567,12 +669,20 @@ proc Lsp*(): int =
                 `method` = msg.`method`
             case `method`
             of "initialize":
-                outstream.initilize(msg, configuration, project)
+                outstream.initialize(msg, configuration, project)
             of "shutdown":
                 outstream.respond(msg):
                     newJNull()
             of "textDocument/hover":
                 outstream.`textDocument/hover`(msg, configuration, project)
+            of "textDocument/declaration":
+                outstream.`textDocument/declaration`(msg, configuration, project)
+            of "textDocument/definition":
+                outstream.`textDocument/definition`(msg, configuration, project)
+            of "textDocument/references":
+                outstream.`textDocument/references`(msg, configuration, project)
+            of "textDocument/documentHighlight":
+                outstream.`textDocument/documentHighlight`(msg, configuration, project)
             of "textDocument/documentSymbol":
                 outstream.`textDocument/documentSymbol`(msg, configuration, project)
             # of "textDocument/semanticTokens/full":
@@ -584,7 +694,7 @@ proc Lsp*(): int =
                 params = msg.params
             case `method`
             of "initialized":
-                outstream.window.logMessage("initilized.")
+                outstream.window.logMessage("initialized.")
             of "exit":
                 break
             of "textDocument/didOpen":

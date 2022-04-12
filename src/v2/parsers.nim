@@ -604,14 +604,18 @@ proc TypeExpr(self: ref Source): Option[TypeExpression] =
     else:
         typ
 
+proc l(it: (Pattern, Location)): Pattern =
+    result = it[0]
+    result.loc = it[1]
 proc Patt(self: ref Source): Option[Pattern] =
-    alt(
-        LiteralPattern,
-        TuplePattern,
-        RecordPattern,
-        UnderScore,
-        IdPattern,
+    let res = alt(
+        %LiteralPattern,
+        %TuplePattern,
+        %RecordPattern,
+        %UnderScore,
+        %IdPattern,
     )(self)
+    res.map(l)
 proc ArgList(self: ref Source): Option[seq[Expression]] =
     let parser = alt(
         %(AtomExprNotCommand + preceded(sp1 + !Operators, Expr)) @

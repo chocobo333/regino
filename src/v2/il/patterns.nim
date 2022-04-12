@@ -20,6 +20,9 @@ proc Record*(_: typedesc[Pattern], members: seq[(Ident, Pattern)]): Pattern =
 proc UnderScore*(_: typedesc[Pattern]): Pattern =
     Pattern(kind: PatternKind.UnderScore)
 
+proc empty*(_: typedesc[Pattern]): Pattern =
+    Pattern.UnderScore
+
 proc refutable*(self: Pattern): bool =
     case self.kind
     of PatternKind.Literal:

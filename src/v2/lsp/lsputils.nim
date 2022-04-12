@@ -1,27 +1,49 @@
 
 import options
 import sequtils
+import strutils
 import sugar
+import options
+import json
+
 
 import ../il
-import ../lineinfos
+import ../lineinfos except Position, Location
 
-from lspschema import nil
+import lspschema
 
+type
+    rPosition = lineinfos.Position
+proc to*(self: rPosition): Position =
+    Position.create(
+        self.line,
+        self.character,
+    )
+proc to*(self: PosRange): Range =
+    Range.create(
+        self.a.to,
+        self.b.to,
+    )
 
-proc `in`*(self: Position, term: Statement|Expression|Ident): bool =
+proc to*(self: lineinfos.Location): Location =
+    Location.create(
+        self.uri.path,
+        self.range.to
+    )
+
+proc `in`*(self: rPosition, term: Statement|Expression|Ident|Pattern): bool =
     let r = term.loc.`range`
-    self != r.b and self in r
-proc `in`*(self: Position, term: Suite): bool =
+    self in r
+proc `in`*(self: rPosition, term: Suite): bool =
     term.stmts.anyIt(self in it)
 
-proc find*(self: Ident, pos: Position): Option[Ident] =
+proc find*(self: Ident, pos: rPosition): Option[Ident] =
     if pos in self:
         some self
     else:
         none(Ident)
-proc find*(self: Expression, pos: Position): Option[Ident]
-proc find*(self: Pattern, pos: Position): Option[Ident] =
+proc find*(self: Expression, pos: rPosition): Option[Ident]
+proc find*(self: Pattern, pos: rPosition): Option[Ident] =
     case self.kind
     of PatternKind.Literal:
         none(Ident)
@@ -33,19 +55,22 @@ proc find*(self: Pattern, pos: Position): Option[Ident] =
     of PatternKind.Dot:
         none(Ident)
     of PatternKind.Tuple:
+        for e in self.patterns:
+            if pos in e:
+                return e.find(pos)
         none(Ident)
     of PatternKind.Record:
         none(Ident)
     of PatternKind.UnderScore:
         none(Ident)
-proc find*(self: IdentDef, pos: Position): Option[Ident] =
+proc find*(self: IdentDef, pos: rPosition): Option[Ident] =
     if self.typ.isSome and pos in self.typ.get:
         self.typ.get.find(pos)
     elif self.default.isSome and pos in self.default.get:
         self.default.get.find(pos)
     else:
         self.pat.find(pos)
-proc find*(self: Statement, pos: Position): Option[Ident] =
+proc find*(self: Statement, pos: rPosition): Option[Ident] =
     case self.kind
     of StatementKind.For:
         none(Ident)
@@ -85,11 +110,11 @@ proc find*(self: Statement, pos: Position): Option[Ident] =
     of StatementKind.Fail:
         none(Ident)
 
-proc find*(self: Suite | Program, pos: Position): Option[Ident] =
+proc find*(self: Suite | Program, pos: rPosition): Option[Ident] =
     for e in self.stmts:
         if pos in e:
             return e.find(pos)
-proc find*(self: Expression, pos: Position): Option[Ident] =
+proc find*(self: Expression, pos: rPosition): Option[Ident] =
     case self.kind
     of ExpressionKind.Literal:
         none(Ident)
