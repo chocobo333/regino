@@ -386,7 +386,7 @@ proc resolveRelations*(self: TypeEnv) =
             ord = newOrder[Value]()
             f = false
         if self.tvconstraints.filterIt(it[0].kind != ValueKind.Var or it[1].kind != ValueKind.Var).len != 0:
-            echo "hoge"
+            debug "hoge"
             self.constraints = self.tvconstraints & self.interconstraints
             self.tvconstraints = @[]
             self.interconstraints = @[]
