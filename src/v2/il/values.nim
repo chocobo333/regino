@@ -60,6 +60,8 @@ proc Union*(_: typedesc[Value], types: seq[Value]): Value =
     Value(kind: ValueKind.Union, types: types.toHashSet)
 proc Union*(_: typedesc[Value], types: HashSet[Value]): Value =
     Value(kind: ValueKind.Union, types: types)
+proc Cons*(_: typedesc[Value], implicit: seq[GenericType], rety: Value): Value =
+    Value(kind: ValueKind.Cons, implicit: implicit, rety: rety)
 proc Var*(_: typedesc[Value], tv: TypeVar): Value =
     Value(kind: ValueKind.Var, tv: tv)
 proc Gen*(_: typedesc[Value], gen: GenericType): Value =
