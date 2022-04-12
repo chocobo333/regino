@@ -95,6 +95,8 @@ proc `textDocument/publishDiagnostics`(uri: string, diags: seq[Diagnostic]): (st
 proc publishDiagnostics(textDocument: TextDocument, diags: seq[Diagnostic]) =
     textDocument.s.notify `textDocument/publishDiagnostics`(textDocument.uri, diags)
 
+const
+    trrigerCharacters = @[".", "$", "*", "+", "-", "@", "^", "&", "|", "\\", "/", "~", "=", "%", "!", "<", ">", "?"]
 proc initialize(s: Stream, msg: RequestMessage, configuration: var Configuration, project: Project) =
     if msg.params.isValid(InitializeParams, allowExtra=true):
         let
@@ -115,6 +117,12 @@ proc initialize(s: Stream, msg: RequestMessage, configuration: var Configuration
                     some TextDocumentSyncOptions.create(
                         some true,
                         some TextDocumentSyncKind.Full.int
+                    ),
+                    some CompletionOptions.create(
+                        none bool,
+                        some trrigerCharacters,
+                        none seq[string],
+                        none bool,
                     ),
                     some true, # Hover
                     some true, # declaration
@@ -143,6 +151,50 @@ proc initialize(s: Stream, msg: RequestMessage, configuration: var Configuration
                 )
             ).JsonNode
 
+proc `textDocument/completion`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
+    if msg.params.isValid(CompletionParams):
+        let
+            params = CompletionParams(msg.params)
+            textDocument = params["textDocument"]
+            pos = params["position"].to(rPosition)
+            uri = textDocument["uri"].getStr
+        var res = newJArray()
+        if uri in project.program:
+            let
+                program = project.program[uri] # main function
+                scopes = scope(program, pos)
+                syms = scopes.mapIt(toSeq(it.syms.values)).flatten.flatten
+            for sym in syms:
+                let
+                    label: string = sym.id.name
+                    kind: CompletionItemKind = sym.kind
+                    detail: string = $sym.typ
+                res.add CompletionItem.create(
+                    label,
+                    some kind.int,
+                    none seq[int],
+                    some detail,
+                    none string,
+                    none bool,
+                    none bool,
+                    none string,
+                    none string,
+                    none string,
+                    none int,
+                    none int,
+                    none TextEdit,
+                    none seq[TextEdit],
+                    none seq[string],
+                    none lspschema.Command,
+                    none JsonNode
+                ).JsonNode
+        s.respond(msg):
+            if res.len == 0:
+                newJNull()
+            else:
+                res
+    else:
+        s.window.logMessage("[textDocument/hover]: valid params")
 proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
     if msg.params.isValid(HoverParams):
         let
@@ -305,62 +357,6 @@ proc collectSymbol(self: Scope): Option[JsonNode] =
         none(JsonNode)
     else:
         some res
-# proc collectSymbol(self: Term): Option[JsonNode] =
-#     # result type is DocumentSymbol[]
-#     case self.kind
-#     of TermKind.Failed..TermKind.Const:
-#         none(JsonNode)
-#     of TermKind.Funcdef:
-#         var res = newJArray()
-#         for it in toSeq(self.fn.body.scope.syms.values).flatten:
-#             let
-#                 kind = case it.kind:
-#                 of il.SymbolKind.Var, il.SymbolKind.Let:
-#                     lspschema.SymbolKind.Variable
-#                 of il.SymbolKind.Const:
-#                     lspschema.SymbolKind.Constant
-#                 of il.SymbolKind.Typ:
-#                     lspschema.SymbolKind.Class
-#                 of il.SymbolKind.Func:
-#                     lspschema.SymbolKind.Function
-#             res.add DocumentSymbol.create(
-#                 it.decl.name,
-#                 some $it.typ,
-#                 kind.int,
-#                 none(seq[int]),
-#                 none(bool),
-#                 Range.create(
-#                     Position.create(
-#                         it.decl.loc.`range`.a.line,
-#                         it.decl.loc.`range`.a.character
-#                     ),
-#                     Position.create(
-#                         it.decl.loc.`range`.b.line,
-#                         it.decl.loc.`range`.b.character
-#                     )
-#                 ),
-#                 Range.create(
-#                     Position.create(
-#                         it.decl.loc.`range`.a.line,
-#                         it.decl.loc.`range`.a.character
-#                     ),
-#                     Position.create(
-#                         it.decl.loc.`range`.b.line,
-#                         it.decl.loc.`range`.b.character
-#                     )
-#                 ),
-#                 none(seq[DocumentSymbol])
-#             ).JsonNode
-#         if res.len == 0:
-#             none(JsonNode)
-#         else:
-#             some res
-#     of TermKind.FuncdefInst..TermKind.Meta:
-#         none(JsonNode)
-#     of TermKind.Seq:
-#         none(JsonNode)
-#     of TermKind.Us:
-#         none(JsonNode)
 proc collectSymbol(self: Program): Option[JsonNode] =
     self.scope.collectSymbol
 proc `textDocument/documentSymbol`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
@@ -673,6 +669,8 @@ proc Lsp*(): int =
             of "shutdown":
                 outstream.respond(msg):
                     newJNull()
+            of "textDocument/completion":
+                outstream.`textDocument/completion`(msg, configuration, project)
             of "textDocument/hover":
                 outstream.`textDocument/hover`(msg, configuration, project)
             of "textDocument/declaration":
