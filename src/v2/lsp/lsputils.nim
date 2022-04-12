@@ -120,7 +120,7 @@ proc find*(self: Expression, pos: rPosition): Option[Ident] =
         none(Ident)
     of ExpressionKind.Ident:
         self.ident.find(pos)
-    of ExpressionKind.Tuple, ExpressionKind.Seq:
+    of ExpressionKind.Tuple, ExpressionKind.Array:
         for e in self.exprs:
             if pos in e:
                 return e.find(pos)
