@@ -154,12 +154,18 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
     of ExpressionKind.Literal:
         self.litval.codegen(module, global)
     of ExpressionKind.Ident:
-        echo self.ident
-        let v = self.ident.codegen(module, global, lval)
-        echo v
-        v
+        self.ident.codegen(module, global, lval)
     of ExpressionKind.Tuple:
-        nil
+        proc makeTuple(typ: Value, terms: seq[Expression]): LValue =
+            if typ.second.kind == il.ValueKind.Pair:
+                # if typ.second.kind == il.ValueKind.Sigma:
+                var ret = module.curBuilder.insertvalue(typ.newLType(module).undef, makeTuple(typ.second, terms[1..^1]), 1, $terms[1..^1])
+                module.curBuilder.insertvalue(ret, terms[0].codegen(module, global), 0, $terms[0])
+            else:
+                assert terms.len == 2, ""
+                var ret = module.curBuilder.insertvalue(typ.newLType(module).undef, terms[1].codegen(module, global), 1, $terms[1])
+                module.curBuilder.insertvalue(ret, terms[0].codegen(module, global), 0, $terms[0])
+        makeTuple(self.typ, self.exprs)
     of ExpressionKind.Array:
         nil
     of ExpressionKind.Record:
