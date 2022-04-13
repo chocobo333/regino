@@ -83,11 +83,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             args = self.args.mapIt(it.infer(env, global))
             callee = self.callee.infer(env, global)
         env.coerce(callee <= Value.Arrow(args, tv))
-        # TODO: a
-        if callee.kind == ValueKind.Intersection:
-            env.coerce(tv <= Value.Intersection(toSeq(callee.types).filterIt(it.kind == ValueKind.Pi).mapIt(it.rety)))
-        else:
-            env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
+        env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee.dual) # i dont know whether this is correct.
         tv
     of ExpressionKind.Dot:
         Value.Unit
@@ -108,6 +104,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             exp = self.expression.infer(env, global)
             op = self.op.infer(env, global)
         env.coerce(op <= Value.Arrow(@[exp], tv))
+        env.coerce(Value.Arrow(@[Value.Unit], tv) <= op.dual)
         tv
     of ExpressionKind.Block:
         self.`block`.infer(env)
@@ -264,6 +261,8 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 params = typedef.params
                 typ = typedef.typ
             if params.isNone:
+                # TODO: infer and check
+                # let tv = typ.infer(env)
                 let
                     typ = typ.eval(env, global)
                     sym = Symbol.Typ(id, typ, typedef, global)
@@ -324,8 +323,9 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
 proc check(self: Suite, env: TypeEnv)
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
-    if self.typ.kind == ValueKind.Link:
-        env.bindtv(self.typ, self.typ.to)
+    # invalid
+    # if self.typ.kind == ValueKind.Link:
+    #     env.bindtv(self.typ, self.typ.to)
     if self.typ.kind == ValueKind.Var:
         if self.kind == ExpressionKind.Ident and self.typ.symbol.isNone:
             # TypeError.Undefined(self.ident, self.loc)
@@ -337,9 +337,11 @@ proc check(self: Expression, env: TypeEnv) =
         discard
     of ExpressionKind.Ident:
         if self.typ.symbol.isNone:
-            env.errs.add TypeError.Undefined(self.ident, self.loc)
-        else:
-            self.typ.symbol.get.use.add self.loc
+            if self.typ.kind == ValueKind.Intersection:
+                env.errs.add TypeError.Undeciable(self.loc)
+            else:
+                env.errs.add TypeError.Undefined(self.ident, self.loc)
+        discard
     of ExpressionKind.Tuple:
         for e in self.exprs:
             e.check(env)
@@ -401,7 +403,15 @@ proc check(self: Statement, env: TypeEnv) =
     of StatementKind.Loop:
         discard
     of StatementKind.LetSection:
-        discard
+        for iddef in self.iddefs:
+            # TODO: implement check(Pattern)
+            # iddef.pat.check(env)
+            # TODO: Shoud I check TypeExpression?
+            # typ should be infered, checked and evaled.
+            if iddef.typ.isSome:
+                iddef.typ.get.check(env)
+            if iddef.default.isSome:
+                iddef.default.get.check(env)
     of StatementKind.VarSection:
         discard
     of StatementKind.ConstSection:

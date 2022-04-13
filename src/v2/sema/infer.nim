@@ -264,6 +264,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
                 debug t2
                 let
                     likeli = self.likelihood(t1, t2)
+                debug likeli
                 if likeli.anyIt(it[1] >= cvar):
                     self.interconstraints.add (t1, t2)
                 else:
