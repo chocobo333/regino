@@ -174,7 +174,7 @@ proc infer(self: TypeExpression, env: TypeEnv): Value =
         Value.Unit
     of TypeExpressionKind.Expression:
         self.expression.infer(env)
-proc addPat(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool = false) =
+proc addPatL(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool = false) =
     ## register identifier on typeenv
     case pat.kind
     of PatternKind.Literal:
@@ -187,7 +187,25 @@ proc addPat(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool 
         discard # TODO:
     of PatternKind.Tuple:
         for pat in pat.patterns:
-            env.addPat(impl, pat, global)
+            env.addPatL(impl, pat, global)
+    of PatternKind.Record:
+        discard
+    of PatternKind.UnderScore:
+        discard
+proc addPatV(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool = false) =
+    ## register identifier on typeenv
+    case pat.kind
+    of PatternKind.Literal:
+        discard
+    of PatternKind.Ident:
+        # TODO: index
+        let sym = Symbol.Var(pat.ident, pat.typ, impl, global)
+        env.addIdent(sym)
+    of PatternKind.Dot:
+        discard # TODO:
+    of PatternKind.Tuple:
+        for pat in pat.patterns:
+            env.addPatV(impl, pat, global)
     of PatternKind.Record:
         discard
     of PatternKind.UnderScore:
@@ -197,6 +215,16 @@ proc PairToSeq(pair: Value): seq[Value] =
         @[pair.first] & pair.second.PairToSeq
     else:
         @[pair]
+proc infer(self: GenTypeDef, env: TypeEnv, global: bool = false): GenericType =
+    # infer and add symbol
+    let
+        id = self.id
+        ub = self.ub.map(it => it.eval(env, global)).get(Value.Unit)
+        genty = newGenericType(id, ub, ub.typ)
+        typ = Value.Gen(genty)
+        sym = Symbol.GenParam(id, typ, self)
+    env.addIdent(sym)
+    genty
 proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
     proc addPat(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat, global: bool = false) =
         ## register identifier on typeenv
@@ -223,16 +251,7 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
         rety: Value
     env.enter(fn.param.scope):
         let
-            implicit = fn.param.implicit.mapIt(block:
-                let
-                    id = it.id
-                    ub = it.ub.map(it => it.eval(env, global)).get(Value.Unit)
-                    genty = GenericType(id: id, ub: ub, typ: ub.typ)
-                    typ = Value.Gen(genty)
-                    sym = Symbol.GenParam(id, typ, it)
-                env.addIdent(sym)
-                genty
-            )
+            implicit = fn.param.implicit.mapIt(it.infer(env, global))
             paramty = fn.param.params.mapIt(block:
                 # TODO: pattern like a, b: int
                 assert it.typ.isSome
@@ -279,9 +298,26 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 typ.check(env)
                 let t = typ.eval(env, global)
                 env.coerce(t == paty)
-            env.addPat(iddef, global=global)
+            env.addPatL(iddef, global=global)
         Value.Unit
     of StatementKind.VarSection:
+        for iddef in self.iddefs:
+            let
+                pat = iddef.pat
+                typ = iddef.typ
+                default = iddef.default
+                paty = pat.infer(env, global)
+            if default.isSome:
+                let t = default.get.infer(env, global)
+                env.coerce(t <= paty)
+            if typ.isSome:
+                let
+                    typ = typ.get
+                    tv = typ.infer(env, global)
+                typ.check(env)
+                let t = typ.eval(env, global)
+                env.coerce(t == paty)
+            env.addPatV(iddef, global=global)
         Value.Unit
     of StatementKind.ConstSection:
         Value.Unit
@@ -293,12 +329,20 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 typ = typedef.typ
             if params.isNone:
                 # TODO: infer and check
-                # let tv = typ.infer(env)
-                # debug tv
+                let tv = typ.infer(env)
                 # typ.check(env)
                 let
                     typ = typ.eval(env, global)
                     sym = Symbol.Typ(id, typ, typedef, global)
+                env.addIdent(sym)
+            else:
+                let scope = newScope(env.scope)
+                var sym: Symbol
+                env.enter scope:
+                    let
+                        implicit = params.get.mapIt(it.infer(env, global))
+                        typ = typ.eval(env, global)
+                    sym = Symbol.Typ(id, Value.Cons(implicit, typ), typedef, global)
                 env.addIdent(sym)
         Value.Unit
     of StatementKind.Asign:
@@ -505,8 +549,7 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Tuple:
         self.exprs.mapIt(it.eval(env, global)).foldl(Value.Pair(a, b))
     of ExpressionKind.Array:
-        # Value.Array(self.exprs.mapIt(it.eval(env)))
-        Value.Unit
+        Value.Array(self.exprs.mapIt(it.eval(env)))
     of ExpressionKind.Record:
         Value.Unit
     of ExpressionKind.If:
@@ -539,18 +582,17 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Postfix:
         Value.Unit
     of ExpressionKind.Block:
-        self.`block`.infer(env)
+        self.`block`.eval(env)
     of ExpressionKind.Lambda:
         Value.Unit
     of ExpressionKind.Malloc:
-        env.coerce(self.msize.infer(env, global) == Value.Integer)
         Value.Ptr(self.mtype.eval(env, global))
     of ExpressionKind.Typeof:
         self.`typeof`.infer(env, global)
     of ExpressionKind.Ref:
-        Value.Unit
+        Value.Ptr(self.`ref`.eval(env, global))
     of ExpressionKind.FnType:
-        Value.Unit
+        Value.Arrow(self.args.mapIt(it.eval(env, global)), self.rety.eval(env, global))
     of ExpressionKind.Fail:
         Value.Bottom
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =

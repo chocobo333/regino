@@ -139,7 +139,7 @@ proc hash*(self: Value): Hash =
     result = !$result
 
 proc hash*(self: GenericType): Hash =
-    self.id.name.hash
+    self.ident.name.hash
 
 proc compilable*(self: Value): bool =
     case self.kind

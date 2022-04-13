@@ -114,13 +114,9 @@ func f(a: int) -> int:
     3
 func f(a: int) -> float:
     4.5
-let
-    a = 3
-    b: int = f(3)
-    (c, d) = (3, 4)
-echo a
-echo b
-[0, 4]
-let b: int = f(3)
 echo $(3, 4)
+var
+    a = 3
+a = 5
+echo a
 0
