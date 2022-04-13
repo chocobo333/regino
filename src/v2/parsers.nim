@@ -592,6 +592,7 @@ proc TypeExpr(self: ref Source): Option[TypeExpression] =
         isRef = (s"ref" + sp1)(self)
         typ = alt(
             ObjectType,
+            DistinctType,
             SumType,
             TraitType,
             Expr @ (it => TypeExpression.Expr(it))
