@@ -4,6 +4,7 @@ import tables
 import options
 
 import il
+import utils
 
 import llvm except Value, ValueKind, Type, Module
 
@@ -51,7 +52,10 @@ proc newLType(typ: Value, module: Module): LType =
     of il.ValueKind.Bool:
         cxt.intType(1)
     of il.ValueKind.Integer:
-        cxt.intType(typ.bits)
+        if typ.bits == 0:
+            cxt.intType(wordSize())
+        else:
+            cxt.intType(typ.bits)
     of il.ValueKind.Float:
         cxt.floatType()
     of il.ValueKind.String:
@@ -99,7 +103,7 @@ converter toFunctionType(self: LType): FunctionType =
 converter toFunctionValue(self: LValue): FunctionValue =
     cast[FunctionValue](self)
 
-proc sym(self: Expression|Statement): Impl =
+proc sym(self: Expression|Statement|Ident): Impl =
     if self.typ in self.typ.symbol.get.instances:
         result = self.typ.symbol.get.instances[self.typ]
     else:
@@ -109,85 +113,189 @@ proc `sym=`*(self: Expression|Statement, sym: Impl) =
     self.typ.symbol.get.instances[self.typ] = sym
 
 
-proc codegen(self: Expression, module: Module, global: bool = false) =
+proc codegen(self: Literal, module: Module, global: bool = false): LValue =
+    case self.kind
+    of LiteralKind.unit:
+        nil
+    of LiteralKind.bool:
+        let
+            b = self.boolval
+            boolty = newLType(Value.Bool, module)
+        boolty.constInt(if b: 1 else: 0)
+    of LiteralKind.integer:
+        let
+            i = self.intval
+            bits = self.intbits
+            intty = newLType(Value.Integer(bits), module)
+        intty.constInt(int i)
+    of LiteralKind.float:
+        nil
+    of LiteralKind.char:
+        nil
+    of LiteralKind.string:
+        nil
+    of LiteralKind.Univ:
+        nil
+proc codegen(self: Ident, module: Module, global: bool = false, lval: bool = false, ): LValue =
+    let
+        name = self.name
+        sym = self.sym
+        val = sym.val
+        ty = sym.lty
+    if val.kind == llvm.ValueKind.FunctionValueKind:
+        val
+    else:
+        if lval:
+            val
+        else:
+            module.curBuilder.load(ty, val, name)
+proc codegen(self: Expression, module: Module, global: bool = false, lval: bool = false): LValue =
     case self.kind
     of ExpressionKind.Literal:
-        discard
+        self.litval.codegen(module, global)
     of ExpressionKind.Ident:
-        discard
+        echo self.ident
+        let v = self.ident.codegen(module, global, lval)
+        echo v
+        v
     of ExpressionKind.Tuple:
-        discard
+        nil
     of ExpressionKind.Array:
-        discard
+        nil
     of ExpressionKind.Record:
-        discard
+        nil
     of ExpressionKind.If:
-        discard
+        nil
     of ExpressionKind.When:
-        discard
+        nil
     of ExpressionKind.Case:
-        discard
+        nil
     of ExpressionKind.Call:
-        discard
+        nil
     of ExpressionKind.Command:
-        discard
+        nil
     of ExpressionKind.Dot:
-        discard
+        nil
     of ExpressionKind.Bracket:
-        discard
+        nil
     of ExpressionKind.Binary:
-        discard
+        nil
     of ExpressionKind.Prefix:
-        discard
+        nil
     of ExpressionKind.Postfix:
-        discard
+        nil
     of ExpressionKind.Block:
-        discard
+        nil
     of ExpressionKind.Lambda:
-        discard
+        nil
     of ExpressionKind.Malloc:
-        discard
+        nil
     of ExpressionKind.Typeof:
-        discard
+        nil
     of ExpressionKind.Ref:
-        discard
+        nil
     of ExpressionKind.FnType:
-        discard
+        nil
     of ExpressionKind.Fail:
-        discard
-proc codegen(self: Statement, module: Module, global: bool = false) =
+        nil
+proc codegen(self: Pattern, module: Module, typ: Value, val: LValue, global: bool = false) =
+        case self.kind
+        of PatternKind.Literal:
+            discard
+        of PatternKind.Ident:
+            let
+                id = self.ident
+                sym = id.sym
+                name = id.name
+                typ = newLType(typ, module)
+            echo module.curBuilder.repr
+            let
+                p = if global: module.module.newGlobal(typ, name) else: module.curBuilder.alloca(typ, name)
+            sym.val = p
+            sym.lty = typ
+            discard module.curBuilder.store(val, p, $self)
+        of PatternKind.Tuple:
+            assert false, "notimplemented"
+            # assert typ.kind == ValueKind.Pair
+            # case self.patterns.len
+            # of 0:
+            #     discard
+            # of 1:
+            #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+            # of 2:
+            #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+            #     codegen(self.patterns[1], module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
+            # else:
+            #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+            #     codegen(Expression.Tuple(self.patterns[1..^1]), module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
+        of PatternKind.Record:
+            assert false, "notimplemented"
+            for (i, idpat) in self.members.pairs:
+                let (id, pat) = idpat
+                codegen(pat, module, typ.members[id], module.curBuilder.extractvalue(val, i, $self & "." & $id), global)
+        of PatternKind.UnderScore:
+            discard
+        else:
+            assert false, "notimplemented"
+proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     case self.kind
     of StatementKind.For:
-        discard
+        nil
     of StatementKind.While:
-        discard
+        nil
     of StatementKind.Loop:
-        discard
-    of StatementKind.LetSection:
-        discard
-    of StatementKind.VarSection:
-        discard
+        nil
+    of StatementKind.LetSection, StatementKind.VarSection:
+        for e in self.iddefs:
+            let
+                pat = e.pat
+                default = e.default.get
+            codegen(pat, module, default.typ, default.codegen(module, global))
+        nil
     of StatementKind.ConstSection:
-        discard
+        nil
     of StatementKind.TypeSection:
-        discard
+        nil
     of StatementKind.Asign:
-        discard
+        nil
     of StatementKind.Funcdef:
-        discard
+        nil
     of StatementKind.Meta:
-        discard
+        nil
     of StatementKind.Discard:
-        discard
+        nil
     of StatementKind.Comments:
-        discard
+        nil
     of StatementKind.Expression:
-        discard
+        self.expression.codegen(module, global, lval=false)
     of StatementKind.Fail:
-        discard
+        nil
+
+template enter(self: Module, fn: FunctionValue, body: untyped) =
+    block:
+        let
+            tmpBB = self.curBB
+            tmpFn = self.curFun
+            bb = fn.appendBasicBlock("entry")
+        module.curFun = fn
+        module.curBuilder.atEndOf(bb)
+        module.curBB = bb
+        body
+        module.curBB = tmpBB
+        module.curFun = tmpFn
+        if not tmpBB.isNil:
+            module.curBuilder.atEndOf(tmpBB)
 proc codegen*(self: Program, module: Module, global: bool = false) =
     let
         rety = self.typ.newLType(module)
-    echo rety
-    for s in self.stmts:
-        s.codegen(module, global)
+        fnty = functionType(rety, @[])
+        fn = module.module.addFunction("main", fnty)
+    module.enter fn:
+        var res: LValue
+        for s in self.stmts:
+            res = s.codegen(module, global)
+        if rety != module.cxt.voidType:
+            module.curBuilder.ret(res)
+        else:
+            module.curBuilder.retVoid
+    debug fn

@@ -115,11 +115,6 @@ func f(a: int) -> int:
 func f(a: int) -> float:
     4.5
 echo $(3, 4)
-var
+let
     a = 3
-a = 5
-echo a
-type
-    doller = distinct int
-let a: doller = 3
-0
+a
