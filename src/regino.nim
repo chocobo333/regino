@@ -1,10 +1,11 @@
 
-# import compiler
-import v2/lsp
+import v2/[
+    lsp,
+    compiler
+]
 
 import cligen
 
 
 when isMainModule:
-    # dispatchMulti([compile], [Lsp, cmdName="lsp"])
-    dispatchMulti([Lsp, cmdName="lsp"])
+    dispatchMulti([compile], [Lsp, cmdName="lsp"])

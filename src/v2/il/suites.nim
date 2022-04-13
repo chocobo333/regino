@@ -13,8 +13,12 @@ proc isFailed*(self: Suite): bool =
     self.stmts.len == 1 and self.stmts[0].kind == StatementKind.Fail
 
 import stmts
-proc typ*(self: Suite): Value =
-    self.stmts[^1].typ
+import values
+proc typ*(self: Suite|Program): Value =
+    if self.stmts.len == 0:
+        Value.Unit
+    else:
+        self.stmts[^1].typ
 
 proc loc*(self: Suite): Location =
     let

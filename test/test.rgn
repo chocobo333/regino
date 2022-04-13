@@ -119,4 +119,7 @@ var
     a = 3
 a = 5
 echo a
+type
+    doller = distinct int
+let a: doller = 3
 0

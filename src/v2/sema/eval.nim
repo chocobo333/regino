@@ -164,8 +164,18 @@ proc infer(self: TypeExpression, env: TypeEnv): Value =
         assert false, "notimplimented"
         Value.Unit
     of TypeExpressionKind.Sum:
-        assert false, "notimplimented"
-        Value.Unit
+        # TODO: Add constructor
+        let cons = self.sum.constructors.mapIt((
+            it.id,
+            case it.kind
+            of SumConstructorKind.NoField:
+                Value.Unit
+            of SumConstructorKind.UnnamedField:
+                Expression.Tuple(it.types).infer(env)
+            of SumConstructorKind.NamedField:
+                Expression.Record(it.fields).infer(env)
+        ))
+        Value.Sum(cons.toTable)
     of TypeExpressionKind.Distinct:
         Value.Distinct(self.base.infer(env))
     of TypeExpressionKind.Trait:
@@ -328,7 +338,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 typ = typedef.typ
             if params.isNone:
                 # TODO: infer and check
-                let tv = typ.infer(env)
+                let _ = typ.infer(env)
                 # typ.check(env)
                 let
                     typ = typ.eval(env, global)
@@ -338,8 +348,9 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 let scope = newScope(env.scope)
                 var sym: Symbol
                 env.enter scope:
+                    let implicit = params.get.mapIt(it.infer(env, global))
                     let
-                        implicit = params.get.mapIt(it.infer(env, global))
+                        _ = typ.infer(env)
                         typ = typ.eval(env, global)
                     sym = Symbol.Typ(id, Value.Cons(implicit, typ), typedef, global)
                 env.addIdent(sym)
@@ -521,9 +532,18 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
     of TypeExpressionKind.Object:
         Value.Unit
     of TypeExpressionKind.Sum:
-        Value.Unit
+        let cons = self.sum.constructors.mapIt((
+            it.id,
+            case it.kind
+            of SumConstructorKind.NoField:
+                Value.Unit
+            of SumConstructorKind.UnnamedField:
+                Expression.Tuple(it.types).eval(env)
+            of SumConstructorKind.NamedField:
+                Expression.Record(it.fields).eval(env)
+        ))
+        Value.Sum(cons.toTable)
     of TypeExpressionKind.Distinct:
-        echo "distinct"
         Value.Distinct(self.base.eval(env, global))
     of TypeExpressionKind.Trait:
         Value.Unit
