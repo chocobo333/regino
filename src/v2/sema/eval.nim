@@ -167,8 +167,7 @@ proc infer(self: TypeExpression, env: TypeEnv): Value =
         assert false, "notimplimented"
         Value.Unit
     of TypeExpressionKind.Distinct:
-        assert false, "notimplimented"
-        Value.Unit
+        Value.Distinct(self.base.infer(env))
     of TypeExpressionKind.Trait:
         assert false, "notimplimented"
         Value.Unit
@@ -524,7 +523,8 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
     of TypeExpressionKind.Sum:
         Value.Unit
     of TypeExpressionKind.Distinct:
-        Value.Unit
+        echo "distinct"
+        Value.Distinct(self.base.eval(env, global))
     of TypeExpressionKind.Trait:
         Value.Unit
     of TypeExpressionKind.Expression:

@@ -272,6 +272,8 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
         t1.types.allIt(env.`<=`(it, t2))
     elif t2.kind == ValueKind.Union:
         t2.types.anyIt(env.`<=`(t1, it))
+    elif t2.kind == ValueKind.Distinct:
+        env.`<=`(t1, t2.base)
     elif t1.kind == ValueKind.Var:
         env.`<=`(t1.tv.ub, t2)
     elif t2.kind == ValueKind.Var:
