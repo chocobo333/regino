@@ -173,7 +173,7 @@ proc find*(self: Expression, pos: rPosition): Option[Ident] =
     of ExpressionKind.Fail:
         none(Ident)
 
-converter to*(self: il.SymbolKind): lspschema.SymbolKind =
+converter toSymbolKind*(self: il.SymbolKind): lspschema.SymbolKind =
     case self:
     of il.SymbolKind.Var, il.SymbolKind.Let, il.SymbolKind.Param:
         lspschema.SymbolKind.Variable
@@ -183,3 +183,64 @@ converter to*(self: il.SymbolKind): lspschema.SymbolKind =
         lspschema.SymbolKind.Class
     of il.SymbolKind.Func:
         lspschema.SymbolKind.Function
+
+converter toCompletionItemKind*(self: il.SymbolKind): lspschema.CompletionItemKind =
+    case self:
+    of il.SymbolKind.Var, il.SymbolKind.Let, il.SymbolKind.Param:
+        CompletionItemKind.Variable
+    of il.SymbolKind.Const:
+        CompletionItemKind.Constant
+    of il.SymbolKind.Typ:
+        CompletionItemKind.Class
+    of il.SymbolKind.GenParam:
+        CompletionItemKind.TypeParameter
+    of il.SymbolKind.Func:
+        CompletionItemKind.Function
+
+
+proc scope(self: Statement, pos: rPosition): seq[Scope]
+proc scope(self: Suite, pos: rPosition): seq[Scope] =
+    result = @[self.scope]
+    for s in self.stmts:
+        if pos in s:
+            result.add s.scope(pos)
+
+proc scope(self: Statement, pos: rPosition): seq[Scope] =
+    case self.kind
+    of StatementKind.While:
+        @[]
+    of StatementKind.For:
+        @[]
+    of StatementKind.Loop:
+        @[]
+    of StatementKind.LetSection:
+        @[]
+    of StatementKind.VarSection:
+        @[]
+    of StatementKind.ConstSection:
+        @[]
+    of StatementKind.TypeSection:
+        @[]
+    of StatementKind.Asign:
+        @[]
+    of StatementKind.Funcdef:
+        # TODO: for param
+        if self.fn.suite.isSome and pos in self.fn.suite.get:
+            @[self.fn.suite.get.scope] & scope(self.fn.suite.get, pos)
+        else:
+            @[]
+    of StatementKind.Meta:
+        @[]
+    of StatementKind.Discard:
+        @[]
+    of StatementKind.Comments:
+        @[]
+    of StatementKind.Expression:
+        @[]
+    of StatementKind.Fail:
+        @[]
+proc scope*(self: Program, pos: rPosition): seq[Scope] =
+    result = @[self.scope]
+    for s in self.stmts:
+        if pos in s:
+            result.add s.scope(pos)

@@ -148,6 +148,13 @@ type
         Text = 1
         Read = 2
         Write = 3
+    CompletionTriggerKind* = enum
+        Invoked = 1
+        TriggerCharacter = 2
+        TriggerForIncompleteCompletions = 3
+    InsertTextFormat* = enum
+        PlainText = 1
+        Snippet = 2
 
 jsonSchema:
     Message:
@@ -222,6 +229,13 @@ jsonSchema:
     TextDocumentPositionParams:
         textDocument: TextDocumentIdentifier
         position: Position
+    CompletionContext:
+        triggerKind: int # CompletionTriggerKind
+        triggerCharacter ?: string
+    CompletionParams extends TextDocumentPositionParams:
+        workDoneToken ?: int or string
+        partialResultToken ?: int or string # ProgressToken
+        context ?: CompletionContext;
     HoverParams extends TextDocumentPositionParams:
         workDoneToken ?: int or string
     DeclarationParams extends TextDocumentPositionParams:
@@ -245,6 +259,38 @@ jsonSchema:
     MarkupContent:
         kind: string
         value: string
+    TextEdit:
+        "range": Range
+        newText: string
+    InsertReplaceEdit:
+        newText: string
+        insert: Range
+        replace: Range
+    Command:
+        title: string
+        command: string
+        arguments ?: any[];
+    CompletionItem:
+        label: string
+        kind ?: int # CompletionItemKind
+        tags ?: int[] # CompletionItemTag[]
+        detail ?: string
+        documentation ?: string or MarkupContent
+        deprecated ?: bool
+        preselect ?: bool
+        sortText ?: string
+        filterText ?: string
+        insertText ?: string
+        insertTextFormat ?: int # InsertTextFormat
+        insertTextMode ?: int # InsertTextMode
+        textEdit ?: TextEdit or InsertReplaceEdit
+        additionalTextEdits ?: TextEdit[]
+        commitCharacters ?: string[]
+        command ?: Command
+        data ?: any
+    CompletionItems:
+        isIncomplete: bool
+        items: CompletionItem[]
     Hover:
         contents: string or string[] or MarkedString or MarkedString[] or MarkupContent
         "range" ?: Range
@@ -552,6 +598,10 @@ jsonSchema:
         workDoneProgress ?: bool
     DocumentSymbolOptions extends WorkDoneProgressOptions:
         label ?: string
+    CompletionOptions extends WorkDoneProgressOptions:
+        triggerCharacters ?: string[];
+        allCommitCharacters ?: string[];
+        resolveProvider ?: bool;
     HoverOptions:
         workDoneProgress ?: bool
     DeclarationOptions:
@@ -572,7 +622,7 @@ jsonSchema:
 
     ServerCapabilities:
         textDocumentSync ?: TextDocumentSyncOptions or int
-        # completionProvider ?: CompletionOptions
+        completionProvider ?: CompletionOptions
         hoverProvider ?: bool or HoverOptions
         # signatureHelpProvider ?: SignatureHelpOptions
         declarationProvider ?: bool or DeclarationOptions# or DeclarationRegistrationOptions
@@ -634,6 +684,8 @@ export
     DidOpenTextDocumentParams,
     DidChangeTextDocumentParams,
     TextDocumentPositionParams,
+    CompletionContext,
+    CompletionParams,
     HoverParams,
     DeclarationParams,
     DefinitionParams,
@@ -642,6 +694,11 @@ export
     DocumentHighlightParams,
     MarkedString,
     MarkupContent,
+    TextEdit,
+    InsertReplaceEdit,
+    Command,
+    CompletionItem,
+    CompletionItems,
     Hover,
     DocumentHighlight,
     DocumentSymbolParams,
@@ -717,6 +774,7 @@ export
     InitializeParams,
     WorkDoneProgressOptions,
     DocumentSymbolOptions,
+    CompletionOptions,
     HoverOptions,
     DeclarationOptions,
     DefinitionOptions,
