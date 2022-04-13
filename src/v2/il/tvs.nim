@@ -14,3 +14,12 @@ proc newTypeVar*(): TypeVar =
         ub: Value.Unit,
         lb: Value.Bottom
     )
+
+proc newGenericType*(ident: Ident, ub: Value, typ: Value): GenericType =
+    inc tvid
+    GenericType(
+        id: tvid,
+        ident: ident,
+        ub: ub,
+        typ: typ
+    )

@@ -356,7 +356,8 @@ type
         lb*: Value
         ub*: Value
     GenericType* = object
-        id*: Ident
+        id*: TypeVarId
+        ident*: Ident
         ub*: Value
         typ*: Value
     SymbolKind* {.pure.} = enum

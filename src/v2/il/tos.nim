@@ -332,10 +332,10 @@ proc `$`*(self: TypeVar): string =
     result.reverse
 proc `$`*(self: Value): string
 proc `$`*(self: GenericType): string =
-    self.id.name
+    self.ident.name
 proc `$$`*(self: GenericType): string =
     let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {self.ub}" else: ""
-    fmt"{self.id.name}{ub}"
+    fmt"{self.ident.name}{ub}"
 proc `$`*(self: Value): string =
     case self.kind
     of ValueKind.Literal:
