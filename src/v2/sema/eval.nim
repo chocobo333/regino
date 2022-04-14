@@ -258,6 +258,7 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
     var
         sym: Symbol
         rety: Value
+        fnty: Value
     env.enter(fn.param.scope):
         let
             implicit = fn.param.implicit.mapIt(it.infer(env, global))
@@ -269,8 +270,10 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
                 paramty
             )
         rety = fn.param.rety.map(it => it.eval(env, global)).get(Value.Unit)
-        sym = Symbol.Func(fn.id, Value.Pi(implicit, paramty, rety), global)
+        fnty = Value.Pi(implicit, paramty, rety)
+        sym = Symbol.Func(fn.id, fnty, global)
     env.addIdent(sym)
+    fn.id.typ = fnty
     env.enter(fn.param.scope):
         if fn.suite.isSome:
             let infered = fn.suite.get.infer(env)
