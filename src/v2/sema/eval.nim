@@ -600,7 +600,12 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Dot:
         Value.Unit
     of ExpressionKind.Bracket:
-        Value.Unit
+        let
+            sym = env.lookupId(self.callee.ident.name)
+            val = sym[0].val
+            subs = zip(val.implicit, self.args.mapIt(it.eval(env))).toTable
+        debug subs
+        val.inst(env, subs)
     of ExpressionKind.Binary:
         Value.Unit
     of ExpressionKind.Prefix:
