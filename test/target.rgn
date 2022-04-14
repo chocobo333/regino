@@ -1,0 +1,28 @@
+
+type
+  int = typeof(0)
+  float = typeof(0.0)
+  string = typeof("")
+  Pair[T, U] = (T, U)
+func echo(a: string) ![importll]
+func `add@float/floatfloat`(a: float, b: float) -> float ![importll]
+func `+`(a: float, b: float) -> float:
+    `add@float/floatfloat`(a, b)
+func `to@float/int32`(a: int) -> float ![importll]
+func toFloat(a: int) -> float ![subtype]:
+  `to@float/int32`(a)
+func `$`(a: int) -> string ![subtype]:
+  "int"
+func `$`(a: float) -> string ![subtype]:
+  "float"
+func id[T](a: T) -> T:
+  a
+func swap[T, U]((a, b): (T, U)) -> (U, T):
+    (b, a)
+let
+  d: float = 0.1
+  a: Pair[int, float] = (3, 4.5)
+  (b, c) = a.swap
+echo id 3
+# echo a
+echo b + c
