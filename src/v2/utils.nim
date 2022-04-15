@@ -38,7 +38,7 @@ proc merge*[T, U](t1: Table[T, U], t2: Table[T, U]): Table[T, U] =
     result = initTable[T, U]()
     for (key, val) in t1.pairs: result[key] = val
     for (key, val) in t2.pairs: 
-        if not (key in result):
+        if key notin result:
             result[key] = val
 
 proc filter*[T](self: HashSet[T], f: T -> bool): HashSet[T] =
