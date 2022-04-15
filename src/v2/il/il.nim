@@ -390,3 +390,26 @@ type
         # instance*: Option[Statement]
         lty*: llvm.Type
         val*: llvm.Value
+
+    RegionKind* {.pure.} = enum
+        Global
+        Param
+        Return
+        Stack
+        Heap
+        Var
+        Link
+    RegionObject = object
+        case kind*: RegionKind
+        of RegionKind.Global:
+            nil
+        of RegionKind.Param:
+            nth: Natural
+        of RegionKind.Return..RegionKind.Heap:
+            nil
+        of RegionKind.Var:
+            ub: Region # indeed, it's true that this is lower bound.
+        of RegionKind.Link:
+            to: Region
+
+    Region* = ref RegionObject
