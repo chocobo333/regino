@@ -399,6 +399,20 @@ proc infer*(self: Program, env: TypeEnv): Value =
         debug e.tv.ub
 
 proc check(self: Suite, env: TypeEnv)
+proc check(self: Pattern, env: TypeEnv) = 
+    case self.kind:
+    of PatternKind.Literal:
+        discard
+    of PatternKind.Ident:
+        discard
+    of PatternKind.Dot:
+        discard
+    of PatternKind.Tuple:
+        discard
+    of PatternKind.Record:
+        discard
+    of PatternKind.UnderScore:
+        discard
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
     # TODO: invalid
