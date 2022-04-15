@@ -104,9 +104,8 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Ptr:
         Value.Ptr(typ.pointee.inst(env, subs))
     of ValueKind.Pi:
-        let
-            newSubs = subs.merge(
-                typ.implicit.mapIt(block:
+        let newSubs = subs.merge(
+                typ.implicit.filterIt(it notin subs).mapIt(block:
                     let v = Value.Var(env)
                     (it, v)
                 ).toTable
@@ -128,9 +127,8 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Union:
         Value.Union(typ.types.map(it => it.inst(env, subs)))
     of ValueKind.Cons:
-        let
-            newSubs = subs.merge(
-                typ.implicit.mapIt(block:
+        let newSubs = subs.merge(
+                typ.implicit.filterIt(it notin subs).mapIt(block:
                     let v = Value.Var(env)
                     (it, v)
                 ).toTable
