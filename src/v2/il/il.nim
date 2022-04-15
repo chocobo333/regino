@@ -118,6 +118,7 @@ type
     ExpressionObject = object
         loc*: Location
         typ*: Value
+        region*: Region
         case kind*: ExpressionKind
         of ExpressionKind.Literal:
             litval*: Literal
@@ -242,6 +243,7 @@ type
         name*: string
         loc*: Location
         typ*: Value
+        region*: Region
     PatternKind* {.pure.} = enum
         Literal
         Ident
@@ -408,7 +410,7 @@ type
         of RegionKind.Return..RegionKind.Heap:
             nil
         of RegionKind.Var:
-            ub: Region # indeed, it's true that this is lower bound.
+            lb: Region # indeed, it's true that this is upper bound.
         of RegionKind.Link:
             to: Region
 

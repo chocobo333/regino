@@ -11,7 +11,7 @@ proc Stack*(_: typedesc[Region]): Region =
     Region(kind: RegionKind.Stack)
 proc Heap*(_: typedesc[Region]): Region =
     Region(kind: RegionKind.Heap)
-proc Var*(_: typedesc[Region], ub: Region): Region =
-    Region(kind: RegionKind.Var, ub: Region)
-proc Link*(_: typedesc[Region], ub: Region): Region =
-    Region(kind: RegionKind.Link, ub: Region)
+proc Var*(_: typedesc[Region], lb: Region): Region =
+    Region(kind: RegionKind.Var, lb: Region)
+proc Link*(_: typedesc[Region], to: Region): Region =
+    Region(kind: RegionKind.Link, to: Region)
