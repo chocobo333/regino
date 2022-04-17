@@ -633,7 +633,7 @@ proc `textDocument/didOpen`(s: Stream, params: JsonNode, project: Project) =
         s.window.logMessage(fmt"Got didOpen notificfation {uri}")
         project[uri] = text
 
-        var diags = project.perrs(uri).toDiags & project.terrs[uri].toDiags
+        var diags = project.perrs(uri).toDiags & project.terrs(uri).toDiags
         s.textDocument(uri).publishDiagnostics(diags)
         s.window.logMessage(fmt"Got didOpen notificfation {uri}")
 proc `textDocument/didChange`(s: Stream, params: JsonNode, project: Project) =
@@ -647,7 +647,7 @@ proc `textDocument/didChange`(s: Stream, params: JsonNode, project: Project) =
         s.window.logMessage(fmt"Got didChange notificfation: {uri}")
         project[uri] = text
 
-        var diags = project.perrs(uri).toDiags & project.terrs[uri].toDiags
+        var diags = project.perrs(uri).toDiags & project.terrs(uri).toDiags
         s.textDocument(uri).publishDiagnostics(diags)
 proc Lsp*(): int =
     let
