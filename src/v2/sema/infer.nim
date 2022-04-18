@@ -314,7 +314,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
         #         self.constraints.add (Value.Pair(t1.types[0], t1.types[1]), t2)
         #     else:
         #         self.constraints.add (Value.Pair(t1.types[0], Value.Tuple(t1.types[1..^1])), t2)
-        elif t1 <= t2:
+        elif t2 <= t1:
             discard
         else:
             debug t1

@@ -69,7 +69,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Array(tv)
         # Value.Unit
     of ExpressionKind.Record:
-        Value.Unit
+        Value.Record(self.members.mapIt((it[0], it[1].infer(env, global))).toTable)
     of ExpressionKind.If:
         let
             conds = self.elifs.mapIt(it.cond.infer(env, global))
@@ -157,8 +157,9 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
     of PatternKind.Dot:
         Value.Unit # TODO:
     of PatternKind.Tuple:
-        self.patterns.mapIt(it.infer(env, global)).foldl(Value.Pair(a, b))
+        self.patterns.mapIt(it.infer(env, global, asign)).foldl(Value.Pair(a, b))
     of PatternKind.Record:
+        # TODO:
         Value.Unit
     of PatternKind.UnderScore:
         Value.Var(env)
@@ -487,6 +488,7 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Fail:
         env.errs.add TypeError.SomethingWrong(self.loc)
 proc check(self: Statement, env: TypeEnv) =
+    setTypeEnv(env)
     case self.kind
     of StatementKind.For:
         discard
@@ -511,7 +513,40 @@ proc check(self: Statement, env: TypeEnv) =
     of StatementKind.TypeSection:
         discard
     of StatementKind.Asign:
-        discard
+        self.pat.check(env)
+        self.val.check(env)
+        # case self.pat.ident
+        proc collectIdent(self: Pattern): seq[Ident] =
+            case self.kind:
+            of PatternKind.Literal:
+                @[]
+            of PatternKind.Ident:
+                @[self.ident]
+            of PatternKind.Dot:
+                # TODO:
+                @[]
+            of PatternKind.Tuple:
+                self.patterns.mapIt(it.collectIdent).flatten
+            of PatternKind.Record:
+                # TODO:
+                @[]
+            of PatternKind.UnderScore:
+                @[]
+        for ident in collectIdent(self.pat):
+            debug ident.typ.symbol
+            if ident.typ.symbol.isSome:
+                if ident.typ.symbol.get.kind != SymbolKind.Var:
+                    env.errs.add TypeError.Letasign(ident, ident.loc)
+        case self.op.name
+        of "=":
+            if self.val.typ <= self.pat.typ:
+                
+                discard
+            else:
+                env.errs.add TypeError.Unasignable(self.pat, self.val, self.loc)
+        else:
+            # TODO:
+            discard
     of StatementKind.Funcdef:
         discard
     of StatementKind.Meta:
@@ -591,7 +626,7 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Array:
         Value.Array(self.exprs.mapIt(it.eval(env)))
     of ExpressionKind.Record:
-        Value.Unit
+        Value.Record(self.members.mapIt((it[0], it[1].eval(env, global))).toTable)
     of ExpressionKind.If:
         var ret = Value.Bottom
         for `elif` in self.elifs & self.elseb.map(it => @[newElif(Expression.literal(true), it)]).get(@[]):
