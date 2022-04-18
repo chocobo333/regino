@@ -17,7 +17,8 @@ import il/[
     values,
     tvs,
     symbols,
-    tos
+    tos,
+    regions,
 ]
 
 export il
@@ -38,3 +39,4 @@ export values
 export tvs
 export symbols
 export tos
+export regions
