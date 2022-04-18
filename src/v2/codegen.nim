@@ -2,6 +2,8 @@
 import sequtils
 import tables
 import options
+import uri
+from os import `/`, splitPath, absolutePath
 
 import il
 import utils
@@ -154,12 +156,18 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
     of ExpressionKind.Literal:
         self.litval.codegen(module, global)
     of ExpressionKind.Ident:
-        echo self.ident
-        let v = self.ident.codegen(module, global, lval)
-        echo v
-        v
+        self.ident.codegen(module, global, lval)
     of ExpressionKind.Tuple:
-        nil
+        proc makeTuple(typ: Value, terms: seq[Expression]): LValue =
+            if typ.second.kind == il.ValueKind.Pair:
+                # if typ.second.kind == il.ValueKind.Sigma:
+                var ret = module.curBuilder.insertvalue(typ.newLType(module).undef, makeTuple(typ.second, terms[1..^1]), 1, $terms[1..^1])
+                module.curBuilder.insertvalue(ret, terms[0].codegen(module, global), 0, $terms[0])
+            else:
+                assert terms.len == 2, ""
+                var ret = module.curBuilder.insertvalue(typ.newLType(module).undef, terms[1].codegen(module, global), 1, $terms[1])
+                module.curBuilder.insertvalue(ret, terms[0].codegen(module, global), 0, $terms[0])
+        makeTuple(self.typ, self.exprs)
     of ExpressionKind.Array:
         nil
     of ExpressionKind.Record:
@@ -208,7 +216,6 @@ proc codegen(self: Pattern, module: Module, typ: Value, val: LValue, global: boo
                 sym = id.sym
                 name = id.name
                 typ = newLType(typ, module)
-            echo module.curBuilder.repr
             let
                 p = if global: module.module.newGlobal(typ, name) else: module.curBuilder.alloca(typ, name)
             sym.val = p
@@ -237,6 +244,23 @@ proc codegen(self: Pattern, module: Module, typ: Value, val: LValue, global: boo
             discard
         else:
             assert false, "notimplemented"
+proc link(self: Metadata, module: Module) =
+    let param = self.params[0]
+    assert param.kind == ExpressionKind.Literal and param.litval.kind == LiteralKind.string
+    let
+        path = param.loc.uri.path.splitPath.head.absolutePath / param.litval.strval
+        f = open(path)
+        s = f.readAll()
+        module2 = llvm.parseIr(module.cxt, path)
+    if module2.isSome:
+        let m = module2.get
+        module.linkModules.add m
+        for fn in m.funcs:
+            module.linkFuncs.add fn
+    else:
+        # TODO: err msg
+        assert false
+    f.close()
 proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     case self.kind
     of StatementKind.For:
@@ -259,8 +283,21 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     of StatementKind.Asign:
         nil
     of StatementKind.Funcdef:
+        if self.fn.param.implicit.len > 0:
+        #     # TODO: for quantified function
+        #     for val in self.fn.id.typ.symbol.get.instances.keys:
+        #         assert self.fn.id.typ.symbol.get.instances[val].instance.isSome
+        #         self.fn.id.typ.symbol.get.instances[val].val = self.fn.id.typ.symbol.get.instances[val].instance.get.codegen(module)
+        #         self.fn.id.typ.symbol.get.instances[val].lty = newLType(val, module)
+            return nil
         nil
     of StatementKind.Meta:
+        let metadata = self.meta
+        case metadata.kind
+        of MetadataKind.Link:
+            metadata.link(module)
+        else:
+            assert false
         nil
     of StatementKind.Discard:
         nil
@@ -298,4 +335,4 @@ proc codegen*(self: Program, module: Module, global: bool = false) =
             module.curBuilder.ret(res)
         else:
             module.curBuilder.retVoid
-    debug fn
+    debug module.module
