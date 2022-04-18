@@ -4,6 +4,7 @@ import strformat
 import streams
 import json
 import sugar
+import options
 
 import eat
 
@@ -46,3 +47,34 @@ proc sendMessage*(s: Stream, n: JsonNode) =
     toUgly(msg, n)
     s.write &"Content-Length: {msg.len}\r\n\r\n{msg}"
     s.flush
+
+proc id(self: RequestMessage): int =
+    let id = self["id"]
+    case id.kind
+    of JString:
+        id.getStr.parseInt
+    of JInt:
+        id.getInt
+    else:
+        raise newException(IllformedError, "")
+
+proc `method`*(self: RequestMessage or NotificationMessage): string =
+    self["method"].getStr
+proc `params`*(self: RequestMessage or NotificationMessage): JsonNode =
+    let
+        params = self["params"]
+    if params.isSome:
+        params.get
+    else:
+        newJNull()
+
+proc response*(self: RequestMessage, n: JsonNode): JsonNode =
+    ResponseMessage.create(jsonrpc, self.id, some n, none ResponseError).JsonNode
+proc respond*(s: Stream, msg: RequestMessage, n: JsonNode) =
+    s.sendMessage msg.response(n)
+proc notify*(s: Stream, `method`: string) =
+    s.sendMessage NotificationMessage.create(jsonrpc, `method`, none JsonNode).JsonNode
+proc notify*(s: Stream, `method`: string, params: JsonNode) =
+    s.sendMessage NotificationMessage.create(jsonrpc, `method`, some params).JsonNode
+proc notify*(s: Stream, p: (string, JsonNode)) =
+    s.notify(p[0], p[1])

@@ -195,6 +195,21 @@ converter toCompletionItemKind*(self: il.SymbolKind): lspschema.CompletionItemKi
     of il.SymbolKind.Func:
         CompletionItemKind.Function
 
+converter toSemanticTokens*(self: il.SymbolKind): lspschema.SemanticTokenTypes =
+    case self
+    of il.SymbolKind.Var, il.SymbolKind.Let:
+        SemanticTokenTypes.variable
+    of il.SymbolKind.Param:
+        SemanticTokenTypes.parameter
+    of il.SymbolKind.Const:
+        SemanticTokenTypes.variable
+    of il.SymbolKind.Typ:
+        SemanticTokenTypes.type
+    of il.SymbolKind.GenParam:
+        SemanticTokenTypes.typeParameter
+    of il.SymbolKind.Func:
+        SemanticTokenTypes.function
+
 
 proc scope(self: Statement, pos: rPosition): seq[Scope]
 proc scope(self: Suite, pos: rPosition): seq[Scope] =
