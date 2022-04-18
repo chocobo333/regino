@@ -121,12 +121,8 @@
 var
     (a, b) = (3, 5)
 b = 4
-<<<<<<< HEAD
-b
-=======
 let a: float = 5.5
 f
 f a
 echo f a
 b
->>>>>>> eval
