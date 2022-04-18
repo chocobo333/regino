@@ -69,7 +69,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Array(tv)
         # Value.Unit
     of ExpressionKind.Record:
-        Value.Unit
+        Value.Record(self.members.mapIt((it[0], it[1].infer(env, global))).toTable)
     of ExpressionKind.If:
         let
             conds = self.elifs.mapIt(it.cond.infer(env, global))
@@ -96,7 +96,13 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee.dual) # i dont know whether this is correct.
         tv
     of ExpressionKind.Dot:
-        Value.Unit
+        let
+            tv = Value.Var(env)
+            args = @[self.lhs.infer(env, global)]
+            callee = self.rhs.infer(env, global)
+        env.coerce(callee <= Value.Arrow(args, tv))
+        env.coerce(Value.Arrow(@[Value.Unit], tv) <= callee.dual) # i dont know whether this is correct.
+        tv
     of ExpressionKind.Bracket:
         Value.Unit
     of ExpressionKind.Binary:
@@ -151,8 +157,9 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
     of PatternKind.Dot:
         Value.Unit # TODO:
     of PatternKind.Tuple:
-        self.patterns.mapIt(it.infer(env, global)).foldl(Value.Pair(a, b))
+        self.patterns.mapIt(it.infer(env, global, asign)).foldl(Value.Pair(a, b))
     of PatternKind.Record:
+        # TODO:
         Value.Unit
     of PatternKind.UnderScore:
         Value.Var(env)
@@ -234,8 +241,7 @@ proc infer(self: GenTypeDef, env: TypeEnv, global: bool = false): GenericType =
         sym = Symbol.GenParam(id, typ, self)
     env.addIdent(sym)
     genty
-proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
-    proc addPat(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat, global: bool = false) =
+proc addParam(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat, global: bool = false) =
         ## register identifier on typeenv
         case pat.kind
         of PatternKind.Literal:
@@ -250,12 +256,13 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
         of PatternKind.Tuple:
             assert typ.kind == ValueKind.Pair
             for (pat, typ) in pat.patterns.zip(typ.PairToSeq):
-                env.addPat(impl, typ, pat, global)
+                env.addParam(impl, typ, pat, global)
         of PatternKind.Record:
             discard
         of PatternKind.UnderScore:
             discard
         pat.typ = typ
+proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
     var
         sym: Symbol
         rety: Value
@@ -267,7 +274,7 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
                 # TODO: pattern like a, b: int
                 assert it.typ.isSome
                 let paramty = it.typ.get.eval(env, global)
-                env.addPat(it, paramty)
+                env.addParam(it, paramty)
                 paramty
             )
         rety = fn.param.rety.map(it => it.eval(env, global)).get(Value.Unit)
@@ -275,14 +282,18 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
         sym = Symbol.Func(fn.id, fnty, global)
     env.addIdent(sym)
     fn.id.typ = fnty
-    env.enter(fn.param.scope):
-        if fn.suite.isSome:
-            let infered = fn.suite.get.infer(env)
-            env.coerce(infered <= rety)
     if fn.metadata.isSome:
         if fn.metadata.get.kind == MetadataKind.Subtype:
             assert fn.param.params.len == 1, "converter must take only one argument."
             env.addTypeRelation(sym.typ.params[0], rety, fn.id)
+proc infer(fn: Function, env: TypeEnv, global: bool = false) =
+    let
+        sym = fn.id.typ.symbol.get
+        rety = fn.id.typ.rety
+    env.enter(fn.param.scope):
+        if fn.suite.isSome:
+            let infered = fn.suite.get.infer(env)
+            env.coerce(infered <= rety)
 
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     result = case self.kind
@@ -367,6 +378,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of StatementKind.Funcdef:
         env.addFunc(self.fn, global)
+        self.fn.infer(env, global)
         Value.Unit
     of StatementKind.Meta:
         discard self.meta.infer(env)
@@ -384,6 +396,9 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
 proc infer*(self: Program, env: TypeEnv): Value =
     if self.stmts.len == 0:
         return Value.Unit
+    # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
+    # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
+    #     env.addFunc(s.fn, true)
     for s in self.stmts[0..^2]:
         discard s.infer(env)
         # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
@@ -405,6 +420,20 @@ proc check(self: Ident, env: TypeEnv) =
             env.errs.add TypeError.Undefined(self, self.loc)
     else:
         self.typ.symbol.get.use.add self.loc
+proc check(self: Pattern, env: TypeEnv) =
+    case self.kind:
+    of PatternKind.Literal:
+        discard
+    of PatternKind.Ident:
+        discard
+    of PatternKind.Dot:
+        discard
+    of PatternKind.Tuple:
+        discard
+    of PatternKind.Record:
+        discard
+    of PatternKind.UnderScore:
+        discard
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
     # TODO: invalid
@@ -474,6 +503,7 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Fail:
         env.errs.add TypeError.SomethingWrong(self.loc)
 proc check(self: Statement, env: TypeEnv) =
+    setTypeEnv(env)
     case self.kind
     of StatementKind.For:
         discard
@@ -498,7 +528,40 @@ proc check(self: Statement, env: TypeEnv) =
     of StatementKind.TypeSection:
         discard
     of StatementKind.Asign:
-        discard
+        self.pat.check(env)
+        self.val.check(env)
+        # case self.pat.ident
+        proc collectIdent(self: Pattern): seq[Ident] =
+            case self.kind:
+            of PatternKind.Literal:
+                @[]
+            of PatternKind.Ident:
+                @[self.ident]
+            of PatternKind.Dot:
+                # TODO:
+                @[]
+            of PatternKind.Tuple:
+                self.patterns.mapIt(it.collectIdent).flatten
+            of PatternKind.Record:
+                # TODO:
+                @[]
+            of PatternKind.UnderScore:
+                @[]
+        for ident in collectIdent(self.pat):
+            debug ident.typ.symbol
+            if ident.typ.symbol.isSome:
+                if ident.typ.symbol.get.kind != SymbolKind.Var:
+                    env.errs.add TypeError.Letasign(ident, ident.loc)
+        case self.op.name
+        of "=":
+            if self.val.typ <= self.pat.typ:
+                if not (self.pat.typ <= self.val.typ):
+                    discard
+            else:
+                env.errs.add TypeError.Unasignable(self.pat, self.val, self.loc)
+        else:
+            # TODO:
+            discard
     of StatementKind.Funcdef:
         discard
     of StatementKind.Meta:
@@ -578,7 +641,7 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Array:
         Value.Array(self.exprs.mapIt(it.eval(env)))
     of ExpressionKind.Record:
-        Value.Unit
+        Value.Record(self.members.mapIt((it[0], it[1].eval(env, global))).toTable)
     of ExpressionKind.If:
         var ret = Value.Bottom
         for `elif` in self.elifs & self.elseb.map(it => @[newElif(Expression.literal(true), it)]).get(@[]):
@@ -601,7 +664,15 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Dot:
         Value.Unit
     of ExpressionKind.Bracket:
-        Value.Unit
+        let
+            val = self.callee.eval(env, global)
+        case val.kind:
+        of ValueKind.Pi, ValueKind.Cons:
+            let subs = zip(val.implicit, self.args.mapIt(it.eval(env))).toTable
+            val.inst(env, subs)
+        else:
+            # TODO: ituka
+            Value.Unit
     of ExpressionKind.Binary:
         Value.Unit
     of ExpressionKind.Prefix:

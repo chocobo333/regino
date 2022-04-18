@@ -11,7 +11,10 @@ type
         Undeciable
         Undefined
         NoSuite
+        Unasignable
+        Letasign
         SomethingWrong
+        Internal
     TypeError* = object of CatchableError
         loc*: Location
         case kind: TypeErrorKind
@@ -21,12 +24,16 @@ type
             t1, t2: Value
         of TypeErrorKind.Undeciable:
             nil
-        of TypeErrorKind.Undefined:
+        of TypeErrorKind.Undefined, TypeErrorKind.Letasign:
             id: Ident
         of TypeErrorKind.NoSuite:
             nil
-        of TypeErrorKind.SomethingWrong:
-            nil
+        of TypeErrorKind.Unasignable:
+            pat: Pattern
+            val: Expression
+        of TypeErrorKind.SomethingWrong, TypeErrorKind.Internal:
+            stacktrace: string
+            i_msg: string
 
 proc `$`*(self: TypeError): string =
     case self.kind
@@ -40,8 +47,14 @@ proc `$`*(self: TypeError): string =
         fmt"ident `{self.id}` is not defined"
     of TypeErrorKind.NoSuite:
         fmt"no block"
+    of TypeErrorKind.Unasignable:
+        fmt"`{self.val}` is not asignable to `{self.pat}`"
+    of TypeErrorKind.Letasign:
+        fmt"`{self.id}` cannot be re-asigned to, because `{self.id}` was defined in let section"
     of TypeErrorKind.SomethingWrong:
-        fmt"omething is wrong"
+        &"something is wrong\n{self.stacktrace}"
+    of TypeErrorKind.Internal:
+        &"{self.i_msg}\n{self.stacktrace}"
 
 proc new*(self: TypeError): ref TypeError =
     newException(TypeError, $self)
@@ -56,5 +69,11 @@ proc Undefined*(_: typedesc[TypeError], id: Ident, loc: Location = newLocation()
     TypeError(kind: TypeErrorKind.Undefined, id: id, loc: loc)
 proc NoSuite*(_: typedesc[TypeError], loc: Location = newLocation()): TypeError =
     TypeError(kind: TypeErrorKind.NoSuite, loc: loc)
-proc SomethingWrong*(_: typedesc[TypeError], loc: Location = newLocation()): TypeError =
-    TypeError(kind: TypeErrorKind.SomethingWrong, loc: loc)
+proc Unasignable*(_: typedesc[TypeError], pat: Pattern, val: Expression, loc: Location = newLocation()): TypeError =
+    TypeError(kind: TypeErrorKind.Unasignable, pat: pat, val: val, loc: loc)
+proc Letasign*(_: typedesc[TypeError], id: Ident, loc: Location = newLocation()): TypeError =
+    TypeError(kind: TypeErrorKind.Letasign, id: id, loc: loc)
+proc SomethingWrong*(_: typedesc[TypeError], loc: Location = newLocation(), stacktrace: string = getStackTrace()): TypeError =
+    TypeError(kind: TypeErrorKind.SomethingWrong, loc: loc, stacktrace: stacktrace)
+proc Internal*(_: typedesc[TypeError], msg: string, loc: Location = newLocation(), stacktrace: string = getStackTrace()): TypeError =
+    TypeError(kind: TypeErrorKind.Internal, loc: loc, i_msg: msg, stacktrace: stacktrace)

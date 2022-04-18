@@ -187,10 +187,10 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
         #         for (t1, t2) in t1.types.zip(t2.types):
         #             self.resolveRelation(t1, t2)
         #     else:
-        #         raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+        #         self.raise(fmt"{t1} and {t2} can not be unified")
         # of ValueKind.Record:
         #     # TODO: implment for record
-        #     raise newException(TypeError, "notimplemented")
+        #     self.raise("notimplemented")
         of ValueKind.Pi:
             for (t1, t2) in t1.params.zip(t2.params):
                 self.resolveRelation(t2, t1)
@@ -210,7 +210,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
             debug $t1.symbol
             debug t2.symbol
             debug self.constraints
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
     else:
         if t1.kind == ValueKind.Var:
             # TODO: if lb >= t2
@@ -221,7 +221,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
             # elif t1.tv.ub <= t2:
             #     discard
             else:
-                raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+                self.raise(fmt"{t1} and {t2} can not be unified")
             self.simplify(t1)
         elif t2.kind == ValueKind.Var:
             # if t2.tv.lb <= t1 and t1 <= t2.tv.ub:
@@ -234,7 +234,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
                 debug t1
                 debug t2.tv.ub
                 debug t1 <= t2.tv.ub
-                raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+                self.raise(fmt"{t1} and {t2} can not be unified")
             self.simplify(t2)
         elif t1.kind == ValueKind.Intersection:
             let
@@ -242,7 +242,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
                 l = tmp.zip(tmp.mapIt(it <=? t2)).filterIt(it[1].isSome).mapIt((it[0], it[1].get))
             case l.len
             of 0:
-                raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+                self.raise(fmt"{t1} and {t2} can not be unified")
             of 1:
                 let (t3, cons) = l[0]
                 self.bindtv(t1, t3)
@@ -280,7 +280,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
                 l = tmp.zip(tmp.mapIt(t1 <=? it)).filterIt(it[1].isSome).mapIt((it[0], it[1].get))
             case l.len
             of 0:
-                raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+                self.raise(fmt"{t1} and {t2} can not be unified")
             of 1:
                 let (t3, cons) = l[0]
                 self.bindtv(t2, t3)
@@ -314,7 +314,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
         #         self.constraints.add (Value.Pair(t1.types[0], t1.types[1]), t2)
         #     else:
         #         self.constraints.add (Value.Pair(t1.types[0], Value.Tuple(t1.types[1..^1])), t2)
-        elif t1 <= t2:
+        elif t2 <= t1:
             discard
         else:
             debug t1
@@ -324,7 +324,7 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
             debug t1.kind
             debug t2.kind
             debug self.constraints
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
 
 proc resolveRelationsPartially*(self: TypeEnv) =
     var tmp: seq[Constraint]

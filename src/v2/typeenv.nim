@@ -29,6 +29,9 @@ proc `==`*(self, other: Constraint): bool =
 # proc `$`*(self: Constraint): string =
 #     $(self[0], self[1])
 
+template `raise`*(self: TypeEnv, msg: string): untyped =
+    self.errs.add TypeError.Internal(msg)
+
 
 proc Var*(_: typedesc[Value], env: TypeEnv): Value =
     result = Value(kind: ValueKind.Var, tv: newTypeVar())
@@ -86,12 +89,12 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Ptr:
         Value.Ptr(typ.pointee.inst(env, subs))
     of ValueKind.Pi:
-        let
-            newSubs = typ.implicit.mapIt(block:
-                let
-                    v = Value.Var(env)
-                (it, v)
-            ).toTable.merge(subs)
+        let newSubs = subs.merge(
+                typ.implicit.filterIt(it notin subs).mapIt(block:
+                    let v = Value.Var(env)
+                    (it, v)
+                ).toTable
+            )
         Value.Arrow(
             typ.params.map(it => it.inst(env, newsubs)),
             typ.rety.inst(env, newsubs)
@@ -109,12 +112,12 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Union:
         Value.Union(typ.types.map(it => it.inst(env, subs)))
     of ValueKind.Cons:
-        let
-            newSubs = typ.implicit.mapIt(block:
-                let
-                    v = Value.Var(env)
-                (it, v)
-            ).toTable.merge(subs)
+        let newSubs = subs.merge(
+                typ.implicit.filterIt(it notin subs).mapIt(block:
+                    let v = Value.Var(env)
+                    (it, v)
+                ).toTable
+            )
         typ.rety.inst(env, newSubs)
     of ValueKind.Var:
         typ
@@ -206,7 +209,8 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
                 t1.litval.level <= t2.litval.level
             else:
                 debug t1.kind
-                raise newException(TypeError, "notimplemented")
+                env.raise("notimplemented")
+                false
     elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Literal:
@@ -228,7 +232,18 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
         of ValueKind.Pair:
             `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
         of ValueKind.Record:
-            toSeq(t2.members.keys).allIt(`<=`(env, t1.members.getOrDefault(it, Value.Unit), t2.members[it]))
+            var res = true
+            for key in t2.members.keys:
+                if key in t1.members:
+                    if env.`<=`(t1.members[key], t2.members[key]):
+                        discard
+                    else:
+                        res = false
+                        break
+                else:
+                    res = false
+                    break
+            res
         of ValueKind.Pi:
             # TODO: genty
             let
@@ -243,7 +258,8 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
             env.`<=`(t1.to, t2.to)
         else:
             debug t1.kind
-            raise newException(TypeError, "notimplemented")
+            env.raise("notimplemented")
+            false
     # elif t1.kind == ValueKind.Sigma and t2.kind == ValueKind.Sigma:
     #     `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
     elif t1.kind == ValueKind.Intersection:
@@ -260,6 +276,10 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
         env.`<=`(t1.tv.ub, t2)
     elif t2.kind == ValueKind.Var:
         env.`<=`(t1, t2.tv.lb)
+    elif t1.kind == ValueKind.Unit:
+        false
+    elif t2.kind == ValueKind.Bottom:
+        false
     else:
         # env.scope.typeOrder.path(t1, t2).isSome
         (t1, t2) in env.scope.typeOrder
@@ -301,8 +321,8 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
             else:
                 none(seq[Constraint])
         else:
-            raise newException(TypeError, "not implemented")
-            # none(seq[Constraint])
+            env.raise("not implemented")
+            none(seq[Constraint])
     elif t2.kind == ValueKind.Var:
         # if t2.tv.ub != t1 and t2.tv.ub <= t1:
         #     none(seq[Constraint])
@@ -344,13 +364,15 @@ proc lub*(self: TypeEnv, t1, t2: Value): Value =
         t2
     else:
         if t1.kind == t2.kind:
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
+            Value.Intersection(@[t1, t2])
         elif t1.kind == ValueKind.Union:
             Value.Union(t1.types.filter(it => it <= t2))
         elif t2.kind == ValueKind.Union:
             self.lub(t2, t1)
         else:
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
+            Value.Intersection(@[t1, t2])
 proc glb*(self: TypeEnv, t1, t2: Value): Value =
     setTypeEnv(self)
     if t1 <= t2:
@@ -359,11 +381,13 @@ proc glb*(self: TypeEnv, t1, t2: Value): Value =
         t1
     else:
         if t1.kind == t2.kind:
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
+            Value.Union(@[t1, t2])
         elif t1.kind == ValueKind.Intersection:
             Value.Intersection(t1.types.filter(it => t2 <= it))
         elif t2.kind == ValueKind.Intersection:
             self.glb(t2, t1)
         else:
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
+            Value.Union(@[t1, t2])
 
