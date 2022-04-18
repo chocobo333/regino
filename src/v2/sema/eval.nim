@@ -691,6 +691,7 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Fail:
         Value.Bottom
 proc asign(self: Pattern, val: Value) =
+    # TODO: for others
     case self.kind
     of PatternKind.Literal:
         discard
@@ -730,12 +731,20 @@ proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
     of StatementKind.TypeSection:
         Value.Unit
     of StatementKind.Asign:
+        case self.op.name
+        of "=":
+            self.pat.asign(self.val.eval(env, global))
+        else:
+            # TODO: like "+="
+            discard
         Value.Unit
     of StatementKind.Funcdef:
         Value.Unit
     of StatementKind.Meta:
         Value.Unit
     of StatementKind.Discard:
+        if self.`discard`.isSome:
+            discard self.`discard`.get.eval(env, global)
         Value.Unit
     of StatementKind.Comments:
         Value.Unit
