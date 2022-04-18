@@ -316,6 +316,7 @@ proc `$`*(self: TypeExpression): string =
 proc `$`*(self: Program): string =
     self.stmts.map(`$`).join("\n")
 
+proc `$`*(self: Value): string
 proc `$`*(self: TypeVar): string =
     let
         c = toSeq('a'..'z')
@@ -330,7 +331,7 @@ proc `$`*(self: TypeVar): string =
     result.add c[id mod n]
     result.add "'"
     result.reverse
-proc `$`*(self: Value): string
+    result = fmt"{result}({self.lb}, {self.ub})"
 proc `$`*(self: GenericType): string =
     self.ident.name
 proc `$$`*(self: GenericType): string =

@@ -16,3 +16,8 @@ proc empty*(_: typedesc[Ident]): Ident =
 
 proc hash*(self: Ident): Hash =
     self.name.hash
+
+proc `==`*(self, other: Ident): bool =
+    self.name == other.name
+when isMainModule:
+    echo newIdent("a") == newIdent("a")
