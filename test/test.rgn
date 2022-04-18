@@ -1,120 +1,123 @@
 
-![link: "arith.ll"]
-![link: "io.ll"]
-![link: "int.ll"]
-![link: "string.ll"]
+# ![link: "arith.ll"]
+# ![link: "io.ll"]
+# ![link: "int.ll"]
+# ![link: "string.ll"]
 
 
-# const
-#     ptr[T, n: int] = typeof(malloc[T, n]())
-#     ref[T] = ptr[T, 1]
-#     seq[T] =  ([size: int], len: int, p: ptr[T, size])
-#     string = seq[char]
-# func ptrGet[T, n: int](self: ptr[T, n], m: int) -> T ![builtin: "ptrGet"]
-# func ptrSet[T, n: int](self: ptr[T, n], m: int, val: T) -> T ![builtin: "ptrSet"]
-# func `[]`[T](self: seq[T], n: int) -> T:
-#     self.p.ptrGet[T](n)
-# func `[]=`[T](self: seq[T], n: int, val: T) ![builtin: "ptrSet"]:
-#     self.p.ptrSet[T](n, val)
-# cstring = typeof("")
-# func ptrGet[T](self: ptr[T], n: int) -> T ![builtin: "ptrGet"]
-# func ptrSet[T](self: ptr[T], n: int, val: T) -> T ![builtin: "ptrSet"]
+# # const
+# #     ptr[T, n: int] = typeof(malloc[T, n]())
+# #     ref[T] = ptr[T, 1]
+# #     seq[T] =  ([size: int], len: int, p: ptr[T, size])
+# #     string = seq[char]
+# # func ptrGet[T, n: int](self: ptr[T, n], m: int) -> T ![builtin: "ptrGet"]
+# # func ptrSet[T, n: int](self: ptr[T, n], m: int, val: T) -> T ![builtin: "ptrSet"]
+# # func `[]`[T](self: seq[T], n: int) -> T:
+# #     self.p.ptrGet[T](n)
+# # func `[]=`[T](self: seq[T], n: int, val: T) ![builtin: "ptrSet"]:
+# #     self.p.ptrSet[T](n, val)
+# # cstring = typeof("")
+# # func ptrGet[T](self: ptr[T], n: int) -> T ![builtin: "ptrGet"]
+# # func ptrSet[T](self: ptr[T], n: int, val: T) -> T ![builtin: "ptrSet"]
 
+
+# # type
+# #     ptr[T] = typeof(malloc(T, 1))
+# # type
+# #     Magma = trait (T, op): (Type, func(T, T) -> T)
+# #     SemiGroup = trait (T, op): (Type, func(T, T) -> T) with
+# #         prop associtive(x, y, z: T) -> op(x, op(y, z)) == op(op(x, y), z)
+# #     Monoid = trait (T, op): (Type, func(T, T) -> T) with
+# #         (T, op) is SemiGroup
+# #         func unit(_: singleton (T, op)) -> T
+# #         prop unitNeutral(x: T) -> (op((T, op).unit, x) == x, op(x, (T, op).unit) == x)
+# #     Group = trait (T, op): (Type, func(T, T) -> T) with
+# #         (T, op) is Monoid
+# #         func inverse(_: T) -> T
+# #         prop invNeutral(x: T) -> (op(x, x.inverse()) == (T, op).unit(), op(x.inverse(), x) == (T, op).unit())
 
 # type
-#     ptr[T] = typeof(malloc(T, 1))
-# type
-#     Magma = trait (T, op): (Type, func(T, T) -> T)
-#     SemiGroup = trait (T, op): (Type, func(T, T) -> T) with
-#         prop associtive(x, y, z: T) -> op(x, op(y, z)) == op(op(x, y), z)
-#     Monoid = trait (T, op): (Type, func(T, T) -> T) with
-#         (T, op) is SemiGroup
-#         func unit(_: singleton (T, op)) -> T
-#         prop unitNeutral(x: T) -> (op((T, op).unit, x) == x, op(x, (T, op).unit) == x)
-#     Group = trait (T, op): (Type, func(T, T) -> T) with
-#         (T, op) is Monoid
-#         func inverse(_: T) -> T
-#         prop invNeutral(x: T) -> (op(x, x.inverse()) == (T, op).unit(), op(x.inverse(), x) == (T, op).unit())
-
-type
-    bool = typeof(false)
-    int = typeof(0)
-    int32 = typeof(0'i32)
-    float = typeof(0.0)
-    string = typeof("")
-    char = typeof('a')
-    pairWithInt[T] = (int, T)
-    pair[T, U] = (T, U)
+#     bool = typeof(false)
+#     int = typeof(0)
+#     int32 = typeof(0'i32)
+#     float = typeof(0.0)
+#     string = typeof("")
+#     char = typeof('a')
+#     pairWithInt[T] = (int, T)
+#     pair[T, U] = (T, U)
     
-    List[T] = ref variant
-        Nil
-        Cons(head: T, tail: List[T])
+#     List[T] = ref variant
+#         Nil
+#         Cons(head: T, tail: List[T])
 
-# func sum(l: List[int32]) -> int32:
-#     case l
-#     of Nil:
+# # func sum(l: List[int32]) -> int32:
+# #     case l
+# #     of Nil:
+# #         0
+# #     of Cons(head, tail):
+# #         head + sum(tail)
+
+# func id[T](a: T) -> T:
+#     a
+# func swap[T, U]((a, b): (T, U)) -> (U, T):
+#     (b, a)
+
+# func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
+# func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
+# func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
+# func `+`(a: int, b: int) -> int:
+#     `add@int32/int32int32`(a, b)
+# func `-`(a: int, b: int) -> int:
+#     `sub@int32/int32int32`(a, b)
+# func `==`(a: int, b: int) -> bool:
+#     `eq@bool/int32int32`(a, b)
+
+# func `tos@string/i32`(a: int) -> string ![importll]
+# func `$`(a: int) -> string ![subtype]:
+#     `tos@string/i32`(a)
+# func `$`(a: float) -> string ![subtype]:
+#     "float"
+# func `$`[T <: string, U <: string]((a, b): (T, U)) -> string:
+#     let a: string = a
+#     a
+
+# func toInt(a: bool) -> int ![subtype]:
+#     if a:
+#         1
+#     else:
 #         0
-#     of Cons(head, tail):
-#         head + sum(tail)
+# func `$`(a: bool) -> string ![subtype]:
+#     if a:
+#         "true"
+#     else:
+#         "false"
+# func echo(a: string) ![importll]
+# func len(a: string) -> int ![importll]
 
-func id[T](a: T) -> T:
-    a
-func swap[T, U]((a, b): (T, U)) -> (U, T):
-    (b, a)
+# func fib(n: int) -> int:
+#     if n == 0:
+#         1
+#     elif n == 1:
+#         1
+#     else:
+#         fib(n-1) + fib(n-2)
 
-func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
-func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
-func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
-func `+`(a: int, b: int) -> int:
-    `add@int32/int32int32`(a, b)
-func `-`(a: int, b: int) -> int:
-    `sub@int32/int32int32`(a, b)
-func `==`(a: int, b: int) -> bool:
-    `eq@bool/int32int32`(a, b)
-
-func `tos@string/i32`(a: int) -> string ![importll]
-func `$`(a: int) -> string ![subtype]:
-    `tos@string/i32`(a)
-func `$`(a: float) -> string ![subtype]:
-    "float"
-func `$`[T <: string, U <: string]((a, b): (T, U)) -> string:
-    let a: string = a
-    a
-
-func toInt(a: bool) -> int ![subtype]:
-    if a:
-        1
-    else:
-        0
-func `$`(a: bool) -> string ![subtype]:
-    if a:
-        "true"
-    else:
-        "false"
-func echo(a: string) ![importll]
-func len(a: string) -> int ![importll]
-
-func fib(n: int) -> int:
-    if n == 0:
-        1
-    elif n == 1:
-        1
-    else:
-        fib(n-1) + fib(n-2)
-
-# echo "Hello world!"
-# let a = malloc(int, 3)
-# let c: pairWithInt[int] = (3, 3)
-# let b: ptr[int] = malloc(int, 3)
-# echo fib(10)
-# var d = 4
-# d = 5
-# echo d
-func f(a: int) -> int:
-    3
-func f(a: int) -> float:
-    4.5
-echo $(3, 4)
+# # echo "Hello world!"
+# # let a = malloc(int, 3)
+# # let c: pairWithInt[int] = (3, 3)
+# # let b: ptr[int] = malloc(int, 3)
+# # echo fib(10)
+# # var d = 4
+# # d = 5
+# # echo d
+# func f(a: int) -> int:
+#     3
+# func f(a: int) -> float:
+#     4.5
+# echo $(3, 4)
+# let
+#     a = 3
+# a
 let
-    a = 3
-a
+    (a, b) = (3, 5)
+b
