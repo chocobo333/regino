@@ -250,6 +250,7 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
         of PatternKind.Ident:
             # TODO: index
             let sym = Symbol.Param(pat.ident, typ, impl, global)
+            pat.ident.typ = typ
             env.addIdent(sym)
         of PatternKind.Dot:
             discard # TODO:

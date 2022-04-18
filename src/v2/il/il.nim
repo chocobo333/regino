@@ -312,6 +312,7 @@ type
     Value* = ref ValueObject
     ValueObject = object
         symbol*: Option[Symbol]
+        region*: Region
         case kind*: ValueKind
         of ValueKind.Literal:
             litval*: Literal
@@ -375,6 +376,7 @@ type
         case kind*: SymbolKind
         of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const, SymbolKind.Param:
             decl_iddef*: IdentDef
+            region*: Region
         of SymbolKind.Typ:
             decl_typedef*: TypeDef
         of SymbolKind.GenParam:
@@ -390,3 +392,31 @@ type
         # instance*: Option[Statement]
         lty*: llvm.Type
         val*: llvm.Value
+
+    RegionKind* {.pure.} = enum
+        Static # means value type; not ref type
+        Global
+        Param
+        Return
+        Suite
+        Var
+        Link
+    RegionObject = object
+        case kind*: RegionKind
+        of RegionKind.Static:
+            nil
+        of RegionKind.Global:
+            nil
+        of RegionKind.Param:
+            nth*: Natural
+        of RegionKind.Return:
+            nil
+        of RegionKind.Suite:
+            parent*: Region
+            # val: LValue
+        of RegionKind.Var:
+            lb*: Region # indeed, it's true that this is upper bound.
+        of RegionKind.Link:
+            to*: Region
+
+    Region* = ref RegionObject

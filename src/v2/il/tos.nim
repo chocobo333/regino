@@ -547,6 +547,23 @@ proc treeRepr*(self: IdentDef): string =
         default = self.default.map(treeRepr).get("None")
     "IdentDef\n" & (&"{self.pat}\n{typ}\n{default}").indent(2)
 
+proc `$`*(self: Region): string =
+    case self.kind
+    of RegionKind.Static:
+        "static"
+    of RegionKind.Global:
+        "global"
+    of RegionKind.Param:
+        fmt"param({self.nth})"
+    of RegionKind.Return:
+        "return"
+    of RegionKind.Suite:
+        fmt"suite({self.parent})"
+    of RegionKind.Var:
+        "var"
+    of RegionKind.Link:
+        $self.to
+
 when isMainModule:
     import stmts
     import exprs
