@@ -204,7 +204,13 @@ proc coloring(self: Literal, tokenTypes: seq[string], loc: rLocation, data: var 
     of LiteralKind.char:
         discard
     of LiteralKind.string:
-        discard
+        let
+            kind = SemanticTokenTypes.string
+            a = loc.`range`.a
+            b = loc.`range`.b
+            l = b.character - a.character
+        assert a.line == b.line
+        data.add (a.line, a.character, l, tokenTypes.index($kind), 0)
     of LiteralKind.Univ:
         discard
 proc coloring(self: Ident, tokenTypes: seq[string], data: var seq[Color]) =
