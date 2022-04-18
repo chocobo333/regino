@@ -78,13 +78,11 @@ proc find*(self: Statement, pos: rPosition): Option[Ident] =
         none(Ident)
     of StatementKind.Loop:
         none(Ident)
-    of StatementKind.LetSection:
+    of StatementKind.LetSection, StatementKind.VarSection:
         for iddef in self.iddefs:
             let res = iddef.find(pos)
             if res.isSome:
                 return res
-        none(Ident)
-    of StatementKind.VarSection:
         none(Ident)
     of StatementKind.ConstSection:
         none(Ident)
