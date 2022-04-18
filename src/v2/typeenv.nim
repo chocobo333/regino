@@ -29,6 +29,9 @@ proc `==`*(self, other: Constraint): bool =
 # proc `$`*(self: Constraint): string =
 #     $(self[0], self[1])
 
+template `raise`*(self: TypeEnv, msg: string): untyped =
+    self.errs.add TypeError.Internal(msg)
+
 
 proc Var*(_: typedesc[Value], env: TypeEnv): Value =
     result = Value(kind: ValueKind.Var, tv: newTypeVar())
@@ -55,25 +58,7 @@ template enter*(env: TypeEnv, scope: Scope, body: untyped): untyped =
         body
 
 proc lookupId*(self: TypeEnv, name: string, kinds: set[SymbolKind] = {SymbolKind.low..SymbolKind.high}): seq[Symbol] =
-    var
-        tmp: set[SymbolKind]
-        varsKind = {SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param}
-        typesKind = {SymbolKind.Typ, SymbolKind.GenParam}
-        funcsKind = {SymbolKind.Func}
-    for scope in self.scope:
-        if name in scope.syms:
-            let
-                syms = scope.syms[name].filterIt(it.kind notin tmp and it.kind in kinds)
-                vars = syms.filterIt(it.kind in varsKind)
-                types = syms.filterIt(it.kind in typesKind)
-                funcs = syms.filterIt(it.kind in funcsKind)
-            if vars.len > 0:
-                result.add vars[^1]
-                tmp.incl varsKind
-            if types.len > 0:
-                result.add types[^1]
-                tmp.incl typesKind
-            result.add funcs
+    self.scope.lookupId(name, kinds)
 
 proc addIdent*(self: TypeEnv, sym: Symbol) =
     let
@@ -224,7 +209,8 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
                 t1.litval.level <= t2.litval.level
             else:
                 debug t1.kind
-                raise newException(TypeError, "notimplemented")
+                env.raise("notimplemented")
+                false
     elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Literal:
@@ -272,7 +258,8 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
             env.`<=`(t1.to, t2.to)
         else:
             debug t1.kind
-            raise newException(TypeError, "notimplemented")
+            env.raise("notimplemented")
+            false
     # elif t1.kind == ValueKind.Sigma and t2.kind == ValueKind.Sigma:
     #     `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
     elif t1.kind == ValueKind.Intersection:
@@ -334,8 +321,8 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
             else:
                 none(seq[Constraint])
         else:
-            raise newException(TypeError, "not implemented")
-            # none(seq[Constraint])
+            env.raise("not implemented")
+            none(seq[Constraint])
     elif t2.kind == ValueKind.Var:
         # if t2.tv.ub != t1 and t2.tv.ub <= t1:
         #     none(seq[Constraint])
@@ -377,13 +364,15 @@ proc lub*(self: TypeEnv, t1, t2: Value): Value =
         t2
     else:
         if t1.kind == t2.kind:
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
+            Value.Intersection(@[t1, t2])
         elif t1.kind == ValueKind.Union:
             Value.Union(t1.types.filter(it => it <= t2))
         elif t2.kind == ValueKind.Union:
             self.lub(t2, t1)
         else:
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
+            Value.Intersection(@[t1, t2])
 proc glb*(self: TypeEnv, t1, t2: Value): Value =
     setTypeEnv(self)
     if t1 <= t2:
@@ -392,11 +381,13 @@ proc glb*(self: TypeEnv, t1, t2: Value): Value =
         t1
     else:
         if t1.kind == t2.kind:
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
+            Value.Union(@[t1, t2])
         elif t1.kind == ValueKind.Intersection:
             Value.Intersection(t1.types.filter(it => t2 <= it))
         elif t2.kind == ValueKind.Intersection:
             self.glb(t2, t1)
         else:
-            raise newException(TypeError, fmt"{t1} and {t2} can not be unified")
+            self.raise(fmt"{t1} and {t2} can not be unified")
+            Value.Union(@[t1, t2])
 

@@ -412,6 +412,14 @@ proc infer*(self: Program, env: TypeEnv): Value =
         debug e.tv.ub
 
 proc check(self: Suite, env: TypeEnv)
+proc check(self: Ident, env: TypeEnv) =
+    if self.typ.symbol.isNone:
+        if self.typ.kind == ValueKind.Intersection:
+            env.errs.add TypeError.Undeciable(self.loc)
+        else:
+            env.errs.add TypeError.Undefined(self, self.loc)
+    else:
+        self.typ.symbol.get.use.add self.loc
 proc check(self: Pattern, env: TypeEnv) =
     case self.kind:
     of PatternKind.Literal:
@@ -441,12 +449,7 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Literal:
         discard
     of ExpressionKind.Ident:
-        if self.typ.symbol.isNone:
-            if self.typ.kind == ValueKind.Intersection:
-                env.errs.add TypeError.Undeciable(self.loc)
-            else:
-                env.errs.add TypeError.Undefined(self.ident, self.loc)
-        discard
+        self.ident.check(env)
     of ExpressionKind.Tuple:
         for e in self.exprs:
             e.check(env)

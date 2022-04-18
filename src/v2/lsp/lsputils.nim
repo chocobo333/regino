@@ -78,13 +78,11 @@ proc find*(self: Statement, pos: rPosition): Option[Ident] =
         none(Ident)
     of StatementKind.Loop:
         none(Ident)
-    of StatementKind.LetSection:
+    of StatementKind.LetSection, StatementKind.VarSection:
         for iddef in self.iddefs:
             let res = iddef.find(pos)
             if res.isSome:
                 return res
-        none(Ident)
-    of StatementKind.VarSection:
         none(Ident)
     of StatementKind.ConstSection:
         none(Ident)
@@ -239,8 +237,9 @@ proc scope(self: Statement, pos: rPosition): seq[Scope] =
         @[]
     of StatementKind.Fail:
         @[]
-proc scope*(self: Program, pos: rPosition): seq[Scope] =
-    result = @[self.scope]
+proc scope*(self: Program, pos: rPosition): Scope =
+    var res = @[self.scope]
     for s in self.stmts:
         if pos in s:
-            result.add s.scope(pos)
+            res.add s.scope(pos)
+    res[^1]
