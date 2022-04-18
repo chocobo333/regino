@@ -241,8 +241,7 @@ proc infer(self: GenTypeDef, env: TypeEnv, global: bool = false): GenericType =
         sym = Symbol.GenParam(id, typ, self)
     env.addIdent(sym)
     genty
-proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
-    proc addPat(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat, global: bool = false) =
+proc addParam(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat, global: bool = false) =
         ## register identifier on typeenv
         case pat.kind
         of PatternKind.Literal:
@@ -257,12 +256,13 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
         of PatternKind.Tuple:
             assert typ.kind == ValueKind.Pair
             for (pat, typ) in pat.patterns.zip(typ.PairToSeq):
-                env.addPat(impl, typ, pat, global)
+                env.addParam(impl, typ, pat, global)
         of PatternKind.Record:
             discard
         of PatternKind.UnderScore:
             discard
         pat.typ = typ
+proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
     var
         sym: Symbol
         rety: Value
@@ -274,7 +274,7 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
                 # TODO: pattern like a, b: int
                 assert it.typ.isSome
                 let paramty = it.typ.get.eval(env, global)
-                env.addPat(it, paramty)
+                env.addParam(it, paramty)
                 paramty
             )
         rety = fn.param.rety.map(it => it.eval(env, global)).get(Value.Unit)
@@ -282,14 +282,18 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
         sym = Symbol.Func(fn.id, fnty, global)
     env.addIdent(sym)
     fn.id.typ = fnty
-    env.enter(fn.param.scope):
-        if fn.suite.isSome:
-            let infered = fn.suite.get.infer(env)
-            env.coerce(infered <= rety)
     if fn.metadata.isSome:
         if fn.metadata.get.kind == MetadataKind.Subtype:
             assert fn.param.params.len == 1, "converter must take only one argument."
             env.addTypeRelation(sym.typ.params[0], rety, fn.id)
+proc infer(fn: Function, env: TypeEnv, global: bool = false) =
+    let
+        sym = fn.id.typ.symbol.get
+        rety = fn.id.typ.rety
+    env.enter(fn.param.scope):
+        if fn.suite.isSome:
+            let infered = fn.suite.get.infer(env)
+            env.coerce(infered <= rety)
 
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     result = case self.kind
@@ -374,6 +378,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of StatementKind.Funcdef:
         env.addFunc(self.fn, global)
+        self.fn.infer(env, global)
         Value.Unit
     of StatementKind.Meta:
         discard self.meta.infer(env)
@@ -391,6 +396,9 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
 proc infer*(self: Program, env: TypeEnv): Value =
     if self.stmts.len == 0:
         return Value.Unit
+    # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
+    # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
+    #     env.addFunc(s.fn, true)
     for s in self.stmts[0..^2]:
         discard s.infer(env)
         # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
@@ -544,8 +552,8 @@ proc check(self: Statement, env: TypeEnv) =
         case self.op.name
         of "=":
             if self.val.typ <= self.pat.typ:
-                
-                discard
+                if not (self.pat.typ <= self.val.typ):
+                    discard
             else:
                 env.errs.add TypeError.Unasignable(self.pat, self.val, self.loc)
         else:
