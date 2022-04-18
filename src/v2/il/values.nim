@@ -266,6 +266,7 @@ proc typ*(self: Value): Value =
         self.to.typ
 
 import literals
+import idents
 proc `==`*(t1, t2: Value): bool =
     if t1.kind == t2.kind:
         case t1.kind
@@ -292,7 +293,7 @@ proc `==`*(t1, t2: Value): bool =
         of ValueKind.ArrayV:
             true
         of ValueKind.Record:
-            true
+            t1.members == t2.members
         of ValueKind.Ptr:
             t1.pointee == t2.pointee
         of ValueKind.Pi:
@@ -300,8 +301,10 @@ proc `==`*(t1, t2: Value): bool =
             t1.params == t2.params and
             t1.rety == t2.rety
         of ValueKind.Sum:
+            assert false, "notimplemented"
             true
         of ValueKind.Trait:
+            assert false, "notimplemented"
             true
         of ValueKind.Singleton:
             t1.base == t2.base
