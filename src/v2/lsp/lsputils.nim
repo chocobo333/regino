@@ -237,8 +237,9 @@ proc scope(self: Statement, pos: rPosition): seq[Scope] =
         @[]
     of StatementKind.Fail:
         @[]
-proc scope*(self: Program, pos: rPosition): seq[Scope] =
-    result = @[self.scope]
+proc scope*(self: Program, pos: rPosition): Scope =
+    var res = @[self.scope]
     for s in self.stmts:
         if pos in s:
-            result.add s.scope(pos)
+            res.add s.scope(pos)
+    res[^1]

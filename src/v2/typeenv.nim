@@ -55,25 +55,7 @@ template enter*(env: TypeEnv, scope: Scope, body: untyped): untyped =
         body
 
 proc lookupId*(self: TypeEnv, name: string, kinds: set[SymbolKind] = {SymbolKind.low..SymbolKind.high}): seq[Symbol] =
-    var
-        tmp: set[SymbolKind]
-        varsKind = {SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param}
-        typesKind = {SymbolKind.Typ, SymbolKind.GenParam}
-        funcsKind = {SymbolKind.Func}
-    for scope in self.scope:
-        if name in scope.syms:
-            let
-                syms = scope.syms[name].filterIt(it.kind notin tmp and it.kind in kinds)
-                vars = syms.filterIt(it.kind in varsKind)
-                types = syms.filterIt(it.kind in typesKind)
-                funcs = syms.filterIt(it.kind in funcsKind)
-            if vars.len > 0:
-                result.add vars[^1]
-                tmp.incl varsKind
-            if types.len > 0:
-                result.add types[^1]
-                tmp.incl typesKind
-            result.add funcs
+    self.scope.lookupId(name, kinds)
 
 proc addIdent*(self: TypeEnv, sym: Symbol) =
     let

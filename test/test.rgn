@@ -120,8 +120,9 @@ func fib(n: int) -> int:
 # a
 var
     (a, b) = (3, 5)
-    a = 5
 b = 4
-echo a
+let a: float = 5.5
 f
+f a
+echo f a
 b
