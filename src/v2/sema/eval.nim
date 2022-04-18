@@ -412,7 +412,7 @@ proc infer*(self: Program, env: TypeEnv): Value =
         debug e.tv.ub
 
 proc check(self: Suite, env: TypeEnv)
-proc check(self: Pattern, env: TypeEnv) = 
+proc check(self: Pattern, env: TypeEnv) =
     case self.kind:
     of PatternKind.Literal:
         discard
