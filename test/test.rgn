@@ -116,5 +116,5 @@ func f(a: int) -> float:
     4.5
 echo $(3, 4)
 let
-    a = 3
+    (a, b) = 3
 a
