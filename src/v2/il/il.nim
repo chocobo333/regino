@@ -118,7 +118,6 @@ type
     ExpressionObject = object
         loc*: Location
         typ*: Value
-        region*: Region
         case kind*: ExpressionKind
         of ExpressionKind.Literal:
             litval*: Literal
@@ -243,7 +242,6 @@ type
         name*: string
         loc*: Location
         typ*: Value
-        region*: Region
     PatternKind* {.pure.} = enum
         Literal
         Ident
@@ -314,6 +312,7 @@ type
     Value* = ref ValueObject
     ValueObject = object
         symbol*: Option[Symbol]
+        region*: Region
         case kind*: ValueKind
         of ValueKind.Literal:
             litval*: Literal
@@ -377,6 +376,7 @@ type
         case kind*: SymbolKind
         of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const, SymbolKind.Param:
             decl_iddef*: IdentDef
+            region*: Region
         of SymbolKind.Typ:
             decl_typedef*: TypeDef
         of SymbolKind.GenParam:
@@ -394,24 +394,29 @@ type
         val*: llvm.Value
 
     RegionKind* {.pure.} = enum
+        Static # means value type; not ref type
         Global
         Param
         Return
-        Stack
-        Heap
+        Suite
         Var
         Link
     RegionObject = object
         case kind*: RegionKind
+        of RegionKind.Static:
+            nil
         of RegionKind.Global:
             nil
         of RegionKind.Param:
-            nth: Natural
-        of RegionKind.Return..RegionKind.Heap:
+            nth*: Natural
+        of RegionKind.Return:
             nil
+        of RegionKind.Suite:
+            parent*: Region
+            # val: LValue
         of RegionKind.Var:
-            lb: Region # indeed, it's true that this is upper bound.
+            lb*: Region # indeed, it's true that this is upper bound.
         of RegionKind.Link:
-            to: Region
+            to*: Region
 
     Region* = ref RegionObject
