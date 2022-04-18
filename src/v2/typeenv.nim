@@ -246,7 +246,18 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
         of ValueKind.Pair:
             `<=`(env, t1.first, t2.first) and `<=`(env, t1.second, t2.second)
         of ValueKind.Record:
-            toSeq(t2.members.keys).allIt(`<=`(env, t1.members.getOrDefault(it, Value.Unit), t2.members[it]))
+            var res = true
+            for key in t2.members.keys:
+                if key in t1.members:
+                    if env.`<=`(t1.members[key], t2.members[key]):
+                        discard
+                    else:
+                        res = false
+                        break
+                else:
+                    res = false
+                    break
+            res
         of ValueKind.Pi:
             # TODO: genty
             let
@@ -278,6 +289,10 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
         env.`<=`(t1.tv.ub, t2)
     elif t2.kind == ValueKind.Var:
         env.`<=`(t1, t2.tv.lb)
+    elif t1.kind == ValueKind.Unit:
+        false
+    elif t2.kind == ValueKind.Bottom:
+        false
     else:
         # env.scope.typeOrder.path(t1, t2).isSome
         (t1, t2) in env.scope.typeOrder
