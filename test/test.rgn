@@ -102,19 +102,27 @@ func fib(n: int) -> int:
     else:
         fib(n-1) + fib(n-2)
 
-# echo "Hello world!"
-# let a = malloc(int, 3)
-# let c: pairWithInt[int] = (3, 3)
-# let b: ptr[int] = malloc(int, 3)
-# echo fib(10)
-# var d = 4
-# d = 5
-# echo d
-func f(a: int) -> int:
-    3
-func f(a: int) -> float:
-    4.5
-echo $(3, 4)
-let
-    a = 3
-a
+# # echo "Hello world!"
+# # let a = malloc(int, 3)
+# # let c: pairWithInt[int] = (3, 3)
+# # let b: ptr[int] = malloc(int, 3)
+# # echo fib(10)
+# # var d = 4
+# # d = 5
+# # echo d
+# func f(a: int) -> int:
+#     3
+# func f(a: int) -> float:
+#     4.5
+# echo $(3, 4)
+# let
+#     a = 3
+# a
+var
+    (a, b) = (3, 5)
+b = 4
+let a: float = 5.5
+f
+f a
+echo f a
+b

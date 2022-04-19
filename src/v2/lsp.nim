@@ -5,6 +5,7 @@ import strformat
 import streams
 import json
 import tables
+import sets
 import options
 
 import lsp/[
@@ -17,6 +18,7 @@ import
     il,
     parsers,
     sema,
+    typeenv,
     # codegen,
     utils,
     errors
@@ -151,6 +153,14 @@ proc initialize(s: Stream, msg: RequestMessage, configuration: var Configuration
                 )
             ).JsonNode
 
+proc collectCompletion(self: Scope, pos: rPosition): seq[Symbol] =
+    var
+        keys: HashSet[string]
+    for e in self:
+        for key in e.syms.keys:
+            keys.incl key
+    for key in keys:
+        result.add self.lookupId(key, pos)
 proc `textDocument/completion`(s: Stream, msg: RequestMessage, configuration: Configuration, project: Project) =
     if msg.params.isValid(CompletionParams):
         let
@@ -163,7 +173,7 @@ proc `textDocument/completion`(s: Stream, msg: RequestMessage, configuration: Co
             let
                 program = project.program[uri] # main function
                 scopes = scope(program, pos)
-                syms = scopes.mapIt(toSeq(it.syms.values)).flatten.flatten
+                syms = scopes.collectCompletion(pos)
             for sym in syms:
                 let
                     label: string = sym.id.name

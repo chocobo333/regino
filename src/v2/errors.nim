@@ -14,6 +14,7 @@ type
         Unasignable
         Letasign
         SomethingWrong
+        Internal
     TypeError* = object of CatchableError
         loc*: Location
         case kind: TypeErrorKind
@@ -30,8 +31,9 @@ type
         of TypeErrorKind.Unasignable:
             pat: Pattern
             val: Expression
-        of TypeErrorKind.SomethingWrong:
-            nil
+        of TypeErrorKind.SomethingWrong, TypeErrorKind.Internal:
+            stacktrace: string
+            i_msg: string
 
 proc `$`*(self: TypeError): string =
     case self.kind
@@ -50,7 +52,9 @@ proc `$`*(self: TypeError): string =
     of TypeErrorKind.Letasign:
         fmt"`{self.id}` cannot be re-asigned to, because `{self.id}` was defined in let section"
     of TypeErrorKind.SomethingWrong:
-        fmt"omething is wrong"
+        &"something is wrong\n{self.stacktrace}"
+    of TypeErrorKind.Internal:
+        &"{self.i_msg}\n{self.stacktrace}"
 
 proc new*(self: TypeError): ref TypeError =
     newException(TypeError, $self)
@@ -69,5 +73,7 @@ proc Unasignable*(_: typedesc[TypeError], pat: Pattern, val: Expression, loc: Lo
     TypeError(kind: TypeErrorKind.Unasignable, pat: pat, val: val, loc: loc)
 proc Letasign*(_: typedesc[TypeError], id: Ident, loc: Location = newLocation()): TypeError =
     TypeError(kind: TypeErrorKind.Letasign, id: id, loc: loc)
-proc SomethingWrong*(_: typedesc[TypeError], loc: Location = newLocation()): TypeError =
-    TypeError(kind: TypeErrorKind.SomethingWrong, loc: loc)
+proc SomethingWrong*(_: typedesc[TypeError], loc: Location = newLocation(), stacktrace: string = getStackTrace()): TypeError =
+    TypeError(kind: TypeErrorKind.SomethingWrong, loc: loc, stacktrace: stacktrace)
+proc Internal*(_: typedesc[TypeError], msg: string, loc: Location = newLocation(), stacktrace: string = getStackTrace()): TypeError =
+    TypeError(kind: TypeErrorKind.Internal, loc: loc, i_msg: msg, stacktrace: stacktrace)
