@@ -335,6 +335,7 @@ type
             pointee*: Value
         of ValueKind.Pi, ValueKind.Cons:
             implicit*: seq[GenericType]
+            instance*: seq[Value] # instances of implicit parameters
             params*: seq[Value] # not concerned with `Cons`
             rety*: Value
         of ValueKind.Sum:
