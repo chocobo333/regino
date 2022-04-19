@@ -545,7 +545,6 @@ proc check(self: Statement, env: TypeEnv) =
             of PatternKind.UnderScore:
                 @[]
         for ident in collectIdent(self.pat):
-            debug ident.typ.symbol
             if ident.typ.symbol.isSome:
                 if ident.typ.symbol.get.kind != SymbolKind.Var:
                     env.errs.add TypeError.Letasign(ident, ident.loc)
@@ -553,7 +552,18 @@ proc check(self: Statement, env: TypeEnv) =
         of "=":
             if self.val.typ <= self.pat.typ:
                 if not (self.pat.typ <= self.val.typ):
-                    discard
+                    let
+                        conv = env.lookupConverter(self.val.typ, self.pat.typ)
+                    debug conv
+                    if conv.isSome:
+                        let
+                            ident = conv.get
+                            callee = Expression.Id(ident, ident.loc)
+                            val = Expression.Call(callee, @[self.val])
+                        val.typ = self.pat.typ
+                        self.val = val
+                    else:
+                        assert false, "t1 <= t2 but t1 is not convertable to t2"
             else:
                 env.errs.add TypeError.Unasignable(self.pat, self.val, self.loc)
         else:

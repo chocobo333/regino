@@ -7,7 +7,7 @@ import ../lineinfos
 
 proc literal*(_: typedesc[Expression], val: Literal, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Literal, litval: val, loc: loc)
-proc Id*(_: typedesc[Expression], ident: Ident, loc: Location = ident.loc): Expression =
+proc Id*(_: typedesc[Expression], ident: Ident, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Ident, ident: ident, loc: loc)
 proc Tuple*(_: typedesc[Expression], exprs: seq[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Tuple, exprs: exprs, loc: loc)
