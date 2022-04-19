@@ -1,6 +1,7 @@
 
 import sets
 import tables
+import hashes
 import sequtils
 import options
 import strformat
@@ -21,6 +22,11 @@ type
         interconstraints*: seq[Constraint]
         errs*: seq[TypeError]
     Constraint* = (Value, Value)   # for t1 <= t2
+
+proc hash*(self: Constraint): Hash =
+    result = self[0].hash
+    result = result !& self[1].hash
+    result = !$result
 
 # converter to*(self: (Value, Value)): Constraint =
 #     (self[0], self[1], TypeError.Subtype(self[0], self[1]))
@@ -74,6 +80,14 @@ proc lookupId*(self: TypeEnv, name: string, kinds: set[SymbolKind] = {SymbolKind
                 result.add types[^1]
                 tmp.incl typesKind
             result.add funcs
+
+proc lookupConverter*(self: Scope, t1, t2: Value): Option[Ident] =
+    for scope in self:
+        if (t1, t2) in scope.converters:
+            return some(scope.converters[(t1, t2)])
+    return none(Ident)
+proc lookupConverter*(self: TypeEnv, t1, t2: Value): Option[Ident] =
+    result = self.scope.lookupConverter(t1, t2)
 
 proc addIdent*(self: TypeEnv, sym: Symbol) =
     let
