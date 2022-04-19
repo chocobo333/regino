@@ -20,7 +20,7 @@ proc sema*(self: Program): seq[TypeError] =
     self.check(env)
     debug env.errs
     debug mainScope
-    # debug self.eval(env)
+    debug self.eval(env)
     env.errs
 
 

@@ -703,6 +703,25 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Arrow(self.args.mapIt(it.eval(env, global)), self.rety.eval(env, global))
     of ExpressionKind.Fail:
         Value.Bottom
+proc asign(self: Pattern, val: Value) =
+    # TODO: for others
+    case self.kind
+    of PatternKind.Literal:
+        discard
+    of PatternKind.Ident:
+        self.ident.typ.symbol.get.val = val
+    of PatternKind.Dot:
+        discard
+    of PatternKind.Tuple:
+        if val.kind == ValueKind.Pair:
+            self.patterns[0].asign(val.first)
+            Pattern.Tuple(self.patterns[1..^1]).asign(val.second)
+        else:
+            self.patterns[0].asign(val)
+    of PatternKind.Record:
+        discard
+    of PatternKind.UnderScore:
+        discard
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
     case self.kind
     of StatementKind.For:
@@ -712,20 +731,33 @@ proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
     of StatementKind.Loop:
         Value.Unit
     of StatementKind.LetSection:
+        for e in self.iddefs:
+            e.pat.asign(e.default.get.eval(env, global))
         Value.Unit
     of StatementKind.VarSection:
+        for e in self.iddefs:
+            if e.default.isSome:
+                e.pat.asign(e.default.get.eval(env, global))
         Value.Unit
     of StatementKind.ConstSection:
         Value.Unit
     of StatementKind.TypeSection:
         Value.Unit
     of StatementKind.Asign:
+        case self.op.name
+        of "=":
+            self.pat.asign(self.val.eval(env, global))
+        else:
+            # TODO: like "+="
+            discard
         Value.Unit
     of StatementKind.Funcdef:
         Value.Unit
     of StatementKind.Meta:
         Value.Unit
     of StatementKind.Discard:
+        if self.`discard`.isSome:
+            discard self.`discard`.get.eval(env, global)
         Value.Unit
     of StatementKind.Comments:
         Value.Unit
