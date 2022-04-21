@@ -20,6 +20,7 @@ proc sema*(self: Program): seq[TypeError] =
     self.check(env)
     # debug env.errs
     # debug mainScope
+    # evalするとtypがおかしくなる
     # debug self.eval(env)
     env.errs
 
