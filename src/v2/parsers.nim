@@ -323,7 +323,7 @@ let
         ArrowExpr,
         # ArrowExpr > Suite                               @ (it => akCall.newTreeNode(it))
     )
-    IdPattern = Id + ?delimited(lbra, Expr,rbra) @ (it => Pattern(kind: PatternKind.Ident, ident: it[0], index: it[1]))
+    IdPattern = Id @ (it => Pattern(kind: PatternKind.Ident, ident: it))
     UnderScore = s"_" @ (it => Pattern.UnderScore)
     LiteralPattern = Literal @ (it => Pattern.literal(it))
     TuplePattern = (?Id + delimited(lpar, Patt ^* comma, ?comma+rpar)) @ (it => Pattern(kind: PatternKind.Tuple, tag: it[0], patterns: it[1]))
