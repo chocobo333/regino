@@ -415,8 +415,10 @@ type
             parent*: Region
             # val: LValue
         of RegionKind.Var:
+            id*: RegionId
             lb*: Region # indeed, it's true that this is upper bound.
         of RegionKind.Link:
             to*: Region
+    RegionId = int
 
     Region* = ref RegionObject
