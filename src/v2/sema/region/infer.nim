@@ -4,17 +4,20 @@ import sequtils
 import strformat
 import macros
 
-import ../../il
+import ../../il except Var
+import ../../utils
+import ../../orders
 
 
 type
     RegionEnv* = ref object
         constraints: seq[Constraint]
         rvs: seq[Region]
+        order: Order[Region]
     Constraint = (Value, Value)
 
 proc Var*(_: typedesc[Region], lb: Region, env: RegionEnv): Region =
-    result = Region(kind: RegionKind.Var, lb: lb)
+    result = il.Var(Region, lb)
     env.rvs.add result
 
 macro coerce(self: RegionEnv, rel: untyped): untyped =
@@ -73,6 +76,7 @@ macro `case`(n: tuple): untyped =
             error "custom 'case' for tuple cannot handle this node", it
 
 proc resolve*(self: RegionEnv, r1, r2: Region) =
+    self.order.add (r1, r2)
     if r1 <= r2:
         return
     case (r1.kind, r2.kind)
@@ -156,6 +160,8 @@ proc resolve*(self: RegionEnv, r1, r2: Region) =
             self.resolve(r1, r2.to)
 
 proc resolve*(self: RegionEnv, t1, t2: Value) =
+    echo t1
+    echo t2
     self.resolve(t1.region, t2.region)
 proc resolve*(self: RegionEnv): seq[Constraint] =
     while self.constraints.len != 0:
@@ -171,30 +177,57 @@ proc hasRegion(self: Value): bool =
     of ValueKind.String:
         true
     of ValueKind.Pair:
-        self.first.hasRegion or self.second.hasRegion
+        false
     of ValueKind.Singleton, ValueKind.Distinct:
         self.base.hasRegion
     of ValueKind.Pi, ValueKind.Ptr:
         true
     else:
         false
+proc hasRegionRecursive(self: Value): bool =
+    case self.kind
+    of ValueKind.Link:
+        self.to.hasRegionRecursive
+    of ValueKind.String:
+        true
+    of ValueKind.Pair:
+        self.first.hasRegionRecursive or self.second.hasRegionRecursive
+    of ValueKind.Singleton, ValueKind.Distinct:
+        self.base.hasRegionRecursive
+    of ValueKind.Pi, ValueKind.Ptr:
+        true
+    else:
+        false
 
 proc LetSymbol(self: Pattern, env: RegionEnv, suite: Region) =
-    case self.kind
+    # TODO: Pattern has no region?
+    let r = case self.kind
     of PatternKind.Literal:
-        discard
+        assert false, "notimplemented"
+        Region.Static
     of PatternKind.Ident:
         assert self.typ.symbol.isSome, "internal error"
-        self.typ.symbol.get.region = Region.Var(suite)
+        debug self.typ
+        let r = if self.typ.hasRegion:
+            Region.Var(suite, env)
+        else:
+            Region.Static
+        self.typ.symbol.get.region = r
+        r
     of PatternKind.Dot:
-        discard
+        assert false, "notimplemented"
+        Region.Static
     of PatternKind.Tuple:
         for e in self.patterns:
             e.LetSymbol(env, suite)
+        Region.Static
     of PatternKind.Record:
-        discard
+        assert false, "notimplemented"
+        Region.Static
     of PatternKind.UnderScore:
-        discard
+        assert false, "notimplemented"
+        Region.Static
+    self.typ.region = r
 
 proc infer(self: Value, env: RegionEnv, suite: Region) =
     if not self.region.isNil:
@@ -336,6 +369,7 @@ proc infer(self: Statement, env: RegionEnv, suite: Region) =
             e.pat.LetSymbol(env, suite)
             if e.default.isSome:
                 e.default.get.infer(env, suite)
+                # TODO: Pattern has no region?
                 env.coerce(e.pat.typ <= e.default.get.typ)
     of StatementKind.ConstSection:
         discard
@@ -412,11 +446,14 @@ func f2() -> string:
     a
 let
     a = 3
+    b = "abc"
 a = 5
-a
+(a, b)
 """
         program = Program(Source.from(src)).get
         env = RegionEnv()
     echo program.sema
     echo program
     program.infer(env)
+    echo program
+    echo env.order
