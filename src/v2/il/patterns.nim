@@ -43,7 +43,6 @@ proc collectIdent(self: Pattern): seq[Ident] =
     of PatternKind.Tuple:
         self.patterns.mapIt(it.collectIdent).flatten
     of PatternKind.Record:
-        # TODO:
-        @[]
+        self.members.mapIt(it[1].collectIdent).flatten
     of PatternKind.UnderScore:
         @[]
