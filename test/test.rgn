@@ -127,6 +127,7 @@ let a: float = 5.5
 let c: bool = false
 f
 f a
+a = 3
 echo a
 echo f a
 b
