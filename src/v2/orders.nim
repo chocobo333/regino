@@ -2,9 +2,11 @@
 import relations
 import strformat
 import sequtils
+import strutils
 import tables
 import options
 import sugar
+import sets
 
 import utils
 
@@ -74,3 +76,22 @@ proc path*[T](self: Order[T], t1, t2: T): Option[seq[(T, T)]] =
                 some((t1, t) & shortest)
         else:
             none(seq[(T, T)])
+
+proc nodes*[T](self: Order[T]): HashSet[T] =
+    let
+        a = toSeq(self.primal.keys).toHashSet
+        b = toSeq(self.dual.keys).toHashSet
+    result = initHashSet[T]()
+    for e in a.items:
+        result.incl e
+    for e in b.items:
+        result.incl e
+proc dot*[T](self: Order[T]): string =
+    for n in self.nodes.items:
+        result.add &"{n}\n"
+    for key in self.primal.keys:
+        for v in self.primal[key].items:
+            result.add &"{key} -> {v}\n"
+    result = result[0..^2]
+    result = result.indent(2)
+    result = &"digraph order {{\n{result}\n}}"
