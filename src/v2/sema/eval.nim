@@ -521,19 +521,6 @@ proc check(self: Statement, env: TypeEnv) =
         self.pat.check(env)
         self.val.check(env)
         # case self.pat.ident
-        proc collectIdent(self: Pattern): seq[Ident] =
-            case self.kind:
-            of PatternKind.Literal:
-                @[]
-            of PatternKind.Ident:
-                @[self.ident]
-            of PatternKind.Tuple:
-                self.patterns.mapIt(it.collectIdent).flatten
-            of PatternKind.Record:
-                # TODO:
-                @[]
-            of PatternKind.UnderScore:
-                @[]
         for ident in collectIdent(self.pat):
             if ident.typ.symbol.isSome:
                 if ident.typ.symbol.get.kind != SymbolKind.Var:

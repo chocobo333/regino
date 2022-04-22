@@ -3,6 +3,7 @@ import options
 import sequtils
 
 import il
+import ../utils
 
 
 proc literal*(_: typedesc[Pattern], litval: Literal): Pattern =
@@ -31,3 +32,18 @@ proc refutable*(self: Pattern): bool =
         self.members.foldl(a and b[1].refutable, true)
     of PatternKind.UnderScore:
         true
+
+
+proc collectIdent(self: Pattern): seq[Ident] =
+    case self.kind:
+    of PatternKind.Literal:
+        @[]
+    of PatternKind.Ident:
+        @[self.ident]
+    of PatternKind.Tuple:
+        self.patterns.mapIt(it.collectIdent).flatten
+    of PatternKind.Record:
+        # TODO:
+        @[]
+    of PatternKind.UnderScore:
+        @[]
