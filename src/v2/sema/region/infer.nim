@@ -214,9 +214,6 @@ proc LetSymbol(self: Pattern, env: RegionEnv, suite: Region) =
             Region.Static
         self.typ.symbol.get.region = r
         r
-    of PatternKind.Dot:
-        assert false, "notimplemented"
-        Region.Static
     of PatternKind.Tuple:
         for e in self.patterns:
             e.LetSymbol(env, suite)
@@ -346,8 +343,6 @@ proc infer(self: Pattern, env: RegionEnv, suite: Region) =
     of PatternKind.Literal:
         discard
     of PatternKind.Ident:
-        discard
-    of PatternKind.Dot:
         discard
     of PatternKind.Tuple:
         for e in self.patterns:

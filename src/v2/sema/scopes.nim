@@ -64,14 +64,7 @@ proc setScope(self: Pattern, parent: Scope) =
     of PatternKind.Literal:
         discard
     of PatternKind.Ident:
-        if self.index.isSome:
-            self.index.get.setScope(parent)
-    of PatternKind.Dot:
-        self.lhs.setScope(parent)
-    # of PatternKind.Bracket:
-    #     self.callee.setScope(parent)
-    #     for arg in self.args:
-    #         arg.setScope(parent)
+        discard
     of PatternKind.Tuple:
         for pat in self.patterns:
             pat.setScope(parent)
