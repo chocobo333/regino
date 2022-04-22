@@ -34,7 +34,7 @@ proc refutable*(self: Pattern): bool =
         true
 
 
-proc collectIdent(self: Pattern): seq[Ident] =
+proc collectIdent*(self: Pattern): seq[Ident] =
     case self.kind:
     of PatternKind.Literal:
         @[]
