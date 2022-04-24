@@ -5,10 +5,10 @@ proc Static*(_: typedesc[Region]): Region =
     Region(kind: RegionKind.Static)
 proc Global*(_: typedesc[Region]): Region =
     Region(kind: RegionKind.Global)
-proc Param*(_: typedesc[Region], nth: Natural): Region =
-    Region(kind: RegionKind.Param, nth: nth)
-proc Return*(_: typedesc[Region]): Region =
-    Region(kind: RegionKind.Return)
+proc Param*(_: typedesc[Region], lb: Region, nth: Natural): Region =
+    Region(kind: RegionKind.Param, lb: lb, nth: nth)
+proc Return*(_: typedesc[Region], lb: Region): Region =
+    Region(kind: RegionKind.Return, lb: lb)
 proc Suite*(_: typedesc[Region], parent: Region = Region.Global): Region =
     Region(kind: RegionKind.Suite, parent: parent)
 

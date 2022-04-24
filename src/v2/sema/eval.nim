@@ -385,6 +385,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         self.expression.infer(env, global)
     of StatementKind.Fail:
         Value.Unit
+    self.typ = result
 proc infer*(self: Program, env: TypeEnv): Value =
     if self.stmts.len == 0:
         return Value.Unit

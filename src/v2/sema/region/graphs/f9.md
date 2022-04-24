@@ -6,8 +6,5 @@ digraph order {
   edge [
     dir = back
   ];
-  ρ₄
-  ρ₅
-  ρ₅ -> ρ₄
 }
 ```

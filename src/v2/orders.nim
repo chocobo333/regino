@@ -27,6 +27,9 @@ proc contains*[T](self: Order[T], val: (T, T)): bool =
 proc add*[T](self: var Order[T], val: (T, T)) =
     self.primal[val[0]] = val[1]
     self.dual[val[1]] = val[0]
+proc remove*[T](self: var Order[T], val: (T, T)) =
+    self.primal.remove(val)
+    self.dual.remove((val[1], val[0]))
 proc `$`*[T](self: Order[T]): string =
     if self.primal.len == 0:
         result = "{}"
@@ -48,7 +51,7 @@ proc sort*[T](self: Order[T]): seq[T] =
         for e in indegree.filter(it => it == 0).keys:
             result.add e
             if e in self.primal:
-                for ee in self.primal[e]:
+                for ee in self.primal[e].items:
                     indegree[ee] = indegree[ee] - 1
             indegree.del(e)
 
@@ -87,11 +90,21 @@ proc nodes*[T](self: Order[T]): HashSet[T] =
     for e in b.items:
         result.incl e
 proc dot*[T](self: Order[T]): string =
+    result.add "node [\n  shape = none\n];\n"
+    result.add "edge [\n  dir = back\n];\n"
     for n in self.nodes.items:
         result.add &"{n}\n"
-    for key in self.primal.keys:
-        for v in self.primal[key].items:
+    for key in self.dual.keys:
+        for v in self.dual[key].items:
             result.add &"{key} -> {v}\n"
     result = result[0..^2]
     result = result.indent(2)
     result = &"digraph order {{\n{result}\n}}"
+
+proc dot*[T](self: Order[T], filename: string) =
+    let
+        f = open(filename, FileMode.fmWrite)
+        s = &"```dot\n{self.dot}\n```"
+    defer:
+        close f
+    f.write(s)

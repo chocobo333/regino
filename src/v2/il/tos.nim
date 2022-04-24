@@ -137,7 +137,7 @@ proc `$`*(self: Expression): string =
         fmt"func({args}) -> {self.rety}"
     of ExpressionKind.Fail:
         fmt"failed term"
-    if not self.typ.isNil and self.typ.kind != ValueKind.Unit:
+    if not self.typ.isNil:
         result = fmt"{result} (: {self.typ})"
 
 proc `$`*(self: Metadata): string =
@@ -574,7 +574,7 @@ proc `$`*(self: Region): string =
     of RegionKind.Global:
         "global"
     of RegionKind.Param:
-        fmt"param({self.nth})"
+        fmt"p{sub(self.nth)}"
     of RegionKind.Return:
         "return"
     of RegionKind.Suite:
