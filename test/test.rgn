@@ -118,5 +118,7 @@ func fib(n: int) -> int:
 # echo $(3, 4)
 let
     a = 3
+    b = (3, 4)
 echo a
+echo id a
 0

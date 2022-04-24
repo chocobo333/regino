@@ -5,6 +5,7 @@ import sugar
 import sets
 import tables
 
+import inst
 import ../il
 import ../typeenv
 import ../errors
@@ -53,8 +54,6 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         let
             tv = Value.Var(env)
             elements = self.exprs.mapIt(it.infer(env, global))
-        debug self.loc
-        debug elements
         for t in elements:
             env.coerce(t <= tv)
         Value.Array(tv)
@@ -262,7 +261,7 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
             )
         rety = fn.param.rety.map(it => it.eval(env, global)).get(Value.Unit)
         fnty = Value.Pi(implicit, paramty, rety)
-        sym = Symbol.Func(fn.id, fnty, global)
+        sym = Symbol.Func(fn.id, fnty, fn, global)
     env.addIdent(sym)
     fn.id.typ = fnty
     if fn.metadata.isSome:
@@ -428,6 +427,7 @@ proc check(self: Pattern, env: TypeEnv) =
         discard
     of PatternKind.UnderScore:
         discard
+
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
     # TODO: invalid
@@ -474,6 +474,28 @@ proc check(self: Expression, env: TypeEnv) =
         self.callee.check(env)
         for arg in self.args:
             arg.check(env)
+        let
+            calleety = self.callee.typ
+            args = self.args.mapIt(it.typ)
+            genty = self.callee.typ.instances
+        if genty.len > 0:
+            if calleety notin calleety.symbol.get.instances:
+                let
+                    inst = self.callee.typ.symbol.get.decl_funcdef.implInst
+                    scope = env.scope
+                env.scope = inst.suite.get.scope
+                # for i in 0..<genty.len:
+                #     let
+                #         iddef = self.callee.impl.fn.param.gen[i]
+                #         impl = iddef.default.get
+                #         pat = iddef.pat
+                #         val = genty[i]
+                #     env.addPatConst(pat, val, impl, false)
+                env.scope = scope
+                # discard inst.typeInfer(env)
+                # env.resolveRelations()
+                # ret &= inst.typeCheck(env) # must be a empty list
+                # calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
@@ -535,7 +557,6 @@ proc check(self: Statement, env: TypeEnv) =
                 if not (self.pat.typ <= self.val.typ):
                     let
                         conv = env.lookupConverter(self.val.typ, self.pat.typ)
-                    debug conv
                     if conv.isSome:
                         let
                             ident = conv.get

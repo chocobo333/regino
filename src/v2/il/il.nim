@@ -329,7 +329,7 @@ type
             pointee*: Value
         of ValueKind.Pi, ValueKind.Cons:
             implicit*: seq[GenericType]
-            instance*: seq[Value] # instances of implicit parameters
+            instances*: seq[Value] # instances of implicit parameters
             params*: seq[Value] # not concerned with `Cons`
             rety*: Value
         of ValueKind.Sum:
@@ -384,7 +384,7 @@ type
         use*: seq[Location]
         instances*: Table[Value, Impl]
     Impl* = ref object
-        # instance*: Option[Statement]
+        instance*: Option[Function]
         lty*: llvm.Type
         val*: llvm.Value
 

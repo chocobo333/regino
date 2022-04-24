@@ -19,7 +19,6 @@ proc sema*(self: Program): seq[TypeError] =
         rety = self.infer(env)
     self.check(env)
     debug env.errs
-    debug mainScope
     debug self.eval(env)
     env.errs
 

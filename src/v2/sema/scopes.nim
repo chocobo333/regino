@@ -100,7 +100,7 @@ proc setScope(self: FunctionParam, parent: Scope) =
 proc setScope(self: Metadata, parent: Scope) =
     for e in self.params:
         e.setScope(parent)
-proc setScope(self: Function, parent: Scope) =
+proc setScope*(self: Function, parent: Scope) =
     self.param.setScope(parent)
     if self.metadata.isSome:
         self.metadata.get.setScope(parent)
