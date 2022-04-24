@@ -16,29 +16,20 @@ import ../lineinfos
 import infer as _
 
 
+proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
+proc infer*(self: Suite, env: TypeEnv): Value
+proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value
+proc check(self: Expression, env: TypeEnv)
+proc check(self: Suite, env: TypeEnv)
 proc eval*(self: Program, env: TypeEnv): Value
 proc eval*(self: Suite, env: TypeEnv): Value
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
 proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
-proc check(self: Expression, env: TypeEnv)
+
+
 proc infer*(self: Literal): Value =
     self.typ
-proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
-proc infer*(self: Suite, env: TypeEnv): Value =
-    if self.stmts.len == 0:
-        return Value.Unit
-    env.enter(self.scope):
-        for s in self.stmts[0..^2]:
-            discard s.infer(env)
-            # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
-        result = self.stmts[^1].infer(env)
-    env.resolveRelationsPartially()
-proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
-    let
-        cond = self.cond.infer(env, global)
-    env.coerce(cond == Value.Bool)
-    self.suite.infer(env)
 proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     let
         syms = env.lookupId(self.name)
@@ -385,6 +376,20 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         self.expression.infer(env, global)
     of StatementKind.Fail:
         Value.Unit
+proc infer*(self: Suite, env: TypeEnv): Value =
+    if self.stmts.len == 0:
+        return Value.Unit
+    env.enter(self.scope):
+        for s in self.stmts[0..^2]:
+            discard s.infer(env)
+            # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
+        result = self.stmts[^1].infer(env)
+    env.resolveRelationsPartially()
+proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
+    let
+        cond = self.cond.infer(env, global)
+    env.coerce(cond == Value.Bool)
+    self.suite.infer(env)
 proc infer*(self: Program, env: TypeEnv): Value =
     if self.stmts.len == 0:
         return Value.Unit
@@ -403,7 +408,6 @@ proc infer*(self: Program, env: TypeEnv): Value =
         debug e.tv.lb
         debug e.tv.ub
 
-proc check(self: Suite, env: TypeEnv)
 proc check(self: Ident, env: TypeEnv) =
     if self.typ.symbol.isNone:
         if self.typ.kind == ValueKind.Intersection:
