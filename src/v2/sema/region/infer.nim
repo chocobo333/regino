@@ -186,8 +186,6 @@ proc LetSymbol(self: Pattern, env: RegionEnv, suite: Region) =
     of PatternKind.Ident:
         assert self.typ.symbol.isSome, "internal error"
         self.typ.symbol.get.region = Region.Var(suite)
-    of PatternKind.Dot:
-        discard
     of PatternKind.Tuple:
         for e in self.patterns:
             e.LetSymbol(env, suite)
@@ -313,8 +311,6 @@ proc infer(self: Pattern, env: RegionEnv, suite: Region) =
     of PatternKind.Literal:
         discard
     of PatternKind.Ident:
-        discard
-    of PatternKind.Dot:
         discard
     of PatternKind.Tuple:
         for e in self.patterns:

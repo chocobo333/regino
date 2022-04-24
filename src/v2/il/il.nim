@@ -245,8 +245,6 @@ type
     PatternKind* {.pure.} = enum
         Literal
         Ident
-        Dot
-        # Bracket
         Tuple
         Record
         UnderScore
@@ -259,10 +257,6 @@ type
             litval*: Literal
         of PatternKind.Ident:
             ident*: Ident
-            index*: Option[Expression]
-        of PatternKind.Dot:
-            lhs*: Pattern
-            rhs*: Ident
         # of PatternKind.Bracket:
         #     callee*: Pattern
         #     args*: seq[Expression]
