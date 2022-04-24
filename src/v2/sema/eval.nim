@@ -497,6 +497,7 @@ proc check(self: Expression, env: TypeEnv) =
             instances = self.callee.typ.instances
             typdefs = self.callee.typ.symbol.get.decl_funcdef.param.params
         if genty.len > 0:
+            # monomorphization
             if calleety notin calleety.symbol.get.instances:
                 let
                     inst = self.callee.typ.symbol.get.decl_funcdef.implInst
