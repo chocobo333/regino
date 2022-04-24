@@ -66,21 +66,25 @@ type
     Scope* = ref object
         parent*: Scope
         syms*: Table[string, seq[Symbol]]
-        consts*: Table[string, seq[Symbol]]
+        consts*: Table[string, seq[Symbol]] # deprecated
         typeOrder*: Order[Value]  # cumulative
         converters*: Table[(Value, Value), Ident]
     IdentDef* = ref object
+        # represents `pat: typ = default`
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
     TypeDef* = ref object
+        # represents `pat[params] = typ`
         id*: Ident
         params*: Option[seq[GenTypeDef]]
         typ*: TypeExpression
     GenTypeDef* = ref object
+        # represents `id <: ub`
         id*: Ident
         ub*: Option[Expression]
     FunctionParam* = ref object
+        # represents `[implicit](params) -> rety`
         implicit*: seq[GenTypeDef]
         params*: seq[IdentDef]
         rety*: Option[Expression]

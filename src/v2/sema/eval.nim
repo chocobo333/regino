@@ -23,10 +23,13 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
 proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
 proc check(self: Expression, env: TypeEnv)
 proc infer*(self: Literal): Value =
+    ## that retrurns literal's type merely
     self.typ
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc infer*(self: Suite, env: TypeEnv): Value =
     if self.stmts.len == 0:
+        # Suite which has no statements has () type
+        # because it is the same as Suite which has only mere discard statement
         return Value.Unit
     env.enter(self.scope):
         for s in self.stmts[0..^2]:
@@ -386,6 +389,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     of StatementKind.Fail:
         Value.Unit
 proc infer*(self: Program, env: TypeEnv): Value =
+    ## Entry point of type inference algorithm
     if self.stmts.len == 0:
         return Value.Unit
     # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
