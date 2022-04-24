@@ -428,6 +428,22 @@ proc check(self: Pattern, env: TypeEnv) =
     of PatternKind.UnderScore:
         discard
 
+proc check(self: Statement, env: TypeEnv)
+proc check(self: Suite, env: TypeEnv) =
+    env.enter(self.scope):
+        if self.isFailed:
+            # TODO: Suite have to have parameter `loc`
+            env.errs.add TypeError.NoSuite(self.loc)
+            return
+        for s in self.stmts[0..^2]:
+            s.check(env)
+            if s.typ != Value.Unit:
+                env.errs.add TypeError.Discard(s)
+        self.stmts[^1].check(env)
+proc check(self: Function, env: TypeEnv) =
+    # TODO: check params
+    if self.suite.isSome:
+        self.suite.get.check(env)
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
     # TODO: invalid
@@ -477,25 +493,32 @@ proc check(self: Expression, env: TypeEnv) =
         let
             calleety = self.callee.typ
             args = self.args.mapIt(it.typ)
-            genty = self.callee.typ.instances
+            genty = self.callee.typ.symbol.get.decl_funcdef.param.implicit.mapIt(it.id)
+            instances = self.callee.typ.instances
+            typdefs = self.callee.typ.symbol.get.decl_funcdef.param.params
         if genty.len > 0:
             if calleety notin calleety.symbol.get.instances:
                 let
                     inst = self.callee.typ.symbol.get.decl_funcdef.implInst
                     scope = env.scope
-                env.scope = inst.suite.get.scope
-                # for i in 0..<genty.len:
-                #     let
-                #         iddef = self.callee.impl.fn.param.gen[i]
-                #         impl = iddef.default.get
-                #         pat = iddef.pat
-                #         val = genty[i]
-                #     env.addPatConst(pat, val, impl, false)
+                env.scope = inst.param.scope
+                for i in 0..<genty.len:
+                    let
+                        id = genty[i]
+                        typ = instances[i]
+                        typedef = newTypedef(
+                            id,
+                            none(seq[GenTypeDef]),
+                            TypeExpression.Expr(Expression.Id($typ))
+                        )
+                        sym = Symbol.Typ(id, typ, typedef, false)
+                    env.addIdent(sym)
                 env.scope = scope
-                # discard inst.typeInfer(env)
-                # env.resolveRelations()
-                # ret &= inst.typeCheck(env) # must be a empty list
-                # calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
+                let fn = Statement.Funcdef(inst)
+                discard fn.infer(env, false)
+                env.resolveRelations()
+                fn.check(env) # must be succeded
+                calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
@@ -584,17 +607,6 @@ proc check(self: Statement, env: TypeEnv) =
         self.expression.check(env)
     of StatementKind.Fail:
         discard
-proc check(self: Suite, env: TypeEnv) =
-    env.enter(self.scope):
-        if self.isFailed:
-            # TODO: Suite have to have parameter `loc`
-            env.errs.add TypeError.NoSuite(self.loc)
-            return
-        for s in self.stmts[0..^2]:
-            s.check(env)
-            if s.typ != Value.Unit:
-                env.errs.add TypeError.Discard(s)
-        self.stmts[^1].check(env)
 proc check*(self: Program, env: TypeEnv) =
     if self.stmts.len == 0:
         return

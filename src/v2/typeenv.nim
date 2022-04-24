@@ -140,7 +140,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
         else:
             typ
     of ValueKind.Link:
-        Value.Link(typ.inst(env, subs))
+        Value.Link(typ.to.inst(env, subs))
     result.symbol = sym
 
 
