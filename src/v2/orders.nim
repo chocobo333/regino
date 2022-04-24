@@ -40,6 +40,22 @@ proc `$`*[T](self: Order[T]): string =
                 result.add fmt"{key} < {val}, "
         result = result[0..^3]
         result.add("}")
+proc clear*[T](self: var Order[T], key: T): (HashSet[T], HashSet[T]) {.discardable.} =
+    let a =
+        if key in self.dual:
+            self.dual[key]
+        else:
+            initHashSet[T]()
+    let b =
+        if key in self.primal:
+            self.primal[key]
+        else:
+            initHashSet[T]()
+    result = (a, b)
+    for e in result[0]:
+        self.remove((e, key))
+    for e in result[1]:
+        self.remove((key, e))
 proc sort*[T](self: Order[T]): seq[T] =
     var indegree = initTable[T, int]()
     for key in self.primal.keys:

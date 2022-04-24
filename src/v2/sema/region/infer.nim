@@ -128,6 +128,7 @@ proc coerce(self: RegionEnv, r1: Region, t2: Value) =
     self.coerce(r1, t2.region)
 proc coerce(self: RegionEnv, t1, t2: Value) =
     if t1.kind == t2.kind:
+        self.coerce(t1.region, t2.region)
         case t1.kind
         of ValueKind.Literal:
             assert false, "notimplementd"
@@ -138,13 +139,13 @@ proc coerce(self: RegionEnv, t1, t2: Value) =
         of ValueKind.Bool:
             assert false, "notimplementd"
         of ValueKind.Integer:
-            self.coerce(t1.region, t2.region)
+            discard
         of ValueKind.Float:
             assert false, "notimplementd"
         of ValueKind.Char:
             assert false, "notimplementd"
         of ValueKind.String:
-            self.coerce(t1.region, t2.region)
+            discard
         of ValueKind.Pair:
             assert false, "notimplementd"
         of ValueKind.Array:
@@ -192,10 +193,12 @@ macro coerce(self: RegionEnv, rel: untyped): untyped =
         newEmptyNode()
 
 proc resolve*(self: RegionEnv, r1, r2: Region) =
+    debug r1
+    debug r2
     template `<=`(r1, r2: Region): untyped =
         self.`<=`(r1, r2)
-    if r1 <= r2:
-        return
+    # if r1 <= r2:
+    #     return
     case (r1.kind, r2.kind)
     of (RegionKind.Static, RegionKind.Static):
         assert false, "notimplemented"
@@ -220,7 +223,9 @@ proc resolve*(self: RegionEnv, r1, r2: Region) =
     of (RegionKind.Global, RegionKind.Suite):
         assert false, "notimplemented"
     of (RegionKind.Global, RegionKind.Var):
-        assert false, "notimplemented"
+        if not(r1 <= r2) and r2.lb <= r1:
+            r2.lb = r1
+        # r2.lb = glb(r1, r2.lb)
     of (RegionKind.Param, RegionKind.Static):
         assert false, "notimplemented"
     of (RegionKind.Param, RegionKind.Global):
@@ -239,6 +244,7 @@ proc resolve*(self: RegionEnv, r1, r2: Region) =
         assert false, "notimplemented"
     of (RegionKind.Return, RegionKind.Param):
         self.order.add (r1, r2)
+        self.constraints.add (r1, r2)
     of (RegionKind.Return, RegionKind.Return):
         assert false, "notimplemented"
     of (RegionKind.Return, RegionKind.Suite):
@@ -259,7 +265,9 @@ proc resolve*(self: RegionEnv, r1, r2: Region) =
     of (RegionKind.Suite, RegionKind.Suite):
         assert false, "notimplemented"
     of (RegionKind.Suite, RegionKind.Var):
-        assert false, "notimplemented"
+        if not(r1 <= r2) and r2.lb <= r1:
+            r2.lb = r1
+        # r2.lb = glb(r1, r2.lb)
     of (RegionKind.Var, RegionKind.Static):
         assert false, "notimplemented"
     of (RegionKind.Var, RegionKind.Global):
@@ -281,10 +289,18 @@ proc resolve*(self: RegionEnv, r1, r2: Region) =
 
 proc bindrv(self: RegionEnv, rv: Region) =
     assert rv.kind == RegionKind.Var
+    let
+        (_, dests) = self.order.clear(rv)
+    rv[] = rv.lb[]
+    for e in dests:
+        self.order.add (rv, e)
 proc collapse(self: RegionEnv, cycle: seq[Region]) =
     debug cycle
     assert false, "notimplemented"
 proc resolve*(self: RegionEnv, r: Region) =
+    if r in self.order.dual:
+        for e in self.order.dual[r]:
+            self.order.remove((e, r))
     case r.kind
     of RegionKind.Static:
         discard
@@ -297,13 +313,9 @@ proc resolve*(self: RegionEnv, r: Region) =
     of RegionKind.Suite:
         discard
     of RegionKind.Var:
-        debug r
-        debug r.lb
+        self.bindrv(r)
     of RegionKind.Link:
         discard
-    if r in self.order.dual:
-        for e in self.order.dual[r]:
-            self.order.remove((e, r))
     if r in self.order.primal:
         for e in self.order.primal[r]:
             self.resolve(r, e)
@@ -316,7 +328,6 @@ proc resolve*(self: RegionEnv) =
                 self.collapse(cycle)
     for e in self.order.sort:
         self.resolve(e)
-        debug self.order
     debug self.constraints
 
 
@@ -628,3 +639,8 @@ a = 5
     echo program
     echo env.order
     env.order.dot("src/v2/sema/region/graph.md")
+
+    let
+        r1 = Region.Suite(Region.Global)
+        r2 = Region.Suite(Region.Suite(Region.Global))
+    echo env.`<=`(r1, r2)
