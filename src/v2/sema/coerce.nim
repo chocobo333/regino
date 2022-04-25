@@ -33,10 +33,22 @@ proc coerceRelation*(self: TypeEnv, t1, t2: Value) =
         of ValueKind.Pair:
             self.coerceRelation(t1.first, t2.first)
             self.coerceRelation(t1.second, t2.second)
+        of ValueKind.Array, ValueKind.Singleton, ValueKind.Distinct:
+            self.coerceRelation(t1.base, t2.base)
+        of ValueKind.ArrayV:
+            for (t1, t2) in t1.vals.zip(t2.vals):
+                self.coerceRelation(t1, t2)
+        of ValueKind.Record:
+            for (id, t2) in t2.members.pairs:
+                self.coerceRelation(t1.members.getOrDefault(id, Value.Unit), t2)
+        of ValueKind.Ptr:
+            self.coerceRelation(t1.pointee, t2.pointee)
         of ValueKind.Pi:
             self.coerceRelation(t1.rety, t2.rety)
             for (t1, t2) in t1.params.zip(t2.params):
                 self.coerceRelation(t2, t1)
+        of ValueKind.Link:
+            self.coerceRelation(t1.to, t2.to)
         else:
             discard
 proc coerceEq*(self: TypeEnv, t1, t2: Value) =
