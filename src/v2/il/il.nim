@@ -300,6 +300,7 @@ type
         Intersection
         Union
         Cons
+        Lambda
         Var
         Gen
         Link
@@ -339,6 +340,9 @@ type
             fns*: seq[Function]
         of ValueKind.Intersection, ValueKind.Union:
             types*: HashSet[Value]
+        of ValueKind.Lambda:
+            l_param*: seq[Ident]
+            suite*: Suite
         of ValueKind.Var:
             tv*: TypeVar
         of ValueKind.Gen:

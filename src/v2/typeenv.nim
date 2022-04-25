@@ -133,6 +133,9 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
                 ).toTable
             )
         typ.rety.inst(env, newSubs)
+    of ValueKind.Lambda:
+        # TODO: think twice later
+        Value.Lambda(typ.l_param, typ.suite)
     of ValueKind.Var:
         typ
     of ValueKind.Gen:
