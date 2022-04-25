@@ -135,7 +135,27 @@ proc codegen(self: Literal, module: Module, global: bool = false): LValue =
     of LiteralKind.char:
         nil
     of LiteralKind.string:
-        nil
+        let
+            s = self.strval
+        if strtyp.isNil:
+            discard newLType(Value.String, module)
+        let
+            conststr = module.cxt.constString(s)
+            global = module.module.newGlobal(conststr.typ, s)
+            inty = newLType(Value.Integer(32), module)
+        global.initializer = conststr
+        global.constant = true
+        constStruct(
+            strtyp,
+            @[
+                constGep(
+                    global,
+                    @[inty.constInt(0), inty.constInt(0)]
+                ),
+                newLType(Value.Integer(32), module).constInt(s.len),
+                newLType(Value.Integer(32), module).constInt(s.len)
+            ]
+        )
     of LiteralKind.Univ:
         nil
 proc codegen(self: Ident, module: Module, global: bool = false, lval: bool = false, ): LValue =
@@ -178,10 +198,23 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
         nil
     of ExpressionKind.Case:
         nil
-    of ExpressionKind.Call:
-        nil
-    of ExpressionKind.Command:
-        nil
+    of ExpressionKind.Call, ExpressionKind.Command:
+        echo self
+        echo self.typ
+        let
+            callee = self.callee
+            args = self.args
+            callee2 = codegen(callee, module)
+            args2 = args.mapIt(codegen(it, module))
+            rety = newLType(self.typ, module)
+        # TODO: check returning void
+        # module.curBuilder.call(callee2, args2, $self)
+        # if self.typ.hasRegion:
+        #     let ret = module.curBuilder.alloca(rety, "*" & $self)
+        #     discard module.curBuilder.call(callee2, args2 & ret)
+        #     module.curBuilder.load(rety, ret, $self)
+        # else:
+        module.curBuilder.call(callee2, args2)
     of ExpressionKind.Dot:
         nil
     of ExpressionKind.Bracket:
@@ -261,6 +294,31 @@ proc link(self: Metadata, module: Module) =
         # TODO: err msg
         assert false
     f.close()
+
+proc codegen(self: Function, module: Module, global: bool = false) =
+    if self.param.implicit.len > 0:
+        #     # TODO: for quantified function
+        #     for val in self.fn.id.typ.symbol.get.instances.keys:
+        #         assert self.fn.id.typ.symbol.get.instances[val].instance.isSome
+        #         self.fn.id.typ.symbol.get.instances[val].val = self.fn.id.typ.symbol.get.instances[val].instance.get.codegen(module)
+        #         self.fn.id.typ.symbol.get.instances[val].lty = newLType(val, module)
+        return
+    let
+        fn = self
+        id = fn.id
+        name = id.name
+        sym = id.sym
+        fnty = id.typ
+        paramty = fnty.params.mapIt(newLType(it, module))
+        rety = if fnty.rety == Value.Unit: voidType() else: newLType(fnty.rety, module)
+        # retyhasregion = fn.rety != Value.Unit and fn.rety.hasRegion
+    var
+        cxt = module.cxt
+        fnty2 = functionType(rety, paramty)
+        fn2 = module.module.addFunction(name, fnty2)
+    sym.val = fn2
+    sym.lty = fnty2
+
 proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     case self.kind
     of StatementKind.For:
@@ -283,13 +341,7 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     of StatementKind.Asign:
         nil
     of StatementKind.Funcdef:
-        if self.fn.param.implicit.len > 0:
-        #     # TODO: for quantified function
-        #     for val in self.fn.id.typ.symbol.get.instances.keys:
-        #         assert self.fn.id.typ.symbol.get.instances[val].instance.isSome
-        #         self.fn.id.typ.symbol.get.instances[val].val = self.fn.id.typ.symbol.get.instances[val].instance.get.codegen(module)
-        #         self.fn.id.typ.symbol.get.instances[val].lty = newLType(val, module)
-            return nil
+        self.fn.codegen(module, global)
         nil
     of StatementKind.Meta:
         let metadata = self.meta
