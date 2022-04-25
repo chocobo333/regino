@@ -54,7 +54,7 @@ proc simplify(self: TypeEnv, t: Value): Value =
     for t1 in types:
         for t2 in types:
             if t1 <= t2:
-                dels.incl t1
+                dels.incl t2
                 break
     var res = types - dels
     assert res.len != 0
