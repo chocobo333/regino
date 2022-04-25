@@ -48,12 +48,7 @@ proc find*(self: Pattern, pos: rPosition): Option[Ident] =
     of PatternKind.Literal:
         none(Ident)
     of PatternKind.Ident:
-        if self.index.isSome and pos in self.index.get:
-            self.index.get.find(pos)
-        else:
-            self.ident.find(pos)
-    of PatternKind.Dot:
-        none(Ident)
+        self.ident.find(pos)
     of PatternKind.Tuple:
         for e in self.patterns:
             if pos in e:

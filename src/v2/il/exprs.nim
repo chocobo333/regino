@@ -25,9 +25,9 @@ proc Call*(_: typedesc[Expression], callee: Expression, args: openArray[Expressi
     Expression(kind: ExpressionKind.Call, callee: callee, args: @args, loc: loc)
 proc Command*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Command, callee: callee, args: @args, loc: loc)
-proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, loc: Location = newLocation(lhs.loc.uri, lhs.loc.range.a, rhs.loc.range.b)): Expression =
+proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Dot, lhs: lhs, rhs: rhs, loc: loc)
-proc Binary*(_: typedesc[Expression], op: Ident, lhs, rhs: Expression, loc: Location = newLocation(lhs.loc.uri, lhs.loc.range.a, rhs.loc.range.b)): Expression =
+proc Binary*(_: typedesc[Expression], op: Ident, lhs, rhs: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Binary, op: op, lhs: lhs, rhs: rhs, loc: loc)
 proc Prefix*(_: typedesc[Expression], op: Ident, expression: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Prefix, op: op, expression: expression, loc: loc)
@@ -39,6 +39,8 @@ proc Bracket*(_: typedesc[Expression], callee: Expression, args: openArray[Expre
     Expression(kind: ExpressionKind.Bracket, callee: callee, args: @args, loc: loc)
 proc Lambda*(_: typedesc[Expression], param: (seq[IdentDef], Option[Expression]), body: Suite, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Lambda, param: FunctionParam(params: param[0], rety: param[1]), body: body, loc: loc)
+proc Lambda*(_: typedesc[Expression], param: FunctionParam, body: Suite, loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Lambda, param: param, body: body, loc: loc)
 proc Malloc*(_: typedesc[Expression], mtype: Expression, msize: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Malloc, mtype: mtype, msize: msize, loc: loc)
 proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location = newLocation()): Expression =

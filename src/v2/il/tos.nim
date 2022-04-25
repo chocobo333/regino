@@ -157,12 +157,7 @@ proc `$`*(self: Pattern): string =
     of PatternKind.Literal:
         $self.litval
     of PatternKind.Ident:
-        if self.index.isSome:
-            fmt"{self.ident}[{self.index.get}]"
-        else:
-            $self.ident
-    of PatternKind.Dot:
-        fmt"{self.lhs}.{self.rhs}"
+        $self.ident
     # of PatternKind.Bracket:
     #     let args = self.args.join(", ")
     #     fmt"{self.callee}[{args}]"
@@ -406,6 +401,9 @@ proc `$`*(self: Value): string =
         let
             imp = self.implicit.map(`$$`).join(", ")
         fmt"[{imp}]{self.rety}"
+    of ValueKind.Lambda:
+        let params = self.l_param.join(", ")
+        &"lambda {params}: \n{self.suite}"
     of ValueKind.Var:
         $self.tv
     of ValueKind.Gen:

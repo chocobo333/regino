@@ -5,6 +5,7 @@ import sugar
 import sets
 import tables
 
+import inst
 import ../il
 import ../typeenv
 import ../errors
@@ -16,29 +17,20 @@ import ../lineinfos
 import infer as _
 
 
+proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
+proc infer*(self: Suite, env: TypeEnv): Value
+proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value
+proc check(self: Expression, env: TypeEnv)
+proc check(self: Suite, env: TypeEnv)
 proc eval*(self: Program, env: TypeEnv): Value
 proc eval*(self: Suite, env: TypeEnv): Value
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
 proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
-proc check(self: Expression, env: TypeEnv)
+
+
 proc infer*(self: Literal): Value =
     self.typ
-proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
-proc infer*(self: Suite, env: TypeEnv): Value =
-    if self.stmts.len == 0:
-        return Value.Unit
-    env.enter(self.scope):
-        for s in self.stmts[0..^2]:
-            discard s.infer(env)
-            # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
-        result = self.stmts[^1].infer(env)
-    env.resolveRelationsPartially()
-proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
-    let
-        cond = self.cond.infer(env, global)
-    env.coerce(cond == Value.Bool)
-    self.suite.infer(env)
 proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     let
         syms = env.lookupId(self.name)
@@ -62,8 +54,6 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         let
             tv = Value.Var(env)
             elements = self.exprs.mapIt(it.infer(env, global))
-        debug self.loc
-        debug elements
         for t in elements:
             env.coerce(t <= tv)
         Value.Array(tv)
@@ -154,8 +144,6 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
             let res = Value.Var(env)
             self.ident.typ = res
             res
-    of PatternKind.Dot:
-        Value.Unit # TODO:
     of PatternKind.Tuple:
         self.patterns.mapIt(it.infer(env, global, asign)).foldl(Value.Pair(a, b))
     of PatternKind.Record:
@@ -199,8 +187,6 @@ proc addPatL(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool
         # TODO: index
         let sym = Symbol.Let(pat.ident, pat.typ, impl, global)
         env.addIdent(sym)
-    of PatternKind.Dot:
-        discard # TODO:
     of PatternKind.Tuple:
         for pat in pat.patterns:
             env.addPatL(impl, pat, global)
@@ -217,8 +203,6 @@ proc addPatV(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool
         # TODO: index
         let sym = Symbol.Var(pat.ident, pat.typ, impl, global)
         env.addIdent(sym)
-    of PatternKind.Dot:
-        discard # TODO:
     of PatternKind.Tuple:
         for pat in pat.patterns:
             env.addPatV(impl, pat, global)
@@ -251,8 +235,6 @@ proc addParam(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat,
             let sym = Symbol.Param(pat.ident, typ, impl, global)
             pat.ident.typ = typ
             env.addIdent(sym)
-        of PatternKind.Dot:
-            discard # TODO:
         of PatternKind.Tuple:
             assert typ.kind == ValueKind.Pair
             for (pat, typ) in pat.patterns.zip(typ.PairToSeq):
@@ -279,7 +261,7 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
             )
         rety = fn.param.rety.map(it => it.eval(env, global)).get(Value.Unit)
         fnty = Value.Pi(implicit, paramty, rety)
-        sym = Symbol.Func(fn.id, fnty, global)
+        sym = Symbol.Func(fn.id, fnty, fn, global)
     env.addIdent(sym)
     fn.id.typ = fnty
     if fn.metadata.isSome:
@@ -393,6 +375,20 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         self.expression.infer(env, global)
     of StatementKind.Fail:
         Value.Unit
+proc infer*(self: Suite, env: TypeEnv): Value =
+    if self.stmts.len == 0:
+        return Value.Unit
+    env.enter(self.scope):
+        for s in self.stmts[0..^2]:
+            discard s.infer(env)
+            # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
+        result = self.stmts[^1].infer(env)
+    env.resolveRelationsPartially()
+proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
+    let
+        cond = self.cond.infer(env, global)
+    env.coerce(cond == Value.Bool)
+    self.suite.infer(env)
 proc infer*(self: Program, env: TypeEnv): Value =
     if self.stmts.len == 0:
         return Value.Unit
@@ -411,7 +407,6 @@ proc infer*(self: Program, env: TypeEnv): Value =
         debug e.tv.lb
         debug e.tv.ub
 
-proc check(self: Suite, env: TypeEnv)
 proc check(self: Ident, env: TypeEnv) =
     if self.typ.symbol.isNone:
         if self.typ.kind == ValueKind.Intersection:
@@ -426,14 +421,29 @@ proc check(self: Pattern, env: TypeEnv) =
         discard
     of PatternKind.Ident:
         discard
-    of PatternKind.Dot:
-        discard
     of PatternKind.Tuple:
         discard
     of PatternKind.Record:
         discard
     of PatternKind.UnderScore:
         discard
+
+proc check(self: Statement, env: TypeEnv)
+proc check(self: Suite, env: TypeEnv) =
+    env.enter(self.scope):
+        if self.isFailed:
+            # TODO: Suite have to have parameter `loc`
+            env.errs.add TypeError.NoSuite(self.loc)
+            return
+        for s in self.stmts[0..^2]:
+            s.check(env)
+            if s.typ != Value.Unit:
+                env.errs.add TypeError.Discard(s)
+        self.stmts[^1].check(env)
+proc check(self: Function, env: TypeEnv) =
+    # TODO: check params
+    if self.suite.isSome:
+        self.suite.get.check(env)
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
     # TODO: invalid
@@ -480,6 +490,36 @@ proc check(self: Expression, env: TypeEnv) =
         self.callee.check(env)
         for arg in self.args:
             arg.check(env)
+        let
+            calleety = self.callee.typ
+            args = self.args.mapIt(it.typ)
+            genty = self.callee.typ.symbol.get.decl_funcdef.param.implicit.mapIt(it.id)
+            instances = self.callee.typ.instances
+            typdefs = self.callee.typ.symbol.get.decl_funcdef.param.params
+        if genty.len > 0:
+            # monomorphization
+            if calleety notin calleety.symbol.get.instances:
+                let
+                    inst = self.callee.typ.symbol.get.decl_funcdef.implInst
+                    scope = env.scope
+                env.scope = inst.param.scope
+                for i in 0..<genty.len:
+                    let
+                        id = genty[i]
+                        typ = instances[i]
+                        typedef = newTypedef(
+                            id,
+                            none(seq[GenTypeDef]),
+                            TypeExpression.Expr(Expression.Id($typ))
+                        )
+                        sym = Symbol.Typ(id, typ, typedef, false)
+                    env.addIdent(sym)
+                env.scope = scope
+                let fn = Statement.Funcdef(inst)
+                discard fn.infer(env, false)
+                env.resolveRelations()
+                fn.check(env) # must be succeded
+                calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
@@ -531,22 +571,6 @@ proc check(self: Statement, env: TypeEnv) =
         self.pat.check(env)
         self.val.check(env)
         # case self.pat.ident
-        proc collectIdent(self: Pattern): seq[Ident] =
-            case self.kind:
-            of PatternKind.Literal:
-                @[]
-            of PatternKind.Ident:
-                @[self.ident]
-            of PatternKind.Dot:
-                # TODO:
-                @[]
-            of PatternKind.Tuple:
-                self.patterns.mapIt(it.collectIdent).flatten
-            of PatternKind.Record:
-                # TODO:
-                @[]
-            of PatternKind.UnderScore:
-                @[]
         for ident in collectIdent(self.pat):
             if ident.typ.symbol.isSome:
                 if ident.typ.symbol.get.kind != SymbolKind.Var:
@@ -557,7 +581,6 @@ proc check(self: Statement, env: TypeEnv) =
                 if not (self.pat.typ <= self.val.typ):
                     let
                         conv = env.lookupConverter(self.val.typ, self.pat.typ)
-                    debug conv
                     if conv.isSome:
                         let
                             ident = conv.get
@@ -585,17 +608,6 @@ proc check(self: Statement, env: TypeEnv) =
         self.expression.check(env)
     of StatementKind.Fail:
         discard
-proc check(self: Suite, env: TypeEnv) =
-    env.enter(self.scope):
-        if self.isFailed:
-            # TODO: Suite have to have parameter `loc`
-            env.errs.add TypeError.NoSuite(self.loc)
-            return
-        for s in self.stmts[0..^2]:
-            s.check(env)
-            if s.typ != Value.Unit:
-                env.errs.add TypeError.Discard(s)
-        self.stmts[^1].check(env)
 proc check*(self: Program, env: TypeEnv) =
     if self.stmts.len == 0:
         return
@@ -710,8 +722,6 @@ proc asign(self: Pattern, val: Value) =
         discard
     of PatternKind.Ident:
         self.ident.typ.symbol.get.val = val
-    of PatternKind.Dot:
-        discard
     of PatternKind.Tuple:
         if val.kind == ValueKind.Pair:
             self.patterns[0].asign(val.first)

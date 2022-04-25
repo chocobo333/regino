@@ -121,8 +121,6 @@ proc coloring(self: Pattern, tokenTypes: seq[string], data: var seq[Color]) =
         self.litval.coloring(tokenTypes, self.loc, data)
     of PatternKind.Ident:
         self.ident.coloring(tokenTypes, data)
-    of PatternKind.Dot:
-        discard
     of PatternKind.Tuple:
         for e in self.patterns:
             e.coloring(tokenTypes, data)

@@ -117,6 +117,8 @@ func fib(n: int) -> int:
 #     4.5
 # echo $(3, 4)
 let
-    a = 5
-echo "Hello world"
-a
+    a = 3
+    b = (3, 4)
+echo a
+echo id a
+0
