@@ -103,15 +103,14 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Ptr:
         Value.Ptr(typ.pointee.inst(env, subs))
     of ValueKind.Pi:
-        let newSubs = subs.merge(
-                typ.implicit.filterIt(it notin subs).mapIt(block:
-                    let v = Value.Var(env)
-                    (it, v)
-                ).toTable
-            )
+        var subs = subs
+        let instances = typ.implicit.mapIt(Value.Var(env))
+        for (e, v) in typ.implicit.zip(instances):
+            subs[e] = v
         Value.Arrow(
-            typ.params.map(it => it.inst(env, newsubs)),
-            typ.rety.inst(env, newsubs)
+            typ.params.map(it => it.inst(env, subs)),
+            typ.rety.inst(env, subs),
+            instances
         )
     of ValueKind.Sum:
         Value.Sum(typ.cons.map(it => it.inst(env, subs)))
@@ -133,6 +132,9 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
                 ).toTable
             )
         typ.rety.inst(env, newSubs)
+    of ValueKind.Lambda:
+        # TODO: think twice later
+        Value.Lambda(typ.l_param, typ.suite)
     of ValueKind.Var:
         typ
     of ValueKind.Gen:
@@ -141,7 +143,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
         else:
             typ
     of ValueKind.Link:
-        Value.Link(typ.inst(env, subs))
+        Value.Link(typ.to.inst(env, subs))
     result.symbol = sym
 
 

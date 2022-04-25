@@ -118,16 +118,7 @@ func fib(n: int) -> int:
 # echo $(3, 4)
 let
     a = 3
-a
-var
-    (a, b) = (3, 5)
-    (b, c) = 5
-b = 4
-let a: float = 5.5
-let c: bool = false
-f
-f a
-a = 3
+    b = (3, 4)
 echo a
-echo f a
-b
+echo id a
+0

@@ -24,8 +24,8 @@ proc GenParam*(_: typedesc[Symbol], id: Ident, val: Value, decl: GenTypeDef): Sy
     let typ = val.typ
     result = Symbol(kind: SymbolKind.GenParam, id: id, val: val, typ: typ, decl_gendef: decl, global: false)
     typ.symbol = some result
-proc Func*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Func, id: id, typ: typ, global: global)
+proc Func*(_: typedesc[Symbol], id: Ident, typ: Value, decl: Function, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Func, id: id, typ: typ, decl_funcdef: decl, global: global)
     typ.symbol = some result
 
 proc empty*(_: typedesc[Symbol]): Symbol = Symbol()
