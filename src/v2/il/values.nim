@@ -48,7 +48,7 @@ proc Distinct*(_: typedesc[Value], base: Value): Value =
 proc Intersection*(_: typedesc[Value], types: HashSet[Value]): Value =
     case types.len
     of 0:
-        # assert false, ""
+        assert false, ""
         Value.Unit
     of 1:
         toSeq(types.items)[0]
