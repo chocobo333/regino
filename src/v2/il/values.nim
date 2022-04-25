@@ -35,8 +35,8 @@ proc Ptr*(_: typedesc[Value], pointee: Value): Value =
     Value(kind: ValueKind.Ptr, pointee: pointee)
 proc Pi*(_: typedesc[Value], implicit: seq[GenericType], params: seq[Value], rety: Value): Value =
     Value(kind: ValueKind.Pi, implicit: implicit, params: params, rety: rety)
-proc Arrow*(_: typedesc[Value], params: seq[Value], rety: Value): Value =
-    Value(kind: ValueKind.Pi, implicit: @[], params: params, rety: rety)
+proc Arrow*(_: typedesc[Value], params: seq[Value], rety: Value, instances: seq[Value] = @[]): Value =
+    Value(kind: ValueKind.Pi, implicit: @[], params: params, rety: rety, instances: instances)
 proc Sum*(_: typedesc[Value], cons: Table[Ident, Value]): Value =
     Value(kind: ValueKind.Sum, cons: cons)
 proc trait*(_: typedesc[Value], paty: (Pattern, Value), iss: seq[(Pattern, Value)], fns: seq[Function]): Value =
