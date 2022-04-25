@@ -93,9 +93,9 @@ proc `<=`(self: TypeEnv, t1, t2: Value): bool =
         of ValueKind.Distinct:
             false
         of ValueKind.Intersection:
-            false
+            t1.types.anyIt(self.`<=`(it, t2))
         of ValueKind.Union:
-            false
+            t1.types.allIt(self.`<=`(it, t2))
         of ValueKind.Cons:
             false
         of ValueKind.Lambda:
@@ -115,6 +115,14 @@ proc `<=`(self: TypeEnv, t1, t2: Value): bool =
             true
         elif t2.kind == ValueKind.Bottom:
             false
+        elif t1.kind == ValueKind.Intersection:
+            t1.types.anyIt(self.`<=`(it, t2))
+        elif t2.kind == ValueKind.Intersection:
+            t2.types.allIt(self.`<=`(t1, it))
+        elif t1.kind == ValueKind.Union:
+            t1.types.allIt(self.`<=`(it, t2))
+        elif t2.kind == ValueKind.Union:
+            t2.types.anyIt(self.`<=`(t1, it))
         elif t1.kind == ValueKind.Var:
             (t1, t2) in self.order
         elif t2.kind == ValueKind.Var:
