@@ -193,8 +193,6 @@ macro coerce(self: RegionEnv, rel: untyped): untyped =
         newEmptyNode()
 
 proc resolve*(self: RegionEnv, r1, r2: Region) =
-    debug r1
-    debug r2
     template `<=`(r1, r2: Region): untyped =
         self.`<=`(r1, r2)
     # if r1 <= r2:
@@ -328,7 +326,6 @@ proc resolve*(self: RegionEnv) =
                 self.collapse(cycle)
     for e in self.order.sort:
         self.resolve(e)
-    debug self.constraints
 
 
 proc hasRegion(self: Value): bool =
@@ -488,6 +485,7 @@ proc infer(self: Expression, env: RegionEnv, suite: Region) =
         self.callee.infer(env, suite)
         for e in self.args:
             e.infer(env, suite)
+        debug self.callee.typ.symbol.get.constraints
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
@@ -581,6 +579,7 @@ proc infer(self: Function, env: RegionEnv, suite: Region) =
     env.order.dot(fmt"src/v2/sema/region/graphs/f{f}.md")
     inc f
     env.resolve
+    self.id.typ.symbol.get.constraints = env.constraints
 
 proc infer(self: Program, env: RegionEnv) =
     for s in self.stmts:
@@ -629,6 +628,7 @@ let
     a = 3
     b = "abc"
 a = 5
+echo f("ff")
 (a, b)
 """
         program = Program(Source.from(src)).get

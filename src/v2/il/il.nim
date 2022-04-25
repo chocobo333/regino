@@ -377,6 +377,7 @@ type
             decl_gendef*: GenTypeDef
         of SymbolKind.Func:
             decl_funcdef*: Function
+            constraints*: seq[(Region, Region)]
         global*: bool
         val*: Value
         typ*: Value
