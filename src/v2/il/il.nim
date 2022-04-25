@@ -30,6 +30,7 @@ type
     Statement* = ref StatementObject
     StatementObject = object
         loc*: Location
+        typ*: Value
         case kind*: StatementKind
         of StatementKind.Loop:
             label*: Option[Ident]
@@ -375,13 +376,13 @@ type
         case kind*: SymbolKind
         of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const, SymbolKind.Param:
             decl_iddef*: IdentDef
-            region*: Region
         of SymbolKind.Typ:
             decl_typedef*: TypeDef
         of SymbolKind.GenParam:
             decl_gendef*: GenTypeDef
         of SymbolKind.Func:
             decl_funcdef*: Function
+            constraints*: seq[(Region, Region)]
         global*: bool
         val*: Value
         typ*: Value
@@ -406,16 +407,15 @@ type
             nil
         of RegionKind.Global:
             nil
-        of RegionKind.Param:
-            nth*: Natural
-        of RegionKind.Return:
-            nil
         of RegionKind.Suite:
             parent*: Region
             # val: LValue
-        of RegionKind.Var:
+        of RegionKind.Param, RegionKind.Return, RegionKind.Var:
+            nth*: Natural
+            id*: RegionId
             lb*: Region # indeed, it's true that this is upper bound.
         of RegionKind.Link:
             to*: Region
+    RegionId = int
 
     Region* = ref RegionObject

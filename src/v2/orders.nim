@@ -2,9 +2,11 @@
 import relations
 import strformat
 import sequtils
+import strutils
 import tables
 import options
 import sugar
+import sets
 
 import utils
 
@@ -25,6 +27,9 @@ proc contains*[T](self: Order[T], val: (T, T)): bool =
 proc add*[T](self: var Order[T], val: (T, T)) =
     self.primal[val[0]] = val[1]
     self.dual[val[1]] = val[0]
+proc remove*[T](self: var Order[T], val: (T, T)) =
+    self.primal.remove(val)
+    self.dual.remove((val[1], val[0]))
 proc `$`*[T](self: Order[T]): string =
     if self.primal.len == 0:
         result = "{}"
@@ -35,6 +40,22 @@ proc `$`*[T](self: Order[T]): string =
                 result.add fmt"{key} < {val}, "
         result = result[0..^3]
         result.add("}")
+proc clear*[T](self: var Order[T], key: T): (HashSet[T], HashSet[T]) {.discardable.} =
+    let a =
+        if key in self.dual:
+            self.dual[key]
+        else:
+            initHashSet[T]()
+    let b =
+        if key in self.primal:
+            self.primal[key]
+        else:
+            initHashSet[T]()
+    result = (a, b)
+    for e in result[0]:
+        self.remove((e, key))
+    for e in result[1]:
+        self.remove((key, e))
 proc sort*[T](self: Order[T]): seq[T] =
     var indegree = initTable[T, int]()
     for key in self.primal.keys:
@@ -46,7 +67,7 @@ proc sort*[T](self: Order[T]): seq[T] =
         for e in indegree.filter(it => it == 0).keys:
             result.add e
             if e in self.primal:
-                for ee in self.primal[e]:
+                for ee in self.primal[e].items:
                     indegree[ee] = indegree[ee] - 1
             indegree.del(e)
 
@@ -74,3 +95,32 @@ proc path*[T](self: Order[T], t1, t2: T): Option[seq[(T, T)]] =
                 some((t1, t) & shortest)
         else:
             none(seq[(T, T)])
+
+proc nodes*[T](self: Order[T]): HashSet[T] =
+    let
+        a = toSeq(self.primal.keys).toHashSet
+        b = toSeq(self.dual.keys).toHashSet
+    result = initHashSet[T]()
+    for e in a.items:
+        result.incl e
+    for e in b.items:
+        result.incl e
+proc dot*[T](self: Order[T]): string =
+    result.add "node [\n  shape = none\n];\n"
+    result.add "edge [\n  dir = back\n];\n"
+    for n in self.nodes.items:
+        result.add &"{n}\n"
+    for key in self.dual.keys:
+        for v in self.dual[key].items:
+            result.add &"{key} -> {v}\n"
+    result = result[0..^2]
+    result = result.indent(2)
+    result = &"digraph order {{\n{result}\n}}"
+
+proc dot*[T](self: Order[T], filename: string) =
+    let
+        f = open(filename, FileMode.fmWrite)
+        s = &"```dot\n{self.dot}\n```"
+    defer:
+        close f
+    f.write(s)

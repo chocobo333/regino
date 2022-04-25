@@ -25,6 +25,12 @@ proc `[]=`*[A, B](self: var Relation[A, B], a: A, b: B) =
 proc incl*[A, B](self: Relation[A, B], val: (A, B)) =
     let (a, b) = val
     self[a] = b
+proc remove*[A, B](self: var Relation[A, B], val: (A, B)) =
+    let (a, b) = val
+    if a in self:
+        self[a].excl(b)
+        if self[a].len == 0:
+            self.del(a)
 
 proc `$`*[A, B](self: Relation[A, B]): string =
     if self.len == 0:
