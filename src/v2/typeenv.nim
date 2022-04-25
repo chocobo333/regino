@@ -21,6 +21,7 @@ type
         tvconstraints*: seq[Constraint]
         interconstraints*: seq[Constraint]
         errs*: seq[TypeError]
+        order*: Order[Value]
     Constraint* = (Value, Value)   # for t1 <= t2
 
 proc hash*(self: Constraint): Hash =
