@@ -301,6 +301,7 @@ type
         Intersection
         Union
         Cons
+        Lambda
         Var
         Gen
         Link
@@ -330,6 +331,7 @@ type
             pointee*: Value
         of ValueKind.Pi, ValueKind.Cons:
             implicit*: seq[GenericType]
+            instances*: seq[Value] # instances of implicit parameters
             params*: seq[Value] # not concerned with `Cons`
             rety*: Value
         of ValueKind.Sum:
@@ -340,6 +342,9 @@ type
             fns*: seq[Function]
         of ValueKind.Intersection, ValueKind.Union:
             types*: HashSet[Value]
+        of ValueKind.Lambda:
+            l_param*: seq[Ident]
+            suite*: Suite
         of ValueKind.Var:
             tv*: TypeVar
         of ValueKind.Gen:
@@ -384,7 +389,7 @@ type
         use*: seq[Location]
         instances*: Table[Value, Impl]
     Impl* = ref object
-        # instance*: Option[Statement]
+        instance*: Option[Function]
         lty*: llvm.Type
         val*: llvm.Value
 

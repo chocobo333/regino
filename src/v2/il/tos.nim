@@ -404,6 +404,9 @@ proc `$`*(self: Value): string =
         let
             imp = self.implicit.map(`$$`).join(", ")
         fmt"[{imp}]{self.rety}"
+    of ValueKind.Lambda:
+        let params = self.l_param.join(", ")
+        &"lambda {params}: \n{self.suite}"
     of ValueKind.Var:
         $self.tv
     of ValueKind.Gen:
