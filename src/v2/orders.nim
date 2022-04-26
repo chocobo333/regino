@@ -85,7 +85,7 @@ proc SCC*[T](self: Order[T]): seq[seq[T]] =
         visited: HashSet[T]
         order: seq[T]
         ret: seq[seq[T]] = @[]
-    
+
     proc ordering(self: Order[T], node: T) =
         if node in visited:
             return
@@ -156,10 +156,10 @@ proc dot*[T](self: Order[T]): string =
     result.add "node [\n  shape = none\n];\n"
     result.add "edge [\n  dir = back\n];\n"
     for n in self.nodes.items:
-        result.add &"{n}\n"
+        result.add &"\"{n}\"\n"
     for key in self.dual.keys:
         for v in self.dual[key].items:
-            result.add &"{key} -> {v}\n"
+            result.add &"\"{key}\" -> \"{v}\"\n"
     result = result[0..^2]
     result = result.indent(2)
     result = &"digraph order {{\n{result}\n}}"
@@ -175,7 +175,7 @@ proc dot*[T](self: Order[T], filename: string) =
 when isMainModule:
     var
         order: Order[int] = newOrder[int]()
-    
+
     order.add((1, 2))
     order.add((2, 3))
     order.add((3, 1))
