@@ -30,7 +30,7 @@ proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
         self.order.add (e, target)
     for e in outs.filter(it => (it != target)):
         self.order.add (target, e)
-        
+
 proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
     # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
     # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
@@ -44,12 +44,12 @@ proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
     var collapsed: Value
 
     if concretes.len >= 1:
-    
+
         if concretes.len >= 2:
             env.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
-    
+
         collapsed = concretes[0]
-    
+
         for n in scc.filterIt(it != collapsed):
             if n.kind == ValueKind.Var:
                 env.bindtv(n, Value.Link(collapsed))
@@ -200,28 +200,43 @@ proc glb(self: TypeEnv, t1, t2: Value): Value =
     self.simplify(Value.Intersection(t1, t2))
 
 when isMainModule:
-    var
-        scope = newScope()
-        env = newTypeEnv(scope)
-        a = Value.Var(env)
-        b = Value.Var(env)
-        c = Value.Var(env)
+    # var
+    #     scope = newScope()
+    #     env = newTypeEnv(scope)
+    #     a = Value.Var(env)
+    #     b = Value.Var(env)
+    #     c = Value.Var(env)
 
-    env.order.add (Value.Float, Value.String)
-    env.order.add (Value.Integer, Value.Float)
-    env.order.add (Value.Float, b)
-    env.order.add (b, Value.Integer)
-    env.order.add (b, a)
-    env.order.add (a, c)
-    env.order.add (c, a)
+    # env.order.add (Value.Float, Value.String)
+    # env.order.add (Value.Integer, Value.Float)
+    # env.order.add (Value.Float, b)
+    # env.order.add (b, Value.Integer)
+    # env.order.add (b, a)
+    # env.order.add (a, c)
+    # env.order.add (c, a)
 
-    debug env.order.primal
-    debug env.order.dual
+    # debug env.order.primal
+    # debug env.order.dual
 
+    # env.order.dot("./dot.md")
+
+    # env.resolve()
+
+    # env.order.dot("./dot2.md")
+
+    # debug env.errs
+    import eval
+    import scopes
+    import ../parsers
+
+    let
+        f = open("test/test05.rgn")
+        s = f.readAll
+        program = Program(Source.from(s)).get
+        mainScope = program.setScope
+        env = newTypeEnv(mainScope)
+    for s in program.stmts:
+        discard s.infer(env)
     env.order.dot("./dot.md")
-
-    env.resolve()
-
+    env.resolve
     env.order.dot("./dot2.md")
-
-    debug env.errs
