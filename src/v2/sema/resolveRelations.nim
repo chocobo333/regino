@@ -25,39 +25,44 @@ proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
     assert v2.kind != ValueKind.Var
     let (ins, outs) = self.order.clear(v1)
     v1[] = v2[]
-    for e in ins.filter(it => (it != v2)):
-        self.order.add (e, v2)
-    for e in outs.filter(it => (it != v2)):
-        self.order.add (v2, e)
+    let target = if v2.kind == ValueKind.Link: v2.to else: v2
+    for e in ins.filter(it => (it != target)):
+        self.order.add (e, target)
+    for e in outs.filter(it => (it != target)):
+        self.order.add (target, e)
         
 proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
     # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
     # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
     # ohterwise, idk.
+    debug scc
+
     if scc.len == 1: return scc[0]
 
     let concretes = scc.filterIt(it.kind != ValueKind.Var)
 
     var collapsed: Value
 
-    if concretes.len >= 2:
-        env.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
+    if concretes.len >= 1:
+    
+        if concretes.len >= 2:
+            env.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
+    
         collapsed = concretes[0]
+    
         for n in scc.filterIt(it != collapsed):
             if n.kind == ValueKind.Var:
-                env.bindtv(n, collapsed)
+                env.bindtv(n, Value.Link(collapsed))
             else:
                 let (ins, outs) = env.order.clear(n)
                 for e in ins.filter(it => (it != collapsed)):
                     env.order.add (e, collapsed)
                 for e in outs.filter(it => (it != collapsed)):
                     env.order.add (collapsed, e)
-        return collapsed
-
-
-    collapsed = if concretes.len == 1: concretes[0] else: Value.Var(env)
-    for v in scc.filterIt(it.kind == ValueKind.Var):
-        env.bindtv(v, collapsed)
+    else:
+        collapsed = Value.Var(env)
+        for n in scc.filterIt(it != collapsed):
+            env.bindtv(n, Value.Link(collapsed))
 
     collapsed
 
@@ -71,11 +76,12 @@ proc resolve*(env: TypeEnv, v: Value) =
     # if v is of intersection type, simplify it.
     discard
 proc resolve*(self: TypeEnv) =
+    for constraint in self.constraints:
+        self.order.add constraint
+
     var sorted: seq[Value] = @[]
     for scc in self.order.SCC:
         sorted.add self.collapse(scc)
-    
-    
 
 
 
@@ -192,3 +198,30 @@ proc Intersection*(_: typedesc[Value], t1, t2: Value): Value =
         res.incl t2
 proc glb(self: TypeEnv, t1, t2: Value): Value =
     self.simplify(Value.Intersection(t1, t2))
+
+when isMainModule:
+    var
+        scope = newScope()
+        env = newTypeEnv(scope)
+        a = Value.Var(env)
+        b = Value.Var(env)
+        c = Value.Var(env)
+
+    env.order.add (Value.Float, Value.String)
+    env.order.add (Value.Integer, Value.Float)
+    env.order.add (Value.Float, b)
+    env.order.add (b, Value.Integer)
+    env.order.add (b, a)
+    env.order.add (a, c)
+    env.order.add (c, a)
+
+    debug env.order.primal
+    debug env.order.dual
+
+    env.order.dot("./dot.md")
+
+    env.resolve()
+
+    env.order.dot("./dot2.md")
+
+    debug env.errs
