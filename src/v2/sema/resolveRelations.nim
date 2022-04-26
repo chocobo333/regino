@@ -12,19 +12,71 @@ import ../orders
 import ../errors
 import ../utils
 
-type Graph = Table[Value, seq[Value]]
+proc bindtv*(self: TypeEnv, v: Value) =
+    assert v.kind == ValueKind.Var
+    let (ins, outs) = self.order.clear(v)
+    v[] = v.tv.ub[]
+    for e in ins:
+        self.order.add (e, v)
+    for e in outs:
+        self.order.add (v, e)
+proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
+    assert v1.kind == ValueKind.Var
+    assert v2.kind != ValueKind.Var
+    let (ins, outs) = self.order.clear(v1)
+    v1[] = v2[]
+    for e in ins.filter(it => (it != v2)):
+        self.order.add (e, v2)
+    for e in outs.filter(it => (it != v2)):
+        self.order.add (v2, e)
+        
+proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
+    # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
+    # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
+    # ohterwise, idk.
+    if scc.len == 1: return scc[0]
+
+    let concretes = scc.filterIt(it.kind != ValueKind.Var)
+
+    var collapsed: Value
+
+    if concretes.len >= 2:
+        env.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
+        collapsed = concretes[0]
+        for n in scc.filterIt(it != collapsed):
+            if n.kind == ValueKind.Var:
+                env.bindtv(n, collapsed)
+            else:
+                let (ins, outs) = env.order.clear(n)
+                for e in ins.filter(it => (it != collapsed)):
+                    env.order.add (e, collapsed)
+                for e in outs.filter(it => (it != collapsed)):
+                    env.order.add (collapsed, e)
+        return collapsed
 
 
-proc resolve*(env: TypeEnv, v: Value) =
+    collapsed = if concretes.len == 1: concretes[0] else: Value.Var(env)
+    for v in scc.filterIt(it.kind == ValueKind.Var):
+        env.bindtv(v, collapsed)
+
+    collapsed
+
+proc resolve*(env: TypeEnv, v1: Value, v2: Value) =
+    # i can assume v1 is not type value
+    # if both of v1 and v2 are not type value, check v1 <= v2.
+    # if v2 is type type value, update v2's upper bound by glb(v1, v2.tv.ub)
     discard
+proc resolve*(env: TypeEnv, v: Value) =
+    # if v is type value, bind it into its upper bound
+    # if v is of intersection type, simplify it.
+    discard
+proc resolve*(self: TypeEnv) =
+    var sorted: seq[Value] = @[]
+    for scc in self.order.SCC:
+        sorted.add self.collapse(scc)
+    
+    
 
-proc resolve*(env: TypeEnv) =
-    var graph: Graph
-    for (target, source) in env.constraints:
-        if source in graph:
-            graph[source].add target
-        else:
-            graph[source] = @[target]
 
 
 proc `<=`(t1, t2: Value): bool {.error.}
