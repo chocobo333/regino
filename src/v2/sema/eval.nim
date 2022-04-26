@@ -74,7 +74,18 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             env.coerce(elset.get <= tv)
         tv
     of ExpressionKind.When:
-        Value.Unit
+        let
+            conds = self.elifs.mapIt(it.cond.infer(env, global))
+            thens = self.elifs.mapIt(it.suite.infer(env))
+            elset = self.elseb.map(it => it.infer(env))
+            tv = Value.Var(env)
+        for cond in conds:
+            env.coerce(cond == Value.Bool)
+        for t in thens:
+            env.coerce(t <= tv)
+        if elset.isSome:
+            env.coerce(elset.get <= tv)
+        tv
     of ExpressionKind.Case:
         Value.Unit
     of ExpressionKind.Call, ExpressionKind.Command:
@@ -333,24 +344,26 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 id = typedef.id
                 params = typedef.params
                 typ = typedef.typ
+                tv = Value.Var(env)
+                sym = Symbol.Typ(id, tv, typedef, global)
+            env.addIdent(sym)
             if params.isNone:
                 # TODO: infer and check
                 let _ = typ.infer(env)
                 # typ.check(env)
                 let
                     typ = typ.eval(env, global)
-                    sym = Symbol.Typ(id, typ, typedef, global)
-                env.addIdent(sym)
+                env.bindtv(tv, typ)
             else:
                 let scope = newScope(env.scope)
-                var sym: Symbol
                 env.enter scope:
                     let implicit = params.get.mapIt(it.infer(env, global))
                     let
                         _ = typ.infer(env)
                         typ = typ.eval(env, global)
-                    sym = Symbol.Typ(id, Value.Cons(implicit, typ), typedef, global)
-                env.addIdent(sym)
+                    debug typ
+                    env.bindtv(tv, Value.Cons(implicit, typ))
+                    debug typ
         Value.Unit
     of StatementKind.Asign:
         let
@@ -621,7 +634,7 @@ proc check*(self: Program, env: TypeEnv) =
 proc eval*(self: Literal): Value =
     Value.literal(self)
 proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
-    case self.kind
+    result = case self.kind
     of TypeExpressionKind.Object:
         Value.Unit
     of TypeExpressionKind.Sum:
@@ -642,6 +655,8 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of TypeExpressionKind.Expression:
         self.expression.eval(env, global)
+    if self.isRef:
+        result = Value.Ptr(result)
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     discard self.infer(env, global)
     case self.kind

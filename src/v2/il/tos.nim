@@ -342,7 +342,7 @@ proc `$`*(self: Value): string =
     of ValueKind.Bottom:
         "Bottom"
     of ValueKind.Unit:
-        "Unit"
+        "()"
     of ValueKind.Bool:
         "bool"
     of ValueKind.Integer:
@@ -389,7 +389,11 @@ proc `$`*(self: Value): string =
                     fmt"({params})"
         fmt"{imp}{params} -> {self.rety}"
     of ValueKind.Sum:
-        "Sum"
+        var res = "variant\n"
+        for (id, val) in self.cons.pairs:
+            res.add &"  {id}{val}\n"
+        res = res[0..^2]
+        res
     of ValueKind.Trait:
         "Trait"
     of ValueKind.Singleton:

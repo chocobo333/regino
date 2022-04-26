@@ -378,10 +378,6 @@ proc resolveRelations*(self: TypeEnv) =
                 (t1, t2) = self.constraints.pop
             self.resolveRelation(t1, t2)
 
-        debug self.constraints
-        debug self.tvconstraints
-        debug self.interconstraints
-
         var
             ord = newOrder[Value]()
             f = false
