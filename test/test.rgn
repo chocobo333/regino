@@ -24,6 +24,7 @@
 # type
 #     ptr[T] = typeof(malloc(T, 1))
 # type
+#     Magma = trait (T, op): ([T], func(T, T) -> T)
 #     Magma = trait (T, op): (Type, func(T, T) -> T)
 #     SemiGroup = trait (T, op): (Type, func(T, T) -> T) with
 #         prop associtive(x, y, z: T) -> op(x, op(y, z)) == op(op(x, y), z)

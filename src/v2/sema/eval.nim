@@ -244,7 +244,6 @@ proc addParam(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat,
         of PatternKind.Ident:
             # TODO: index
             let sym = Symbol.Param(pat.ident, typ, impl, global)
-            pat.ident.typ = typ
             env.addIdent(sym)
         of PatternKind.Tuple:
             assert typ.kind == ValueKind.Pair
@@ -361,9 +360,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                     let
                         _ = typ.infer(env)
                         typ = typ.eval(env, global)
-                    debug typ
-                    env.bindtv(tv, Value.Cons(implicit, typ))
-                    debug typ
+                    env.bindtv(tv, Value.Family(implicit, typ))
         Value.Unit
     of StatementKind.Asign:
         let
@@ -705,12 +702,12 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         let
             val = self.callee.eval(env, global)
         case val.kind:
-        of ValueKind.Pi, ValueKind.Cons:
+        of ValueKind.Pi, ValueKind.Family:
             let subs = zip(val.implicit, self.args.mapIt(it.eval(env))).toTable
             val.inst(env, subs)
         else:
             # TODO: ituka
-            Value.Unit
+            Value.Cons(val, self.args.mapIt(it.eval(env)))
     of ExpressionKind.Binary:
         Value.Unit
     of ExpressionKind.Prefix:

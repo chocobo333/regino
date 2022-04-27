@@ -113,7 +113,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
             instances
         )
     of ValueKind.Sum:
-        Value.Sum(typ.cons.map(it => it.inst(env, subs)))
+        Value.Sum(typ.constructors.map(it => it.inst(env, subs)))
     of ValueKind.Trait:
         Value.trait(
             (typ.paty[0], typ.paty[1].inst(env, subs)),
@@ -124,7 +124,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
         Value.Intersection(typ.types.map(it => it.inst(env, subs)))
     of ValueKind.Union:
         Value.Union(typ.types.map(it => it.inst(env, subs)))
-    of ValueKind.Cons:
+    of ValueKind.Family:
         let newSubs = subs.merge(
                 typ.implicit.filterIt(it notin subs).mapIt(block:
                     let v = Value.Var(env)
@@ -135,6 +135,8 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Lambda:
         # TODO: think twice later
         Value.Lambda(typ.l_param, typ.suite)
+    of ValueKind.Cons:
+        Value.Cons(typ.constructor.inst(env, subs), typ.args.mapIt(it.inst(env, subs)))
     of ValueKind.Var:
         typ
     of ValueKind.Gen:

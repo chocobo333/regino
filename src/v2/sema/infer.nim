@@ -134,8 +134,10 @@ proc bindtv*(self: TypeEnv, t1, t2: Value) =
             t1[] = t2[]
         else:
             let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
+            let ident = if t1.ident.isSome: t1.ident else: t2.ident
             t1[] = t2[]
             t1.symbol = symbol
+            t1.ident = ident
 proc simplify*(self: TypeEnv, t: Value): Value {.discardable.} =
     setTypeEnv(self)
     result = t

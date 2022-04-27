@@ -336,6 +336,8 @@ proc `$$`*(self: GenericType): string =
     let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {self.ub}" else: ""
     fmt"{self.ident.name}{ub}"
 proc `$`*(self: Value): string =
+    if self.ident.isSome:
+        return self.ident.get.name
     result = case self.kind
     of ValueKind.Literal:
         $self.litval
@@ -388,9 +390,13 @@ proc `$`*(self: Value): string =
                     let params = self.params.join(", ")
                     fmt"({params})"
         fmt"{imp}{params} -> {self.rety}"
+    of ValueKind.Family:
+        let
+            imp = self.implicit.map(`$$`).join(", ")
+        fmt"[{imp}]{self.rety}"
     of ValueKind.Sum:
         var res = "variant\n"
-        for (id, val) in self.cons.pairs:
+        for (id, val) in self.constructors.pairs:
             res.add &"  {id}{val}\n"
         res = res[0..^2]
         res
@@ -404,13 +410,13 @@ proc `$`*(self: Value): string =
         toSeq(self.types).join("^")
     of ValueKind.Union:
         toSeq(self.types).join"\/"
-    of ValueKind.Cons:
-        let
-            imp = self.implicit.map(`$$`).join(", ")
-        fmt"[{imp}]{self.rety}"
     of ValueKind.Lambda:
         let params = self.l_param.join(", ")
         &"lambda {params}: \n{self.suite}"
+    of ValueKind.Cons:
+        let
+            args = self.args.join", "
+        fmt"{self.constructor}[{args}]"
     of ValueKind.Var:
         $self.tv
     of ValueKind.Gen:
