@@ -200,6 +200,25 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     # typ
 
 proc `<=`*(t1, t2: Value): bool {.error.}
+proc `<=`*(env: TypeEnv, t1, t2: Value): bool
+proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]]
+template setTypeEnv*(env: TypeEnv): untyped =
+    proc `<=`(t1, t2: Value): bool =
+        env.`<=`(t1, t2)
+    proc `<=?`(t1, t2: Value): Option[seq[Constraint]] =
+        env.`<=?`(t1, t2)
+    # proc `==`(t1, t2: Value): bool =
+    #     t1 <= t2 and t2 <= t1
+proc applicable(self: TypeEnv, id: Ident, v: (Value, Value)): bool =
+    setTypeEnv(self)
+    let
+        (s, d) = v
+        con = id.typ
+        v = Value.Arrow(@[s], d)
+    debug v
+    con == v or con <= v
+
+
 proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
     if t1.kind == ValueKind.Link:
         env.`<=`(t1.to, t2)
@@ -301,7 +320,8 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
         false
     else:
         # env.scope.typeOrder.path(t1, t2).isSome
-        (t1, t2) in env.scope.typeOrder
+        let converters = toSeq(env.scope.converters.keys).filterIt(it[1] == t2)
+        converters.anyIt(env.`<=`(t1, it[0]))
 proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
     proc `<=`(t1, t2: Value): bool =
         env.`<=`(t1, t2)
@@ -365,14 +385,6 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
             some newSeq[Constraint]()
         else:
             none(seq[Constraint])
-
-template setTypeEnv*(env: TypeEnv): untyped =
-    proc `<=`(t1, t2: Value): bool =
-        env.`<=`(t1, t2)
-    proc `<=?`(t1, t2: Value): Option[seq[Constraint]] =
-        env.`<=?`(t1, t2)
-    # proc `==`(t1, t2: Value): bool =
-    #     t1 <= t2 and t2 <= t1
 
 
 proc lub*(self: TypeEnv, t1, t2: Value): Value =
