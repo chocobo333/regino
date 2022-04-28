@@ -107,6 +107,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
         let instances = typ.implicit.mapIt(Value.Var(env))
         for (e, v) in typ.implicit.zip(instances):
             subs[e] = v
+            v.tv.ub = e.ub
         Value.Arrow(
             typ.params.map(it => it.inst(env, subs)),
             typ.rety.inst(env, subs),
