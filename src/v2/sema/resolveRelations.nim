@@ -19,7 +19,8 @@ template setTypeEnv(self: TypeEnv): untyped =
         self.`<=`(t1, t2)
 
 proc applicable(conv: (Value, Value), p: (Value, Value)): bool =
-    false
+    # false
+    true
 proc `<=`(self: TypeEnv, t1, t2: Value): bool =
     setTypeEnv(self)
     if t1.kind == t2.kind:
@@ -270,9 +271,7 @@ proc decideType*(self: TypeEnv, v: Value) =
 
     if self.`<=`(v.tv.lb, v.tv.ub):
         # TODO: OK?
-        let symbol = if v.symbol.isSome: v.symbol else: v.tv.ub.symbol
-        v[] = v.tv.ub[]
-        v.symbol = symbol
+        self.bindtv(v, v.tv.ub)
     else:
         self.errs.add TypeError.Undeciable()
 
@@ -282,17 +281,33 @@ proc resolve*(self: TypeEnv) =
 
     self.order.dot("./dot1.md")
 
-    var sorted: seq[Value] = @[]
-    for scc in self.order.SCC:
-        sorted.add self.collapse(scc)
+    var 
+        isChanged = true
+        sorted: seq[Value]
 
-    self.order.dot("./dot2.md")
+    while isChanged:
+        isChanged = false
+        sorted = @[]
+        
+        for scc in self.order.SCC:
+            sorted.add self.collapse(scc)
 
-    for n in sorted:
-        self.resolve(n, primal=true)
-    
-    for n in sorted.reversed:
-        self.resolve(n, primal=false)
+        self.order.dot("./dot2.md")
+
+        for n in sorted:
+            self.resolve(n, primal=true)
+        
+        for n in sorted.reversed:
+            self.resolve(n, primal=false)
+
+        # for n in sorted.filterIt(it.kind == ValueKind.Var):
+        #     if n.tv.lb.kind == ValueKind.Union or n.tv.ub.kind != ValueKind.Union:
+        #         self.bindtv(n, n.tv.ub)
+        #         isChanged = true
+        #     elif n.tv.lb.kind != ValueKind.Union or n.tv.ub.kind == ValueKind.Union:
+        #         self.bindtv(n, n.tv.lb)
+        #         isChanged = true
+
 
     self.order.dot("./dot3.md")
 
