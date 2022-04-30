@@ -237,8 +237,6 @@ proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool) =
     # i can assume v1 is not type value
     # if both of v1 and v2 are not type value, check v1 <= v2.
     # if v2 is type type value, update v2's upper bound by glb(v1, v2.tv.ub)
-    debug v1
-    debug v2
 
     let 
         v = if v1.kind != ValueKind.Var: v1 else:
@@ -246,15 +244,9 @@ proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool) =
 
     if v2.kind == ValueKind.Var:
         if primal:
-            debug v
-            debug v2.tv.lb
             v2.tv.lb = self.lub(v, v2.tv.lb)
-            debug v2.tv.lb
         else:
-            debug v
-            debug v2.tv.ub
             v2.tv.ub = self.glb(v, v2.tv.ub)
-            debug v2.tv.ub
     else:
         if primal and not self.`<=`(v, v2):
             self.errs.add TypeError.Subtype(v, v2)
