@@ -264,13 +264,29 @@ proc resolve*(self: TypeEnv, v: Value, primal: bool=true) =
     for target in relation[v]:
         self.resolve(v, target, primal)
 
+proc decideType*(self: TypeEnv, v: Value) = 
+    if v.kind != ValueKind.Var:
+        return
+
+    if self.`<=`(v.tv.lb, v.tv.ub):
+        # TODO: OK?
+        let symbol = if v.symbol.isSome: v.symbol else: v.tv.ub.symbol
+        v[] = v.tv.ub[]
+        v.symbol = symbol
+    else:
+        self.errs.add TypeError.Undeciable()
+
 proc resolve*(self: TypeEnv) =
     for constraint in self.constraints:
         self.order.add constraint
 
+    self.order.dot("./dot1.md")
+
     var sorted: seq[Value] = @[]
     for scc in self.order.SCC:
         sorted.add self.collapse(scc)
+
+    self.order.dot("./dot2.md")
 
     for n in sorted:
         self.resolve(n, primal=true)
@@ -278,6 +294,10 @@ proc resolve*(self: TypeEnv) =
     for n in sorted.reversed:
         self.resolve(n, primal=false)
 
+    self.order.dot("./dot3.md")
+
+    for n in sorted.reversed:
+        self.decideType(n)
 
 when isMainModule:
     # var
@@ -310,7 +330,7 @@ when isMainModule:
     import ../parsers
 
     let
-        f = open("test/test05.rgn")
+        f = open("test/unit.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
         mainScope = program.setScope
@@ -318,6 +338,6 @@ when isMainModule:
     for s in program.stmts:
         discard s.infer(env)
     env.resolve
-    env.order.dot("./dot2.md")
 
+    debug env.tvs
     debug env.errs

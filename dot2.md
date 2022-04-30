@@ -6,13 +6,10 @@ digraph order {
   edge [
     dir = back
   ];
-  "(int) -> 'p(Bottom, Unit)"
-  "'o(int, int)"
+  "'b(Bottom, Unit)"
+  "float"
   "int"
-  "(int) -> int"
-  "(Unit) -> 'p(Bottom, Unit)"
-  "int" -> "'o(int, int)"
-  "(int) -> 'p(Bottom, Unit)" -> "(int) -> int"
-  "(int) -> int" -> "(Unit) -> 'p(Bottom, Unit)"
+  "'b(Bottom, Unit)" -> "int"
+  "float" -> "'b(Bottom, Unit)"
 }
 ```
