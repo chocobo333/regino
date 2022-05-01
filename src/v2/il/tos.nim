@@ -400,6 +400,8 @@ proc `$`*(self: Value): string =
         toSeq(self.types).join("^")
     of ValueKind.Union:
         toSeq(self.types).join"\/"
+    of ValueKind.Select:
+        toSeq(self.types).join(" or ")
     of ValueKind.Cons:
         let
             imp = self.implicit.map(`$$`).join(", ")
@@ -412,7 +414,7 @@ proc `$`*(self: Value): string =
     of ValueKind.Gen:
         $self.gt
     of ValueKind.Link:
-        $self.to
+        fmt"~{self.to}"
     if not self.region.isNil:
         result = fmt"({result}, {self.region})"
 
