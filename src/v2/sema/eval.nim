@@ -40,7 +40,11 @@ proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     of 1:
         syms[0].typ.inst(env)
     else:
-        Value.Intersection(syms.mapIt(it.typ.inst(env)))
+        let v = Value.Var(env)
+        v.tv.lb = Value.Select(syms.mapIt(it.typ.inst(env)))
+        v.tv.ub = Value.Select(syms.mapIt(it.typ.inst(env)))
+        v
+        # Value.Intersection(syms.mapIt(it.typ.inst(env)))
     self.typ = result
 proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
     result = case self.kind
@@ -83,7 +87,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             args = self.args.mapIt(it.infer(env, global))
             callee = self.callee.infer(env, global)
         env.coerce(callee <= Value.Arrow(args, tv))
-        env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee.dual) # i dont know whether this is correct.
+        # env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Dot:
         let

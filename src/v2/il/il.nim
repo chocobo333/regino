@@ -300,6 +300,7 @@ type
         Distinct
         Intersection
         Union
+        Select
         Cons
         Lambda
         Var
@@ -340,7 +341,7 @@ type
             paty*: (Pattern, Value)
             iss*: seq[(Pattern, Value)]
             fns*: seq[Function]
-        of ValueKind.Intersection, ValueKind.Union:
+        of ValueKind.Intersection, ValueKind.Union, ValueKind.Select:
             types*: HashSet[Value]
         of ValueKind.Lambda:
             l_param*: seq[Ident]

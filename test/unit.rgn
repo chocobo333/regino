@@ -5,16 +5,21 @@
 ![link: "string.ll"]
 
 type
-  int = typeof(1)
-  float = typeof(1.0)
+  int = typeof(0)
+  float = typeof(0.0)
+  string = typeof("")
 
-func `$`(a: int) -> float ![subtype]:
+func toFloat(a: int) -> float ![subtype]:
   0.0
-# func toFloat(a: int) -> flaot ![subtype]:
-#   0.0
+
+func f(a: float) -> float:
+  1.0
+func f(a: string) -> float:
+  1.0
 
 let
-  a: float
-  b = 1
+  a: float = 1.0
+  b: float
 
-a = b
+b = f(a)
+

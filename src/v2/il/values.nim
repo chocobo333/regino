@@ -60,6 +60,8 @@ proc Union*(_: typedesc[Value], types: seq[Value]): Value =
     Value(kind: ValueKind.Union, types: types.toHashSet)
 proc Union*(_: typedesc[Value], types: HashSet[Value]): Value =
     Value(kind: ValueKind.Union, types: types)
+proc Select*(_: typedesc[Value], types: seq[Value]): Value =
+    Value(kind: ValueKind.Select, types: types.toHashSet)
 proc Cons*(_: typedesc[Value], implicit: seq[GenericType], rety: Value): Value =
     Value(kind: ValueKind.Cons, implicit: implicit, rety: rety)
 proc Lambda*(_: typedesc[Value], l_params: seq[Ident], suite: Suite): Value =
@@ -129,6 +131,8 @@ proc hash*(self: Value): Hash =
             0
         of ValueKind.Union:
             0
+        of ValueKind.Select:
+            0
         of ValueKind.Cons:
             0
         of ValueKind.Lambda:
@@ -173,7 +177,7 @@ proc compilable*(self: Value): bool =
         false
     # of ValueKind.Sigma:
     #     self.first.compilable and self.second.compilable
-    of ValueKind.Intersection, ValueKind.Union:
+    of ValueKind.Intersection, ValueKind.Union, ValueKind.Select:
         false
     of ValueKind.Distinct:
         self.base.compilable
@@ -262,6 +266,8 @@ proc typ*(self: Value): Value =
         Value.Univ
     of ValueKind.Union:
         Value.Univ
+    of ValueKind.Select:
+        Value.Univ
     of ValueKind.Cons:
         Value.Univ
     of ValueKind.Lambda:
@@ -322,6 +328,8 @@ proc `==`*(t1, t2: Value): bool =
         of ValueKind.Intersection:
             t1.types == t2.types
         of ValueKind.Union:
+            t1.types == t2.types
+        of ValueKind.Select:
             t1.types == t2.types
         of ValueKind.Cons:
             t1.implicit == t2.implicit and t1.rety == t2.rety

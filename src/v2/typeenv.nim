@@ -125,6 +125,8 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
         Value.Intersection(typ.types.map(it => it.inst(env, subs)))
     of ValueKind.Union:
         Value.Union(typ.types.map(it => it.inst(env, subs)))
+    of ValueKind.Select:
+        Value.Union(typ.types.map(it => it.inst(env, subs)))
     of ValueKind.Cons:
         let newSubs = subs.merge(
                 typ.implicit.filterIt(it notin subs).mapIt(block:
