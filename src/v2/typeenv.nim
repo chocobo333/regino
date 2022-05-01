@@ -209,14 +209,78 @@ template setTypeEnv*(env: TypeEnv): untyped =
         env.`<=?`(t1, t2)
     # proc `==`(t1, t2: Value): bool =
     #     t1 <= t2 and t2 <= t1
-proc applicable(self: TypeEnv, id: Ident, v: (Value, Value)): bool =
+
+proc `==?`*(t1, t2: Value): bool =
+    if t1.kind == t2.kind:
+        case t1.kind
+        of ValueKind.Literal:
+            t1.litval == t2.litval
+        of ValueKind.Bottom:
+            true
+        of ValueKind.Unit:
+            true
+        of ValueKind.Bool:
+            true
+        of ValueKind.Integer:
+            t1.bits == t2.bits
+        of ValueKind.Float:
+            t1.bits == t2.bits
+        of ValueKind.Char:
+            true
+        of ValueKind.String:
+            true
+        of ValueKind.Pair:
+            t1.first ==? t2.first and t1.second ==? t2.second
+        of ValueKind.Array:
+            t1.base ==? t2.base
+        of ValueKind.ArrayV:
+            true
+        of ValueKind.Record:
+            t1.members == t2.members
+        of ValueKind.Ptr:
+            t1.pointee ==? t2.pointee
+        of ValueKind.Pi:
+            t1.implicit == t2.implicit and
+            t1.params == t2.params and
+            t1.rety ==? t2.rety
+        of ValueKind.Family:
+            t1.implicit == t2.implicit and t1.rety ==? t2.rety
+        of ValueKind.Sum:
+            assert false, "notimplemented"
+            true
+        of ValueKind.Trait:
+            assert false, "notimplemented"
+            true
+        of ValueKind.Singleton:
+            t1.base ==? t2.base
+        of ValueKind.Distinct:
+            t1.base ==? t2.base
+        of ValueKind.Intersection:
+            t1.types == t2.types
+        of ValueKind.Union:
+            t1.types == t2.types
+        of ValueKind.Lambda:
+            t1.l_param == t2.l_param and t1.suite == t2.suite
+        of ValueKind.Cons:
+            t1.constructor == t2.constructor and t1.args.zip(t2.args).allIt(it[0] == it[1])
+        of ValueKind.Var:
+            t1.tv.id == t2.tv.id
+        of ValueKind.Gen:
+            t1.gt == t2.gt
+        of ValueKind.Link:
+            t1.to ==? t2.to
+    else:
+        if t1.kind == ValueKind.Var:
+            discard
+        if t2.kind == ValueKind.Var:
+            discard
+        false
+
+proc path(self: TypeEnv, t1, t2: Value): seq[seq[(Value, Value)]] =
     setTypeEnv(self)
-    let
-        (s, d) = v
-        con = id.typ
-        v = Value.Arrow(@[s], d)
-    debug v
-    con == v or con <= v
+    for (s, d) in self.scope.converters.keys:
+        discard
+    @[]
 
 
 proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
