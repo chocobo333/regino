@@ -181,10 +181,11 @@ proc coloring(self: Statement, tokenTypes: seq[string], data: var seq[Color]) =
             kind = SemanticTokenTypes.comment
             index = tokenTypes.index($kind)
             loc = self.loc
-            line = loc.`range`.a.line
             character = loc.`range`.a.character
-        for (i, c) in self.comments.pairs:
-            data.add (line + i, if i == 0: character else: 0, c.len+1, index, 0)
+        var i = 0
+        for l in (loc.`range`.a.line..loc.`range`.b.line):
+            data.add (l, if i == 0: character else: 0, 0xff, index, 0)
+            inc i
     of StatementKind.Expression:
         self.expression.coloring(tokenTypes, data)
     of StatementKind.Fail:

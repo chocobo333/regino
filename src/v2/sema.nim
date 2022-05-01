@@ -18,8 +18,8 @@ proc sema*(self: Program): seq[TypeError] =
         env = newTypeEnv(mainScope)
         rety = self.infer(env)
     self.check(env)
-    # debug env.errs
-    # debug mainScope
+    debug env.errs
+    debug mainScope
     # evalするとtypがおかしくなる
     # debug self.eval(env)
     env.errs
@@ -29,7 +29,7 @@ when isMainModule:
     import parsers
     import options
     let
-        f = open("test/test.rgn")
+        f = open("test/test04.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
         errs = program.sema

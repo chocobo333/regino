@@ -38,7 +38,7 @@ proc Pi*(_: typedesc[Value], implicit: seq[GenericType], params: seq[Value], ret
 proc Arrow*(_: typedesc[Value], params: seq[Value], rety: Value, instances: seq[Value] = @[]): Value =
     Value(kind: ValueKind.Pi, implicit: @[], params: params, rety: rety, instances: instances)
 proc Sum*(_: typedesc[Value], cons: Table[Ident, Value]): Value =
-    Value(kind: ValueKind.Sum, cons: cons)
+    Value(kind: ValueKind.Sum, constructors: cons)
 proc trait*(_: typedesc[Value], paty: (Pattern, Value), iss: seq[(Pattern, Value)], fns: seq[Function]): Value =
     Value(kind: ValueKind.Trait, paty: paty, iss: iss, fns: fns)
 proc Singleton*(_: typedesc[Value], base: Value): Value =
@@ -62,10 +62,12 @@ proc Union*(_: typedesc[Value], types: HashSet[Value]): Value =
     Value(kind: ValueKind.Union, types: types)
 proc Select*(_: typedesc[Value], types: seq[Value]): Value =
     Value(kind: ValueKind.Select, types: types.toHashSet)
-proc Cons*(_: typedesc[Value], implicit: seq[GenericType], rety: Value): Value =
-    Value(kind: ValueKind.Cons, implicit: implicit, rety: rety)
+proc Family*(_: typedesc[Value], implicit: seq[GenericType], rety: Value): Value =
+    Value(kind: ValueKind.Family, implicit: implicit, rety: rety)
 proc Lambda*(_: typedesc[Value], l_params: seq[Ident], suite: Suite): Value =
     Value(kind: ValueKind.Lambda, l_param: l_params, suite: suite)
+proc Cons*(_: typedesc[Value], constructor: Value, args: seq[Value]): Value =
+    Value(kind: ValueKind.Cons, constructor: constructor, args: args)
 proc Var*(_: typedesc[Value], tv: TypeVar): Value =
     Value(kind: ValueKind.Var, tv: tv)
 proc Gen*(_: typedesc[Value], gen: GenericType): Value =
@@ -119,6 +121,8 @@ proc hash*(self: Value): Hash =
             0
         of ValueKind.Pi:
             0
+        of ValueKind.Family:
+            0
         of ValueKind.Sum:
             0
         of ValueKind.Trait:
@@ -133,9 +137,9 @@ proc hash*(self: Value): Hash =
             0
         of ValueKind.Select:
             0
-        of ValueKind.Cons:
-            0
         of ValueKind.Lambda:
+            0
+        of ValueKind.Cons:
             0
         of ValueKind.Var:
             0
@@ -171,6 +175,8 @@ proc compilable*(self: Value): bool =
         toSeq(self.members.values).all(compilable)
     of ValueKind.Pi:
         self.params.all(compilable) and self.rety.compilable
+    of ValueKind.Family:
+        false
     of ValueKind.Sum:
         false
     of ValueKind.Trait:
@@ -181,10 +187,10 @@ proc compilable*(self: Value): bool =
         false
     of ValueKind.Distinct:
         self.base.compilable
-    of ValueKind.Cons:
-        false
     of ValueKind.Lambda:
         false
+    of ValueKind.Cons:
+        true
     of ValueKind.Link:
         self.to.compilable
     of ValueKind.Var:
@@ -254,6 +260,8 @@ proc typ*(self: Value): Value =
         self.pointee.typ
     of ValueKind.Pi:
         Value.Univ
+    of ValueKind.Family:
+        Value.Univ(1)
     of ValueKind.Sum:
         Value.Univ
     of ValueKind.Trait:
@@ -268,10 +276,10 @@ proc typ*(self: Value): Value =
         Value.Univ
     of ValueKind.Select:
         Value.Univ
-    of ValueKind.Cons:
-        Value.Univ
     of ValueKind.Lambda:
         # TODO: itsuka
+        Value.Univ
+    of ValueKind.Cons:
         Value.Univ
     of ValueKind.Var:
         Value.Univ
@@ -315,6 +323,8 @@ proc `==`*(t1, t2: Value): bool =
             t1.implicit == t2.implicit and
             t1.params == t2.params and
             t1.rety == t2.rety
+        of ValueKind.Family:
+            t1.implicit == t2.implicit and t1.rety == t2.rety
         of ValueKind.Sum:
             assert false, "notimplemented"
             true
@@ -331,10 +341,10 @@ proc `==`*(t1, t2: Value): bool =
             t1.types == t2.types
         of ValueKind.Select:
             t1.types == t2.types
-        of ValueKind.Cons:
-            t1.implicit == t2.implicit and t1.rety == t2.rety
         of ValueKind.Lambda:
             t1.l_param == t2.l_param and t1.suite == t2.suite
+        of ValueKind.Cons:
+            t1.constructor == t2.constructor and t1.args.zip(t2.args).allIt(it[0] == it[1])
         of ValueKind.Var:
             t1.tv.id == t2.tv.id
         of ValueKind.Gen:

@@ -61,6 +61,8 @@ proc `<=`(self: TypeEnv, t1, t2: Value): bool =
             else:
                 # TODO:
                 false
+        of ValueKind.Family:
+            false
         of ValueKind.Sum:
             false
         of ValueKind.Trait:
