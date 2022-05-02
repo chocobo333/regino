@@ -300,7 +300,28 @@ proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
     for e in outs.filter(it => (it != target)):
         self.order.add (target, e)
 
-proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
+proc expand*(self: TypeEnv, node: Value) =
+    if node.kind == ValueKind.Var: return
+    if self.order.outdegree(node) == 0: return
+
+    for target in self.order.primal[node]:
+        if node.kind == target.kind:
+            case node.kind
+            of ValueKind.Var:
+                assert false
+            of ValueKind.Literal..ValueKind.String:
+                discard
+            of ValueKind.Pi:
+                assert node.params.len == target.params.len
+                for param in node.params.zip(target.params):
+                    self.order.add((param[1], param[0]))
+                self.order.add((node.rety, target.rety))
+                self.order.remove((node, target))
+            else:
+                # TODO:
+                discard
+
+proc collapse*(self: TypeEnv, scc: seq[Value]): Value =
     # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
     # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
     # ohterwise, idk.
@@ -314,32 +335,25 @@ proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
     if concretes.len >= 1:
 
         if concretes.len >= 2:
-            env.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
+            self.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
 
         collapsed = concretes[0]
 
         for n in scc.filterIt(it != collapsed):
             if n.kind == ValueKind.Var:
-                env.bindtv(n, Value.Link(collapsed))
+                self.bindtv(n, Value.Link(collapsed))
             else:
-                let (ins, outs) = env.order.clear(n)
+                let (ins, outs) = self.order.clear(n)
                 for e in ins.filter(it => (it != collapsed)):
-                    env.order.add (e, collapsed)
+                    self.order.add (e, collapsed)
                 for e in outs.filter(it => (it != collapsed)):
-                    env.order.add (collapsed, e)
+                    self.order.add (collapsed, e)
     else:
-        collapsed = Value.Var(env)
+        collapsed = Value.Var(self)
         for n in scc.filterIt(it != collapsed):
-            env.bindtv(n, Value.Link(collapsed))
+            self.bindtv(n, Value.Link(collapsed))
 
     collapsed
-
-proc isSelect*(self: Value): bool =
-    if self.kind != ValueKind.Var: false
-    else:
-        assert (self.tv.lb.kind == ValueKind.Select and self.tv.ub.kind == ValueKind.Select) or
-               (self.tv.lb.kind != ValueKind.Select and self.tv.ub.kind != ValueKind.Select)
-        self.tv.lb.kind == ValueKind.Select
 
 proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
     # i can assume v1 is not type value
@@ -422,6 +436,9 @@ proc resolve*(self: TypeEnv) =
     while isChanged:
         isChanged = false
         sorted = @[]
+
+        for n in self.order.nodes:
+            self.expand(n)
         
         for scc in self.order.SCC:
             sorted.add self.collapse(scc)
@@ -434,16 +451,22 @@ proc resolve*(self: TypeEnv) =
         for n in sorted:
             if self.resolve(n, primal=true):
                 isChanged = true
+        
+        self.order.dot("./dot3.md")
 
         for n in sorted.filterIt(it.kind == ValueKind.Var):
             if n.isSelect and n.tv.lb.types.len == 1:
                 self.bindtv(n, n.tv.lb.types.pop)
                 isChanged = true
 
-    self.order.dot("./dot3.md")
+        
+
+    self.order.dot("./dot4.md")
 
     for n in sorted.reversed:
         self.decideType(n)
+
+    self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var)
 
 when isMainModule:
     # var

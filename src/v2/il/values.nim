@@ -5,6 +5,7 @@ import hashes
 import sequtils
 
 import il
+import ../utils
 
 
 proc literal*(_: typedesc[Value], lit: Literal): Value =
@@ -353,6 +354,13 @@ proc `==`*(t1, t2: Value): bool =
             t1.to == t2.to
     else:
         false
+
+proc isSelect*(self: Value): bool =
+    if self.kind != ValueKind.Var: false
+    else:
+        assert (self.tv.lb.kind == ValueKind.Select and self.tv.ub.kind == ValueKind.Select) or
+               (self.tv.lb.kind != ValueKind.Select and self.tv.ub.kind != ValueKind.Select)
+        self.tv.lb.kind == ValueKind.Select
 
 when isMainModule:
     assert Value.Integer == Value.Integer
