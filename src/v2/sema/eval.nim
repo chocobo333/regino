@@ -5,6 +5,7 @@ import sugar
 import sets
 import tables
 
+import inst
 import ../il
 import ../typeenv
 import ../errors
@@ -16,32 +17,21 @@ import ../lineinfos
 import infer as _
 
 
+proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
+proc infer*(self: Suite, env: TypeEnv): Value
+proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value
+proc check(self: Expression, env: TypeEnv)
+proc check(self: Suite, env: TypeEnv)
 proc eval*(self: Program, env: TypeEnv): Value
 proc eval*(self: Suite, env: TypeEnv): Value
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
 proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
-proc check(self: Expression, env: TypeEnv)
+
+
 proc infer*(self: Literal): Value =
     ## that retrurns literal's type merely
     self.typ
-proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
-proc infer*(self: Suite, env: TypeEnv): Value =
-    if self.stmts.len == 0:
-        # Suite which has no statements has () type
-        # because it is the same as Suite which has only mere discard statement
-        return Value.Unit
-    env.enter(self.scope):
-        for s in self.stmts[0..^2]:
-            discard s.infer(env)
-            # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
-        result = self.stmts[^1].infer(env)
-    env.resolveRelationsPartially()
-proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
-    let
-        cond = self.cond.infer(env, global)
-    env.coerce(cond == Value.Bool)
-    self.suite.infer(env)
 proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     let
         syms = env.lookupId(self.name)
@@ -65,8 +55,6 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         let
             tv = Value.Var(env)
             elements = self.exprs.mapIt(it.infer(env, global))
-        debug self.loc
-        debug elements
         for t in elements:
             env.coerce(t <= tv)
         Value.Array(tv)
@@ -87,7 +75,18 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             env.coerce(elset.get <= tv)
         tv
     of ExpressionKind.When:
-        Value.Unit
+        let
+            conds = self.elifs.mapIt(it.cond.infer(env, global))
+            thens = self.elifs.mapIt(it.suite.infer(env))
+            elset = self.elseb.map(it => it.infer(env))
+            tv = Value.Var(env)
+        for cond in conds:
+            env.coerce(cond == Value.Bool)
+        for t in thens:
+            env.coerce(t <= tv)
+        if elset.isSome:
+            env.coerce(elset.get <= tv)
+        tv
     of ExpressionKind.Case:
         Value.Unit
     of ExpressionKind.Call, ExpressionKind.Command:
@@ -246,7 +245,6 @@ proc addParam(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat,
         of PatternKind.Ident:
             # TODO: index
             let sym = Symbol.Param(pat.ident, typ, impl, global)
-            pat.ident.typ = typ
             env.addIdent(sym)
         of PatternKind.Tuple:
             assert typ.kind == ValueKind.Pair
@@ -274,7 +272,7 @@ proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
             )
         rety = fn.param.rety.map(it => it.eval(env, global)).get(Value.Unit)
         fnty = Value.Pi(implicit, paramty, rety)
-        sym = Symbol.Func(fn.id, fnty, global)
+        sym = Symbol.Func(fn.id, fnty, fn, global)
     env.addIdent(sym)
     fn.id.typ = fnty
     if fn.metadata.isSome:
@@ -346,24 +344,24 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 id = typedef.id
                 params = typedef.params
                 typ = typedef.typ
+                tv = Value.Var(env)
+                sym = Symbol.Typ(id, tv, typedef, global)
+            env.addIdent(sym)
             if params.isNone:
                 # TODO: infer and check
                 let _ = typ.infer(env)
                 # typ.check(env)
                 let
                     typ = typ.eval(env, global)
-                    sym = Symbol.Typ(id, typ, typedef, global)
-                env.addIdent(sym)
+                env.bindtv(tv, typ)
             else:
                 let scope = newScope(env.scope)
-                var sym: Symbol
                 env.enter scope:
                     let implicit = params.get.mapIt(it.infer(env, global))
                     let
                         _ = typ.infer(env)
                         typ = typ.eval(env, global)
-                    sym = Symbol.Typ(id, Value.Cons(implicit, typ), typedef, global)
-                env.addIdent(sym)
+                    env.bindtv(tv, Value.Family(implicit, typ))
         Value.Unit
     of StatementKind.Asign:
         let
@@ -388,6 +386,21 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         self.expression.infer(env, global)
     of StatementKind.Fail:
         Value.Unit
+    self.typ = result
+proc infer*(self: Suite, env: TypeEnv): Value =
+    if self.stmts.len == 0:
+        return Value.Unit
+    env.enter(self.scope):
+        for s in self.stmts[0..^2]:
+            discard s.infer(env)
+            # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
+        result = self.stmts[^1].infer(env)
+    env.resolveRelationsPartially()
+proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
+    let
+        cond = self.cond.infer(env, global)
+    env.coerce(cond == Value.Bool)
+    self.suite.infer(env)
 proc infer*(self: Program, env: TypeEnv): Value =
     ## Entry point of type inference algorithm
     if self.stmts.len == 0:
@@ -407,7 +420,6 @@ proc infer*(self: Program, env: TypeEnv): Value =
         debug e.tv.lb
         debug e.tv.ub
 
-proc check(self: Suite, env: TypeEnv)
 proc check(self: Ident, env: TypeEnv) =
     if self.typ.symbol.isNone:
         if self.typ.kind == ValueKind.Intersection:
@@ -428,6 +440,23 @@ proc check(self: Pattern, env: TypeEnv) =
         discard
     of PatternKind.UnderScore:
         discard
+
+proc check(self: Statement, env: TypeEnv)
+proc check(self: Suite, env: TypeEnv) =
+    env.enter(self.scope):
+        if self.isFailed:
+            # TODO: Suite have to have parameter `loc`
+            env.errs.add TypeError.NoSuite(self.loc)
+            return
+        for s in self.stmts[0..^2]:
+            s.check(env)
+            if s.typ != Value.Unit:
+                env.errs.add TypeError.Discard(s)
+        self.stmts[^1].check(env)
+proc check(self: Function, env: TypeEnv) =
+    # TODO: check params
+    if self.suite.isSome:
+        self.suite.get.check(env)
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
     # TODO: invalid
@@ -474,6 +503,36 @@ proc check(self: Expression, env: TypeEnv) =
         self.callee.check(env)
         for arg in self.args:
             arg.check(env)
+        let
+            calleety = self.callee.typ
+            args = self.args.mapIt(it.typ)
+            genty = self.callee.typ.symbol.get.decl_funcdef.param.implicit.mapIt(it.id)
+            instances = self.callee.typ.instances
+            typdefs = self.callee.typ.symbol.get.decl_funcdef.param.params
+        if genty.len > 0:
+            # monomorphization
+            if calleety notin calleety.symbol.get.instances:
+                let
+                    inst = self.callee.typ.symbol.get.decl_funcdef.implInst
+                    scope = env.scope
+                env.scope = inst.param.scope
+                for i in 0..<genty.len:
+                    let
+                        id = genty[i]
+                        typ = instances[i]
+                        typedef = newTypedef(
+                            id,
+                            none(seq[GenTypeDef]),
+                            TypeExpression.Expr(Expression.Id($typ))
+                        )
+                        sym = Symbol.Typ(id, typ, typedef, false)
+                    env.addIdent(sym)
+                env.scope = scope
+                let fn = Statement.Funcdef(inst)
+                discard fn.infer(env, false)
+                env.resolveRelations()
+                fn.check(env) # must be succeded
+                calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
@@ -535,7 +594,6 @@ proc check(self: Statement, env: TypeEnv) =
                 if not (self.pat.typ <= self.val.typ):
                     let
                         conv = env.lookupConverter(self.val.typ, self.pat.typ)
-                    debug conv
                     if conv.isSome:
                         let
                             ident = conv.get
@@ -563,17 +621,6 @@ proc check(self: Statement, env: TypeEnv) =
         self.expression.check(env)
     of StatementKind.Fail:
         discard
-proc check(self: Suite, env: TypeEnv) =
-    env.enter(self.scope):
-        if self.isFailed:
-            # TODO: Suite have to have parameter `loc`
-            env.errs.add TypeError.NoSuite(self.loc)
-            return
-        for s in self.stmts[0..^2]:
-            s.check(env)
-            if s.typ != Value.Unit:
-                env.errs.add TypeError.Discard(s)
-        self.stmts[^1].check(env)
 proc check*(self: Program, env: TypeEnv) =
     if self.stmts.len == 0:
         return
@@ -586,7 +633,7 @@ proc check*(self: Program, env: TypeEnv) =
 proc eval*(self: Literal): Value =
     Value.literal(self)
 proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
-    case self.kind
+    result = case self.kind
     of TypeExpressionKind.Object:
         Value.Unit
     of TypeExpressionKind.Sum:
@@ -607,6 +654,8 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of TypeExpressionKind.Expression:
         self.expression.eval(env, global)
+    if self.isRef:
+        result = Value.Ptr(result)
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     discard self.infer(env, global)
     case self.kind
@@ -655,12 +704,12 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         let
             val = self.callee.eval(env, global)
         case val.kind:
-        of ValueKind.Pi, ValueKind.Cons:
+        of ValueKind.Pi, ValueKind.Family:
             let subs = zip(val.implicit, self.args.mapIt(it.eval(env))).toTable
             val.inst(env, subs)
         else:
             # TODO: ituka
-            Value.Unit
+            Value.Cons(val, self.args.mapIt(it.eval(env)))
     of ExpressionKind.Binary:
         Value.Unit
     of ExpressionKind.Prefix:

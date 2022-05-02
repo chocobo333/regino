@@ -18,6 +18,8 @@ proc `$`*(self: FunctionParam): string
 proc `$`*(self: TypeExpression): string
 proc `$`*(self: Pattern): string
 proc `$`*(self: Suite): string
+proc `$`*(self: Value): string
+proc `$`*(self: Region): string
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.unit:
@@ -59,7 +61,7 @@ proc `$`*(self: OfBranch): string =
     let suite = $self.suite
     &"of {self.pat}:\n{suite}"
 proc `$`*(self: Expression): string =
-    case self.kind
+    result = case self.kind
     of ExpressionKind.Literal:
         $self.litval
     of ExpressionKind.Ident:
@@ -135,6 +137,8 @@ proc `$`*(self: Expression): string =
         fmt"func({args}) -> {self.rety}"
     of ExpressionKind.Fail:
         fmt"failed term"
+    if not self.typ.isNil:
+        result = fmt"{result} (: {self.typ})"
 
 proc `$`*(self: Metadata): string =
     let params =
@@ -311,7 +315,6 @@ proc `$`*(self: TypeExpression): string =
 proc `$`*(self: Program): string =
     self.stmts.map(`$`).join("\n")
 
-proc `$`*(self: Value): string
 proc `$`*(self: TypeVar): string =
     let
         c = toSeq('a'..'z')
@@ -333,13 +336,15 @@ proc `$$`*(self: GenericType): string =
     let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {self.ub}" else: ""
     fmt"{self.ident.name}{ub}"
 proc `$`*(self: Value): string =
-    case self.kind
+    if self.ident.isSome:
+        return self.ident.get.name
+    result = case self.kind
     of ValueKind.Literal:
         $self.litval
     of ValueKind.Bottom:
         "Bottom"
     of ValueKind.Unit:
-        "Unit"
+        "()"
     of ValueKind.Bool:
         "bool"
     of ValueKind.Integer:
@@ -385,8 +390,16 @@ proc `$`*(self: Value): string =
                     let params = self.params.join(", ")
                     fmt"({params})"
         fmt"{imp}{params} -> {self.rety}"
+    of ValueKind.Family:
+        let
+            imp = self.implicit.map(`$$`).join(", ")
+        fmt"[{imp}]{self.rety}"
     of ValueKind.Sum:
-        "Sum"
+        var res = "variant\n"
+        for (id, val) in self.constructors.pairs:
+            res.add &"  {id}{val}\n"
+        res = res[0..^2]
+        res
     of ValueKind.Trait:
         "Trait"
     of ValueKind.Singleton:
@@ -397,16 +410,21 @@ proc `$`*(self: Value): string =
         toSeq(self.types).join("^")
     of ValueKind.Union:
         toSeq(self.types).join"\/"
+    of ValueKind.Lambda:
+        let params = self.l_param.join(", ")
+        &"lambda {params}: \n{self.suite}"
     of ValueKind.Cons:
         let
-            imp = self.implicit.map(`$$`).join(", ")
-        fmt"[{imp}]{self.rety}"
+            args = self.args.join", "
+        fmt"{self.constructor}[{args}]"
     of ValueKind.Var:
         $self.tv
     of ValueKind.Gen:
         $self.gt
     of ValueKind.Link:
         $self.to
+    if not self.region.isNil:
+        result = fmt"({result}, {self.region})"
 
 proc `$`*(self: Symbol): string =
     let
@@ -542,6 +560,26 @@ proc treeRepr*(self: IdentDef): string =
         default = self.default.map(treeRepr).get("None")
     "IdentDef\n" & (&"{self.pat}\n{typ}\n{default}").indent(2)
 
+proc sub2(self: int): string =
+    [
+        "\u2080",
+        "\u2081",
+        "\u2082",
+        "\u2083",
+        "\u2084",
+        "\u2085",
+        "\u2086",
+        "\u2087",
+        "\u2088",
+        "\u2089",
+    ][self]
+proc sub(self: int): string =
+    var
+        p = self
+    while p >= 10:
+        result = sub2(p mod 10) & result
+        p = p div 10
+    result = sub2(p) & result
 proc `$`*(self: Region): string =
     case self.kind
     of RegionKind.Static:
@@ -549,13 +587,13 @@ proc `$`*(self: Region): string =
     of RegionKind.Global:
         "global"
     of RegionKind.Param:
-        fmt"param({self.nth})"
+        fmt"p{sub(self.nth)}"
     of RegionKind.Return:
         "return"
     of RegionKind.Suite:
         fmt"suite({self.parent})"
     of RegionKind.Var:
-        "var"
+        fmt"ρ{sub(self.id)}"
     of RegionKind.Link:
         $self.to
 

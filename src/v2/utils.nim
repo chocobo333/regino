@@ -14,8 +14,11 @@ template debug*(exp: untyped): untyped =
         discard
     else:
         let
-            info = instantiationInfo()
-        debugEcho info.filename, "(", info.line, ", ", info.column, ") ", exp.astToStr, " : ", exp
+            info = instantiationInfo(fullPaths=true)
+            line = info.line
+            column = info.column
+            s = info.filename & "(" & $line & ", " & $column & ") "
+        debugEcho s, exp.astToStr, " in ", getFrame().procname, " :\n", exp
 
 
 iterator reversed*[T](s: seq[T]): T =
@@ -37,7 +40,7 @@ proc filter*[T, U](self: Table[T, U], f: U -> bool): Table[T, U] =
 proc merge*[T, U](t1: Table[T, U], t2: Table[T, U]): Table[T, U] =
     result = initTable[T, U]()
     for (key, val) in t1.pairs: result[key] = val
-    for (key, val) in t2.pairs: 
+    for (key, val) in t2.pairs:
         if key notin result:
             result[key] = val
 

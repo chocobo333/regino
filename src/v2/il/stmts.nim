@@ -39,14 +39,6 @@ converter toStmt*(self: Expression): Statement =
 
 proc empty*(_: typedesc[Statement]): Statement = Statement.Fail
 
-import values
-proc typ*(self: Statement): Value =
-    case self.kind
-    of StatementKind.Expression:
-        self.expression.typ
-    else:
-        Value.Unit
-
 proc get*(self: Program, line: int): Statement =
     for s in self.stmts:
         if line in s.loc.`range`.a.line..s.loc.`range`.b.line:

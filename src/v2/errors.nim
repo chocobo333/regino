@@ -48,7 +48,7 @@ proc `$`*(self: TypeError): string =
     of TypeErrorKind.NoSuite:
         fmt"no block"
     of TypeErrorKind.Unasignable:
-        fmt"`{self.val}` is not asignable to `{self.pat}`"
+        fmt"`{self.val}` is not asignable to `{self.pat}`, because `{self.pat}` is of {self.pat.typ}"
     of TypeErrorKind.Letasign:
         fmt"`{self.id}` cannot be re-asigned to, because `{self.id}` was defined in let section"
     of TypeErrorKind.SomethingWrong:

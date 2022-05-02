@@ -103,18 +103,18 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Ptr:
         Value.Ptr(typ.pointee.inst(env, subs))
     of ValueKind.Pi:
-        let newSubs = subs.merge(
-                typ.implicit.filterIt(it notin subs).mapIt(block:
-                    let v = Value.Var(env)
-                    (it, v)
-                ).toTable
-            )
+        var subs = subs
+        let instances = typ.implicit.mapIt(Value.Var(env))
+        for (e, v) in typ.implicit.zip(instances):
+            subs[e] = v
+            v.tv.ub = e.ub
         Value.Arrow(
-            typ.params.map(it => it.inst(env, newsubs)),
-            typ.rety.inst(env, newsubs)
+            typ.params.map(it => it.inst(env, subs)),
+            typ.rety.inst(env, subs),
+            instances
         )
     of ValueKind.Sum:
-        Value.Sum(typ.cons.map(it => it.inst(env, subs)))
+        Value.Sum(typ.constructors.map(it => it.inst(env, subs)))
     of ValueKind.Trait:
         Value.trait(
             (typ.paty[0], typ.paty[1].inst(env, subs)),
@@ -125,7 +125,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
         Value.Intersection(typ.types.map(it => it.inst(env, subs)))
     of ValueKind.Union:
         Value.Union(typ.types.map(it => it.inst(env, subs)))
-    of ValueKind.Cons:
+    of ValueKind.Family:
         let newSubs = subs.merge(
                 typ.implicit.filterIt(it notin subs).mapIt(block:
                     let v = Value.Var(env)
@@ -133,6 +133,11 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
                 ).toTable
             )
         typ.rety.inst(env, newSubs)
+    of ValueKind.Lambda:
+        # TODO: think twice later
+        Value.Lambda(typ.l_param, typ.suite)
+    of ValueKind.Cons:
+        Value.Cons(typ.constructor.inst(env, subs), typ.args.mapIt(it.inst(env, subs)))
     of ValueKind.Var:
         typ
     of ValueKind.Gen:
@@ -141,7 +146,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
         else:
             typ
     of ValueKind.Link:
-        Value.Link(typ.inst(env, subs))
+        Value.Link(typ.to.inst(env, subs))
     result.symbol = sym
 
 
@@ -195,6 +200,25 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     # typ
 
 proc `<=`*(t1, t2: Value): bool {.error.}
+proc `<=`*(env: TypeEnv, t1, t2: Value): bool
+proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]]
+template setTypeEnv*(env: TypeEnv): untyped =
+    proc `<=`(t1, t2: Value): bool =
+        env.`<=`(t1, t2)
+    proc `<=?`(t1, t2: Value): Option[seq[Constraint]] =
+        env.`<=?`(t1, t2)
+    # proc `==`(t1, t2: Value): bool =
+    #     t1 <= t2 and t2 <= t1
+proc applicable(self: TypeEnv, id: Ident, v: (Value, Value)): bool =
+    setTypeEnv(self)
+    let
+        (s, d) = v
+        con = id.typ
+        v = Value.Arrow(@[s], d)
+    debug v
+    con == v or con <= v
+
+
 proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
     if t1.kind == ValueKind.Link:
         env.`<=`(t1.to, t2)
@@ -296,7 +320,8 @@ proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
         false
     else:
         # env.scope.typeOrder.path(t1, t2).isSome
-        (t1, t2) in env.scope.typeOrder
+        let converters = toSeq(env.scope.converters.keys).filterIt(it[1] == t2)
+        converters.anyIt(env.`<=`(t1, it[0]))
 proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
     proc `<=`(t1, t2: Value): bool =
         env.`<=`(t1, t2)
@@ -360,14 +385,6 @@ proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
             some newSeq[Constraint]()
         else:
             none(seq[Constraint])
-
-template setTypeEnv*(env: TypeEnv): untyped =
-    proc `<=`(t1, t2: Value): bool =
-        env.`<=`(t1, t2)
-    proc `<=?`(t1, t2: Value): Option[seq[Constraint]] =
-        env.`<=?`(t1, t2)
-    # proc `==`(t1, t2: Value): bool =
-    #     t1 <= t2 and t2 <= t1
 
 
 proc lub*(self: TypeEnv, t1, t2: Value): Value =

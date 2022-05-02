@@ -24,6 +24,7 @@
 # type
 #     ptr[T] = typeof(malloc(T, 1))
 # type
+#     Magma = trait (T, op): ([T], func(T, T) -> T)
 #     Magma = trait (T, op): (Type, func(T, T) -> T)
 #     SemiGroup = trait (T, op): (Type, func(T, T) -> T) with
 #         prop associtive(x, y, z: T) -> op(x, op(y, z)) == op(op(x, y), z)
@@ -46,6 +47,9 @@ type
     pairWithInt[T] = (int, T)
     pair[T, U] = (T, U)
     
+    Nat = ref variant
+        Zero
+        Succ(Nat)
     List[T] = ref variant
         Nil
         Cons(head: T, tail: List[T])
@@ -115,18 +119,10 @@ func fib(n: int) -> int:
 #     3
 # func f(a: int) -> float:
 #     4.5
-# echo $(3, 4)
+echo $(3, 4)
 let
     a = 3
-a
-var
-    (a, b) = (3, 5)
-    (b, c) = 5
-b = 4
-let a: float = 5.5
-let c: bool = false
-f
-f a
+    b: pairWithInt[int] = (3, 4)
 echo a
-echo f a
-b
+echo id a
+0

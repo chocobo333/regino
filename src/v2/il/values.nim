@@ -35,10 +35,10 @@ proc Ptr*(_: typedesc[Value], pointee: Value): Value =
     Value(kind: ValueKind.Ptr, pointee: pointee)
 proc Pi*(_: typedesc[Value], implicit: seq[GenericType], params: seq[Value], rety: Value): Value =
     Value(kind: ValueKind.Pi, implicit: implicit, params: params, rety: rety)
-proc Arrow*(_: typedesc[Value], params: seq[Value], rety: Value): Value =
-    Value(kind: ValueKind.Pi, implicit: @[], params: params, rety: rety)
+proc Arrow*(_: typedesc[Value], params: seq[Value], rety: Value, instances: seq[Value] = @[]): Value =
+    Value(kind: ValueKind.Pi, implicit: @[], params: params, rety: rety, instances: instances)
 proc Sum*(_: typedesc[Value], cons: Table[Ident, Value]): Value =
-    Value(kind: ValueKind.Sum, cons: cons)
+    Value(kind: ValueKind.Sum, constructors: cons)
 proc trait*(_: typedesc[Value], paty: (Pattern, Value), iss: seq[(Pattern, Value)], fns: seq[Function]): Value =
     Value(kind: ValueKind.Trait, paty: paty, iss: iss, fns: fns)
 proc Singleton*(_: typedesc[Value], base: Value): Value =
@@ -60,8 +60,12 @@ proc Union*(_: typedesc[Value], types: seq[Value]): Value =
     Value(kind: ValueKind.Union, types: types.toHashSet)
 proc Union*(_: typedesc[Value], types: HashSet[Value]): Value =
     Value(kind: ValueKind.Union, types: types)
-proc Cons*(_: typedesc[Value], implicit: seq[GenericType], rety: Value): Value =
-    Value(kind: ValueKind.Cons, implicit: implicit, rety: rety)
+proc Family*(_: typedesc[Value], implicit: seq[GenericType], rety: Value): Value =
+    Value(kind: ValueKind.Family, implicit: implicit, rety: rety)
+proc Lambda*(_: typedesc[Value], l_params: seq[Ident], suite: Suite): Value =
+    Value(kind: ValueKind.Lambda, l_param: l_params, suite: suite)
+proc Cons*(_: typedesc[Value], constructor: Value, args: seq[Value]): Value =
+    Value(kind: ValueKind.Cons, constructor: constructor, args: args)
 proc Var*(_: typedesc[Value], tv: TypeVar): Value =
     Value(kind: ValueKind.Var, tv: tv)
 proc Gen*(_: typedesc[Value], gen: GenericType): Value =
@@ -88,7 +92,7 @@ proc hash*(self: Value): Hash =
     result = result !& (
         case self.kind
         of ValueKind.Literal:
-            0
+            self.litval.kind.int
         of ValueKind.Bottom:
             0
         of ValueKind.Unit:
@@ -104,7 +108,7 @@ proc hash*(self: Value): Hash =
         of ValueKind.String:
             0
         of ValueKind.Pair:
-            0
+            self.first.hash !& self.second.hash
         of ValueKind.Array:
             0
         of ValueKind.ArrayV:
@@ -114,6 +118,8 @@ proc hash*(self: Value): Hash =
         of ValueKind.Ptr:
             0
         of ValueKind.Pi:
+            0
+        of ValueKind.Family:
             0
         of ValueKind.Sum:
             0
@@ -126,6 +132,8 @@ proc hash*(self: Value): Hash =
         of ValueKind.Intersection:
             0
         of ValueKind.Union:
+            0
+        of ValueKind.Lambda:
             0
         of ValueKind.Cons:
             0
@@ -163,6 +171,8 @@ proc compilable*(self: Value): bool =
         toSeq(self.members.values).all(compilable)
     of ValueKind.Pi:
         self.params.all(compilable) and self.rety.compilable
+    of ValueKind.Family:
+        false
     of ValueKind.Sum:
         false
     of ValueKind.Trait:
@@ -173,8 +183,10 @@ proc compilable*(self: Value): bool =
         false
     of ValueKind.Distinct:
         self.base.compilable
-    of ValueKind.Cons:
+    of ValueKind.Lambda:
         false
+    of ValueKind.Cons:
+        true
     of ValueKind.Link:
         self.to.compilable
     of ValueKind.Var:
@@ -244,6 +256,8 @@ proc typ*(self: Value): Value =
         self.pointee.typ
     of ValueKind.Pi:
         Value.Univ
+    of ValueKind.Family:
+        Value.Univ(1)
     of ValueKind.Sum:
         Value.Univ
     of ValueKind.Trait:
@@ -255,6 +269,9 @@ proc typ*(self: Value): Value =
     of ValueKind.Intersection:
         Value.Univ
     of ValueKind.Union:
+        Value.Univ
+    of ValueKind.Lambda:
+        # TODO: itsuka
         Value.Univ
     of ValueKind.Cons:
         Value.Univ
@@ -300,6 +317,8 @@ proc `==`*(t1, t2: Value): bool =
             t1.implicit == t2.implicit and
             t1.params == t2.params and
             t1.rety == t2.rety
+        of ValueKind.Family:
+            t1.implicit == t2.implicit and t1.rety == t2.rety
         of ValueKind.Sum:
             assert false, "notimplemented"
             true
@@ -314,8 +333,10 @@ proc `==`*(t1, t2: Value): bool =
             t1.types == t2.types
         of ValueKind.Union:
             t1.types == t2.types
+        of ValueKind.Lambda:
+            t1.l_param == t2.l_param and t1.suite == t2.suite
         of ValueKind.Cons:
-            t1.implicit == t2.implicit and t1.rety == t2.rety
+            t1.constructor == t2.constructor and t1.args.zip(t2.args).allIt(it[0] == it[1])
         of ValueKind.Var:
             t1.tv.id == t2.tv.id
         of ValueKind.Gen:
