@@ -12,14 +12,13 @@ type
 func toFloat(a: int) -> float ![subtype]:
   0.0
 
+func f(a: float) -> int:
+  1.0
 func f(a: float) -> float:
   1.0
-func f(a: string) -> float:
-  1.0
 
-let
-  a: float = 1.0
-  b: float
-
-b = f(a)
+var
+  a: int = f(0.0)
+  b: float = f(0.0)
+  c = f(0.0)
 

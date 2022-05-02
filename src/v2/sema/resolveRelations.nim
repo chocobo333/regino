@@ -304,7 +304,6 @@ proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
     # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
     # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
     # ohterwise, idk.
-    debug scc
 
     if scc.len == 1: return scc[0]
 
@@ -342,7 +341,7 @@ proc isSelect*(self: Value): bool =
                (self.tv.lb.kind != ValueKind.Select and self.tv.ub.kind != ValueKind.Select)
         self.tv.lb.kind == ValueKind.Select
 
-proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool) =
+proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
     # i can assume v1 is not type value
     # if both of v1 and v2 are not type value, check v1 <= v2.
     # if v2 is type type value, update v2's upper bound by glb(v1, v2.tv.ub)
@@ -361,40 +360,44 @@ proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool) =
                     else:
                         v1.tv.ub
 
+    result = false
+
     if v2.kind == ValueKind.Var:
         if primal:
             let lub = self.lub(v, v2.tv.lb)
+            if v2.tv.lb != lub: result = true
             if v2.isSelect:
                 v2.tv.lb = lub
                 v2.tv.ub = lub
             else:
                 v2.tv.lb = lub
         else:
-            debug v
-            debug v2.tv.ub
             let glb = self.glb(v, v2.tv.ub)
-            debug glb
+            if v2.tv.ub != glb: result = true
             if v2.isSelect:
                 v2.tv.lb = glb
                 v2.tv.ub = glb
             else:
                 v2.tv.ub = glb
-    else:
-        if primal and not self.`<=`(v, v2):
-            self.errs.add TypeError.Subtype(v, v2)
-        elif not primal and not self.`<=`(v2, v):
-            self.errs.add TypeError.Subtype(v2, v)
+    # else:
+    #     if primal and not self.`<=?`(v, v2).isNone:
+    #         self.errs.add TypeError.Subtype(v, v2)
+    #     elif not primal and not self.`<=?`(v2, v).isNone:
+    #         self.errs.add TypeError.Subtype(v2, v)
 
-proc resolve*(self: TypeEnv, v: Value, primal: bool=true) =
+proc resolve*(self: TypeEnv, v: Value, primal: bool=true): bool =
     # if v is type value, bind it into its upper bound
     # if v is of intersection type, simplify it.
     let
         relation = if primal: self.order.primal else: self.order.dual
     
+    result = false
+
     if v notin relation: return
 
     for target in relation[v]:
-        self.resolve(v, target, primal)
+        if self.resolve(v, target, primal):
+            result = true
 
 proc decideType*(self: TypeEnv, v: Value) = 
     if v.kind != ValueKind.Var:
@@ -423,15 +426,14 @@ proc resolve*(self: TypeEnv) =
         for scc in self.order.SCC:
             sorted.add self.collapse(scc)
 
-        debug self.order.primal
-        debug self.order.dual
         self.order.dot("./dot2.md")
 
         for n in sorted.reversed:
-            self.resolve(n, primal=false)
-
+            if self.resolve(n, primal=false):
+                isChanged = true
         for n in sorted:
-            self.resolve(n, primal=true)
+            if self.resolve(n, primal=true):
+                isChanged = true
 
         for n in sorted.filterIt(it.kind == ValueKind.Var):
             if n.isSelect and n.tv.lb.types.len == 1:

@@ -321,11 +321,6 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
         else:
             debug t1
             debug t2
-            debug t1.symbol
-            debug t2.symbol
-            debug t1.kind
-            debug t2.kind
-            debug self.constraints
             self.raise(fmt"{t1} and {t2} can not be unified")
 
 proc resolveRelationsPartially*(self: TypeEnv) =
