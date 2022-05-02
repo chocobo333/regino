@@ -507,8 +507,9 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Call, ExpressionKind.Command:
         # TODO: insert converter
         self.callee.check(env)
-        for arg in self.args:
-            arg.check(env)
+        for i in 0..<self.args.len:
+            self.args[i].check(env)
+            self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i])
         let
             calleety = self.callee.typ
             args = self.args.mapIt(it.typ)
