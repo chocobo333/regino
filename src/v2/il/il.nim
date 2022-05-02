@@ -13,22 +13,23 @@ type
         stmts*: seq[Statement]
         scope*: Scope
     StatementKind* {.pure.} = enum
-        For
-        While
-        Loop
-        LetSection
-        VarSection
-        ConstSection
-        TypeSection
-        Asign
-        Funcdef
-        Meta
-        Discard
-        Comments
-        Expression
-        Fail
+        For             ## represents for statement
+        While           ## while statement
+        Loop            ## loop statement
+        LetSection      ## declaration of immutable variables
+        VarSection      ## declaration of variables
+        ConstSection    ## declaration of const values
+        TypeSection     ## declaration of types
+        Asign           ## assign statement
+        Funcdef         ## function definition
+        Meta            ## metadata
+        Discard         ## discard statement
+        Comments        ## comments or docuents
+        Expression      ## expression and only this has a type
+        Fail            ## occuring compiler-internal error
     Statement* = ref StatementObject
     StatementObject = object
+        ## that represents a statement
         loc*: Location
         typ*: Value
         case kind*: StatementKind
