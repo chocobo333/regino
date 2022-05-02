@@ -382,26 +382,27 @@ type
     SymbolId = int
     Symbol* = ref SymbolObject
     SymbolObject* = object
-        id*: Ident
-        case kind*: SymbolKind
+        id*: Ident                      ## name
+        case kind*: SymbolKind          ## kind
         of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const, SymbolKind.Param:
-            decl_iddef*: IdentDef
+            decl_iddef*: IdentDef       ## declaration
         of SymbolKind.Typ:
-            decl_typedef*: TypeDef
+            decl_typedef*: TypeDef      ## declaration
         of SymbolKind.GenParam:
-            decl_gendef*: GenTypeDef
+            decl_gendef*: GenTypeDef    ## declaration
         of SymbolKind.Func:
-            decl_funcdef*: Function
-            constraints*: seq[(Region, Region)]
-        global*: bool
-        val*: Value
-        typ*: Value
-        use*: seq[Location]
-        instances*: Table[Value, Impl]
+            decl_funcdef*: Function                 ## declaration
+            constraints*: seq[(Region, Region)]     ## function has some region-constraints concerned its paramteres
+        global*: bool                   ## is global?
+        val*: Value                     ## symbol hold a value
+        typ*: Value                     ## symbol has a type
+        use*: seq[Location]             ## for lsp
+        instances*: Table[Value, Impl]  ## Monophasic instances
     Impl* = ref object
-        instance*: Option[Function]
-        lty*: llvm.Type
-        val*: llvm.Value
+        ## llvm implementation of symbol
+        instance*: Option[Function] ## Monophasic instance
+        lty*: llvm.Type             ## type in llvm
+        val*: llvm.Value            ## value in llvm
 
     RegionKind* {.pure.} = enum
         Static # means value type; not ref type
