@@ -60,6 +60,45 @@ proc all*[T](self: HashSet[T], f: T -> bool): bool =
             return false
     true
 
+proc merge*[U: Ordinal, T](a, b: seq[T], m: T -> U): seq[T] =
+    let
+        l1 = a.len
+        l2 = b.len
+    var
+        i = 0
+        j = 0
+    for _ in 0..<l1+l2:
+        if i < l1 and j < l2:
+            if a[i].m <= b[i].m:
+                result.add a[i]
+                inc i
+            else:
+                result.add b[j]
+                inc j
+        elif i < l1:
+            result.add a[i]
+            inc i
+        else:
+            result.add b[j]
+            inc j
+    assert i == l1
+    assert j == l2
+proc sort*[U: Ordinal, T](self: seq[T], m: T -> U): seq[T] =
+    case self.len
+    of 0, 1:
+        self
+    of 2:
+        if self[0].m <= self[1].m:
+            self
+        else:
+            @[self[1], self[1]]
+    else:
+        let
+            l = self.len div 2
+            a = self[0..<l].sort(m)
+            b = self[l..^1].sort(m)
+        a.merge(b, m)
+
 when defined(release):
     import strutils
     const wordSizeImpl = staticExec("getconf LONG_BIT").parseInt.uint
