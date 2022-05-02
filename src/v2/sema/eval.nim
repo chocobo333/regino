@@ -446,6 +446,7 @@ proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     for (s, t) in self.path(e.typ, v).sort(it => it.len)[0]:
         let c = self.scope.converters[(s, t)]
         result = Expression.Call(Expression.Id(c), @[result])
+        result.typ = t
 proc check(self: Statement, env: TypeEnv)
 proc check(self: Suite, env: TypeEnv) =
     env.enter(self.scope):
@@ -579,7 +580,7 @@ proc check(self: Statement, env: TypeEnv) =
                 iddef.typ.get.check(env)
             if iddef.default.isSome:
                 iddef.default.get.check(env)
-                discard env.coercion(iddef.default.get, iddef.pat.typ)
+                iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ)
     of StatementKind.VarSection:
         discard
     of StatementKind.ConstSection:
