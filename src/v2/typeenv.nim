@@ -276,11 +276,15 @@ proc `==?`*(t1, t2: Value): bool =
             discard
         false
 
-proc path(self: TypeEnv, t1, t2: Value): seq[seq[(Value, Value)]] =
+proc path*(self: TypeEnv, t1, t2: Value): seq[seq[(Value, Value)]] =
     setTypeEnv(self)
-    for (s, d) in self.scope.converters.keys:
-        discard
-    @[]
+    let converters = toSeq(self.scope.converters.keys).filterIt(it[1] == t2)
+    for (s, _) in converters:
+        if s == t1:
+            result.add @[(s, t2)]
+        else:
+            result.add self.path(t1, s).mapIt(it & (s, t2))
+
 
 
 proc `<=`*(env: TypeEnv, t1, t2: Value): bool =
