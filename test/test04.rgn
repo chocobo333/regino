@@ -27,4 +27,6 @@ func toInt(a: bool) -> int ![subtype]:
 #         "false"
 func echo(a: string) ![importll]
 
+let a: string = 3
 echo true
+0
