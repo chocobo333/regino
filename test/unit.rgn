@@ -18,6 +18,8 @@ func f(a: float) -> float:
   1.0
 func id[T](a: T) -> T:
     a
+func id(a: int) -> int:
+    0
 
 var
   a: int = 1
@@ -26,7 +28,8 @@ var
   d = f(0.0)
   e = id 3
   f: int
-  g = id 3
+  g = id "4"
+  h: int = id 3
 f = f(a)
 
 

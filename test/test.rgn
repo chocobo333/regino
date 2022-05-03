@@ -120,6 +120,7 @@ func fib(n: int) -> int:
 # func f(a: int) -> float:
 #     4.5
 echo $(3, 4)
+echo $3
 let
     a = 3
     b: pairWithInt[int] = (3, 4)
