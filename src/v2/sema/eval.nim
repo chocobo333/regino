@@ -31,6 +31,7 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
 
 
 proc infer*(self: Literal): Value =
+    ## that retrurns literal's type merely
     self.typ
 proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     let
@@ -407,6 +408,7 @@ proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
     env.coerce(cond == Value.Bool)
     self.suite.infer(env)
 proc infer*(self: Program, env: TypeEnv): Value =
+    ## Entry point of type inference algorithm
     if self.stmts.len == 0:
         return Value.Unit
     # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
@@ -445,6 +447,17 @@ proc check(self: Pattern, env: TypeEnv) =
     of PatternKind.UnderScore:
         discard
 
+proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
+    setTypeEnv(self)
+    debug e.typ
+    debug v
+    assert e.typ <= v
+    result = e
+    debug self.scope.converters
+    for (s, t) in self.path(e.typ, v).sort(it => it.len)[0]:
+        let c = self.scope.converters[(s, t)]
+        result = Expression.Call(Expression.Id(c), @[result])
+        result.typ = t
 proc check(self: Statement, env: TypeEnv)
 proc check(self: Suite, env: TypeEnv) =
     env.enter(self.scope):
@@ -505,8 +518,9 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Call, ExpressionKind.Command:
         # TODO: insert converter
         self.callee.check(env)
-        for arg in self.args:
-            arg.check(env)
+        for i in 0..<self.args.len:
+            self.args[i].check(env)
+            self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i])
         let
             calleety = self.callee.typ
             args = self.args.mapIt(it.typ)
@@ -573,11 +587,12 @@ proc check(self: Statement, env: TypeEnv) =
             # TODO: implement check(Pattern)
             # iddef.pat.check(env)
             # TODO: Shoud I check TypeExpression?
-            # typ should be infered, checked and evaled.
+            # typ should be infered, checked and `eval`ed.
             if iddef.typ.isSome:
                 iddef.typ.get.check(env)
             if iddef.default.isSome:
                 iddef.default.get.check(env)
+                iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ)
     of StatementKind.VarSection:
         discard
     of StatementKind.ConstSection:

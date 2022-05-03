@@ -13,22 +13,23 @@ type
         stmts*: seq[Statement]
         scope*: Scope
     StatementKind* {.pure.} = enum
-        For
-        While
-        Loop
-        LetSection
-        VarSection
-        ConstSection
-        TypeSection
-        Asign
-        Funcdef
-        Meta
-        Discard
-        Comments
-        Expression
-        Fail
+        For             ## represents for statement
+        While           ## while statement
+        Loop            ## loop statement
+        LetSection      ## declaration of immutable variables
+        VarSection      ## declaration of variables
+        ConstSection    ## declaration of const values
+        TypeSection     ## declaration of types
+        Asign           ## assign statement
+        Funcdef         ## function definition
+        Meta            ## metadata
+        Discard         ## discard statement
+        Comments        ## comments or docuents
+        Expression      ## expression and only this has a type
+        Fail            ## occuring compiler-internal error
     Statement* = ref StatementObject
     StatementObject = object
+        ## that represents a statement
         loc*: Location
         typ*: Value
         case kind*: StatementKind
@@ -67,21 +68,25 @@ type
     Scope* = ref object
         parent*: Scope
         syms*: Table[string, seq[Symbol]]
-        consts*: Table[string, seq[Symbol]]
+        consts*: Table[string, seq[Symbol]] # deprecated
         typeOrder*: Order[Value]  # cumulative
         converters*: Table[(Value, Value), Ident]
     IdentDef* = ref object
+        # represents `pat: typ = default`
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
     TypeDef* = ref object
+        # represents `pat[params] = typ`
         id*: Ident
         params*: Option[seq[GenTypeDef]]
         typ*: TypeExpression
     GenTypeDef* = ref object
+        # represents `id <: ub`
         id*: Ident
         ub*: Option[Expression]
     FunctionParam* = ref object
+        # represents `[implicit](params) -> rety`
         implicit*: seq[GenTypeDef]
         params*: seq[IdentDef]
         rety*: Option[Expression]
@@ -379,26 +384,27 @@ type
     SymbolId = int
     Symbol* = ref SymbolObject
     SymbolObject* = object
-        id*: Ident
-        case kind*: SymbolKind
+        id*: Ident                      ## name
+        case kind*: SymbolKind          ## kind
         of SymbolKind.Var, SymbolKind.Let, SymbolKind.Const, SymbolKind.Param:
-            decl_iddef*: IdentDef
+            decl_iddef*: IdentDef       ## declaration
         of SymbolKind.Typ:
-            decl_typedef*: TypeDef
+            decl_typedef*: TypeDef      ## declaration
         of SymbolKind.GenParam:
-            decl_gendef*: GenTypeDef
+            decl_gendef*: GenTypeDef    ## declaration
         of SymbolKind.Func:
-            decl_funcdef*: Function
-            constraints*: seq[(Region, Region)]
-        global*: bool
-        val*: Value
-        typ*: Value
-        use*: seq[Location]
-        instances*: Table[Value, Impl]
+            decl_funcdef*: Function                 ## declaration
+            constraints*: seq[(Region, Region)]     ## function has some region-constraints concerned its paramteres
+        global*: bool                   ## is global?
+        val*: Value                     ## symbol hold a value
+        typ*: Value                     ## symbol has a type
+        use*: seq[Location]             ## for lsp
+        instances*: Table[Value, Impl]  ## Monophasic instances
     Impl* = ref object
-        instance*: Option[Function]
-        lty*: llvm.Type
-        val*: llvm.Value
+        ## llvm implementation of symbol
+        instance*: Option[Function] ## Monophasic instance
+        lty*: llvm.Type             ## type in llvm
+        val*: llvm.Value            ## value in llvm
 
     RegionKind* {.pure.} = enum
         Static # means value type; not ref type

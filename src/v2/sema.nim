@@ -34,4 +34,4 @@ when isMainModule:
         program = Program(Source.from(s)).get
         errs = program.sema
     f.close
-    # debug program.scope
+    debug program

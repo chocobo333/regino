@@ -18,6 +18,8 @@ func toInt(a: bool) -> int ![subtype]:
         1
     else:
         0
+# func toUnit[T](a: T) -> () ![subtype]:
+#     ()
 # func `$`(a: bool) -> string ![subtype]:
 #     if a:
 #         "true"
@@ -25,4 +27,6 @@ func toInt(a: bool) -> int ![subtype]:
 #         "false"
 func echo(a: string) ![importll]
 
+let a: string = 3
 echo true
+0

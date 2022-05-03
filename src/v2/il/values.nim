@@ -94,8 +94,6 @@ proc dual*(self: Value): Value =
 
 proc hash*(self: Value): Hash =
     result = self.kind.int
-    if self.symbol.isSome:
-        result = result !& self.symbol.get.hash
     result = result !& (
         case self.kind
         of ValueKind.Literal:
