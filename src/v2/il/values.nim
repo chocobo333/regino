@@ -137,7 +137,7 @@ proc hash*(self: Value): Hash =
         of ValueKind.Union:
             0
         of ValueKind.Select:
-            0
+            self.id
         of ValueKind.Lambda:
             0
         of ValueKind.Cons:
@@ -341,7 +341,7 @@ proc `==`*(t1, t2: Value): bool =
         of ValueKind.Union:
             t1.types == t2.types
         of ValueKind.Select:
-            t1.types == t2.types
+            t1.id == t2.id and t1.types == t2.types
         of ValueKind.Lambda:
             t1.l_param == t2.l_param and t1.suite == t2.suite
         of ValueKind.Cons:

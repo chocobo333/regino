@@ -7,6 +7,9 @@ import values
 var
     tvid = 0
 
+proc getTvid*(): int =
+    inc tvid
+    tvid
 proc newTypeVar*(): TypeVar =
     inc tvid
     TypeVar(

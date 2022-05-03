@@ -344,6 +344,7 @@ type
             iss*: seq[(Pattern, Value)]
             fns*: seq[Function]
         of ValueKind.Intersection, ValueKind.Union, ValueKind.Select:
+            id*: TypeVarId
             types*: HashSet[Value]
         of ValueKind.Lambda:
             l_param*: seq[Ident]

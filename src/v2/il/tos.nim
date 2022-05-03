@@ -315,21 +315,21 @@ proc `$`*(self: TypeExpression): string =
 proc `$`*(self: Program): string =
     self.stmts.map(`$`).join("\n")
 
-proc `$`*(self: TypeVar): string =
+proc id2s(self: int): string =
     let
         c = toSeq('a'..'z')
         n = c.len
     var
-        id = self.id - 1
+        id = self - 1
     while id > n:
         let
             index = id mod n
         result.add c[index]
         id = id div n
     result.add c[id mod n]
-    result.add "'"
     result.reverse
-    result = fmt"{result}({self.lb}, {self.ub})"
+proc `$`*(self: TypeVar): string =
+    result = fmt"'{self.id.id2s}({self.lb}, {self.ub})"
 proc `$`*(self: GenericType): string =
     self.ident.name
 proc `$$`*(self: GenericType): string =
@@ -411,7 +411,8 @@ proc `$`*(self: Value): string =
     of ValueKind.Union:
         toSeq(self.types).join"\/"
     of ValueKind.Select:
-        toSeq(self.types).join(" or ")
+        let s = toSeq(self.types).join(" or ")
+        fmt"'{self.id.id2s}({s})"
     of ValueKind.Lambda:
         let params = self.l_param.join(", ")
         &"lambda {params}: \n{self.suite}"
