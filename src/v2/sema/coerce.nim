@@ -11,6 +11,8 @@ import strformat
 import sugar
 import algorithm
 
+# import resolveRelations
+
 import ../il
 import ../typeenv
 import ../orders
@@ -56,7 +58,7 @@ proc coerceEq*(self: TypeEnv, t1, t2: Value) =
     self.coerceRelation(t2, t1)
 
 proc addTypeRelation*(self: TypeEnv, t1, t2: Value, fn: Ident) =
-    setTypeEnv(self)
+    # setTypeEnv(self)
     # assert t1.kind == ValueKind.Typedesc
     # assert t2.kind == ValueKind.Typedesc
     # assert not (t2.`typedesc` <= t1.`typedesc`)
