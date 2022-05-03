@@ -30,6 +30,7 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
 
 
 proc infer*(self: Literal): Value =
+    ## that retrurns literal's type merely
     self.typ
 proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     let
@@ -401,6 +402,7 @@ proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
     env.coerce(cond == Value.Bool)
     self.suite.infer(env)
 proc infer*(self: Program, env: TypeEnv): Value =
+    ## Entry point of type inference algorithm
     if self.stmts.len == 0:
         return Value.Unit
     # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
