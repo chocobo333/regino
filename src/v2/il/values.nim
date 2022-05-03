@@ -355,12 +355,5 @@ proc `==`*(t1, t2: Value): bool =
     else:
         false
 
-proc isSelect*(self: Value): bool =
-    if self.kind != ValueKind.Var: false
-    else:
-        assert (self.tv.lb.kind == ValueKind.Select and self.tv.ub.kind == ValueKind.Select) or
-               (self.tv.lb.kind != ValueKind.Select and self.tv.ub.kind != ValueKind.Select)
-        self.tv.lb.kind == ValueKind.Select
-
 when isMainModule:
     assert Value.Integer == Value.Integer

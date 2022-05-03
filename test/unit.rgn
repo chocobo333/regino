@@ -20,6 +20,9 @@ func f(a: float) -> float:
 var
   a: int = 1
   f: int
+  b: int = f(0.0)
+  c: float = f(0.0)
+  d = f(0.0)
 
 f = f(a)
 
