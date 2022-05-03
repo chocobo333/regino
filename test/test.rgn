@@ -36,6 +36,7 @@
 #         (T, op) is Monoid
 #         func inverse(_: T) -> T
 #         prop invNeutral(x: T) -> (op(x, x.inverse()) == (T, op).unit(), op(x.inverse(), x) == (T, op).unit())
+# seq[T] = (p: ptr T, len: int, size: int)
 
 type
     bool = typeof(false)

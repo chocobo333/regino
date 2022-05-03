@@ -14,9 +14,8 @@ import ../orders
 import ../utils
 import ../lineinfos
 
-# import infer as _
 import coerce
-import resolveRelations
+import resolve
 
 
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
