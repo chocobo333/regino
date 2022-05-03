@@ -195,19 +195,7 @@ proc Union*(_: typedesc[Value], t1, t2: Value): Value =
     Value.Union(res)
 proc glb(self: TypeEnv, t1, t2: Value): Value =
     setTypeEnv(self)
-    if t1.kind == ValueKind.Select:
-        let types = t1.types.filter(it => ((it <=? t2).isSome)).toSeq
-        # if types.len == 1:
-        #     types[0]
-        # else:
-        Value.Select(types)
-    elif t2.kind == ValueKind.Select:
-        let types = t2.types.filter(it => ((it <=? t1).isSome)).toSeq
-        # if types.len == 1:
-        #     types[0]
-        # else:
-        Value.Select(types)
-    elif t1.kind != ValueKind.Intersection:
+    if t1.kind != ValueKind.Intersection:
         if t2.kind == ValueKind.Intersection:
             toSeq(t2.types).foldl(self.glb(a, b), result)
             # for t2 in t2.types:
@@ -239,19 +227,7 @@ proc glb(self: TypeEnv, types: seq[Value]): Value =
 proc lub(self: TypeEnv, t1, t2: Value): Value =
     setTypeEnv(self)
     assert t1.kind != ValueKind.Select or t2.kind != ValueKind.Select
-    if t1.kind == ValueKind.Select:
-        let types = t1.types.filter(it => ((t2 <=? it).isSome)).toSeq
-        # if types.len == 1:
-        #     types[0]
-        # else:
-        Value.Select(types)
-    elif t2.kind == ValueKind.Select:
-        let types = t2.types.filter(it => ((t1 <=? it).isSome)).toSeq
-        # if types.len == 1:
-        #     types[0]
-        # else:
-        Value.Select(types)
-    elif t1.kind != ValueKind.Union:
+    if t1.kind != ValueKind.Union:
         if t2.kind == ValueKind.Union:
             toSeq(t2.types).foldl(self.lub(a, b), result)
         else:
@@ -300,7 +276,17 @@ proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
     let (ins, outs) = self.order.clear(v1)
     # TODO: add ident
     let symbol = if v1.symbol.isSome: v1.symbol else: v2.symbol
-    v1[] = v2[]
+    if v1.kind == ValueKind.Select:
+        if v2.kind == ValueKind.Select:
+            v1[] = v2[]
+        elif v2.kind in {ValueKind.Var, ValueKind.Link}:
+            v1[] = Value.Link(v2)[]
+        else:
+            v1[] = v2[]
+    elif v2.kind in {ValueKind.Var, ValueKind.Link}:
+        v1[] = Value.Link(v2)[]
+    else:
+        v1[] = v2[]
     v1.symbol = symbol
     let target = if v2.kind == ValueKind.Link: v2.to else: v2
     for e in ins.filter(it => (it != target)):
@@ -308,7 +294,28 @@ proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
     for e in outs.filter(it => (it != target)):
         self.order.add (target, e)
 
-proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
+proc expand*(self: TypeEnv, node: Value) =
+    if node.kind == ValueKind.Var: return
+    if self.order.outdegree(node) == 0: return
+
+    for target in self.order.primal[node]:
+        if node.kind == target.kind:
+            case node.kind
+            of ValueKind.Var:
+                assert false
+            of ValueKind.Literal..ValueKind.String:
+                discard
+            of ValueKind.Pi:
+                assert node.params.len == target.params.len
+                for param in node.params.zip(target.params):
+                    self.order.add((param[1], param[0]))
+                self.order.add((node.rety, target.rety))
+                self.order.remove((node, target))
+            else:
+                # TODO:
+                discard
+
+proc collapse*(self: TypeEnv, scc: seq[Value]): Value =
     # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
     # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
     # ohterwise, idk.
@@ -322,51 +329,49 @@ proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
     if concretes.len >= 1:
 
         if concretes.len >= 2:
-            env.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
+            self.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
 
         collapsed = concretes[0]
 
         for n in scc.filterIt(it != collapsed):
             if n.kind == ValueKind.Var:
-                env.bindtv(n, Value.Link(collapsed))
+                self.bindtv(n, Value.Link(collapsed))
             else:
-                let (ins, outs) = env.order.clear(n)
+                let (ins, outs) = self.order.clear(n)
                 for e in ins.filter(it => (it != collapsed)):
-                    env.order.add (e, collapsed)
+                    self.order.add (e, collapsed)
                 for e in outs.filter(it => (it != collapsed)):
-                    env.order.add (collapsed, e)
+                    self.order.add (collapsed, e)
     else:
-        collapsed = Value.Var(env)
+        collapsed = Value.Var(self)
         for n in scc.filterIt(it != collapsed):
-            env.bindtv(n, Value.Link(collapsed))
+            self.bindtv(n, Value.Link(collapsed))
 
     collapsed
 
-proc isSelect*(self: Value): bool =
-    if self.kind != ValueKind.Var: false
-    else:
-        assert (self.tv.lb.kind == ValueKind.Select and self.tv.ub.kind == ValueKind.Select) or
-               (self.tv.lb.kind != ValueKind.Select and self.tv.ub.kind != ValueKind.Select)
-        self.tv.lb.kind == ValueKind.Select
-
 proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
+    setTypeEnv(self)
     # i can assume v1 is not type value
     # if both of v1 and v2 are not type value, check v1 <= v2.
     # if v2 is type type value, update v2's upper bound by glb(v1, v2.tv.ub)
 
     let
-        v = if v1.kind != ValueKind.Var: v1
-            else:
-                if primal:
-                    if v1.isSelect:
-                        Value.Bottom()
+        v =
+            if v1.kind == ValueKind.Var:
+                if primal: v1.tv.lb else: v1.tv.ub
+            elif v1.kind == ValueKind.Select:
+                if v1.types.len == 0:
+                    if primal:
+                        Value.Bottom
                     else:
-                        v1.tv.lb
+                        Value.Unit
                 else:
-                    if v1.isSelect:
-                        Value.Unit()
+                    if primal:
+                        Value.Intersection(v1.types)
                     else:
-                        v1.tv.ub
+                        Value.Union(v1.types)
+            else:
+                v1
 
     result = false
 
@@ -374,19 +379,27 @@ proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
         if primal:
             let lub = self.lub(v, v2.tv.lb)
             if v2.tv.lb != lub: result = true
-            if v2.isSelect:
-                v2.tv.lb = lub
-                v2.tv.ub = lub
-            else:
-                v2.tv.lb = lub
+            v2.tv.lb = lub
         else:
             let glb = self.glb(v, v2.tv.ub)
             if v2.tv.ub != glb: result = true
-            if v2.isSelect:
-                v2.tv.lb = glb
-                v2.tv.ub = glb
-            else:
-                v2.tv.ub = glb
+            v2.tv.ub = glb
+    elif v2.kind == ValueKind.Select:
+        if primal:
+            var lub = initHashSet[Value]()
+            for e in v2.types:
+                if (v <=? e).isSome:
+                    lub.incl e
+            if v2.types != lub: result = true
+            v2.types = lub
+        else:
+            var glb = initHashSet[Value]()
+            for e in v2.types:
+                if (e <=? v).isSome:
+                    glb.incl e
+            if v2.types != glb: result = true
+            v2.types = glb
+
     # else:
     #     if primal and not self.`<=?`(v, v2).isNone:
     #         self.errs.add TypeError.Subtype(v, v2)
@@ -416,7 +429,18 @@ proc decideType*(self: TypeEnv, v: Value) =
         self.bindtv(v, v.tv.ub)
     else:
         self.errs.add TypeError.Undeciable()
-
+proc greatest(self: TypeEnv, v: Value): Option[Value] =
+    setTypeEnv(self)
+    assert v.kind == ValueKind.Select
+    let types = v.types.filter(it1 => v.types.all(it2 => it2 <= it1))
+    debug types
+    case types.len
+    of 0:
+        discard
+    of 1:
+        discard
+    else:
+        discard
 proc resolve*(self: TypeEnv) =
     for constraint in self.constraints:
         self.order.add constraint
@@ -431,6 +455,9 @@ proc resolve*(self: TypeEnv) =
         isChanged = false
         sorted = @[]
 
+        for n in self.order.nodes:
+            self.expand(n)
+
         for scc in self.order.SCC:
             sorted.add self.collapse(scc)
 
@@ -443,15 +470,21 @@ proc resolve*(self: TypeEnv) =
             if self.resolve(n, primal=true):
                 isChanged = true
 
-        for n in sorted.filterIt(it.kind == ValueKind.Var):
-            if n.isSelect and n.tv.lb.types.len == 1:
-                self.bindtv(n, n.tv.lb.types.pop)
-                isChanged = true
+        self.order.dot("./dot3.md")
 
-    self.order.dot("./dot3.md")
+        for n in sorted.filterIt(it.kind == ValueKind.Var):
+            if n.kind == ValueKind.Select:
+                discard self.greatest(n)
+                if n.types.len == 1:
+                    self.bindtv(n, n.types.pop)
+                    isChanged = true
+
+    self.order.dot("./dot4.md")
 
     for n in sorted.reversed:
         self.decideType(n)
+
+    self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var)
 
 when isMainModule:
     # var

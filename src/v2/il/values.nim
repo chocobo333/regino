@@ -5,6 +5,7 @@ import hashes
 import sequtils
 
 import il
+import ../utils
 
 
 proc literal*(_: typedesc[Value], lit: Literal): Value =

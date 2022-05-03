@@ -157,8 +157,10 @@ proc dot*[T](self: Order[T]): string =
     result.add "edge [\n  dir = back\n];\n"
     for n in self.nodes.items:
         result.add &"\"{n}\"\n"
-    for key in self.dual.keys:
-        for v in self.dual[key].items:
+    # for key in self.dual.keys:
+        # for v in self.dual[key].items:
+    for (key, d) in self.dual.pairs:
+        for v in d:
             result.add &"\"{key}\" -> \"{v}\"\n"
     result = result[0..^2]
     result = result.indent(2)

@@ -40,10 +40,7 @@ proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     of 1:
         syms[0].typ.inst(env)
     else:
-        let v = Value.Var(env)
-        v.tv.lb = Value.Select(syms.mapIt(it.typ.inst(env)))
-        v.tv.ub = Value.Select(syms.mapIt(it.typ.inst(env)))
-        v
+        Value.Select(syms.mapIt(it.typ.inst(env)))
         # Value.Intersection(syms.mapIt(it.typ.inst(env)))
     self.typ = result
 proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
