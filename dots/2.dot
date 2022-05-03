@@ -1,0 +1,26 @@
+digraph order {
+  node [
+    ];
+  node [
+    ];
+  "(float) -> 'm(Bottom, ())"
+  "(float) -> 'j(Bottom, float)"
+  "(float) -> ~int"
+  "'k((float) -> int or (float) -> float)"
+  "'n((float) -> int or (float) -> float)"
+  "'m(Bottom, ())"
+  "'q(Bottom, float)"
+  "'j(Bottom, float)"
+  "'l(Bottom, ())"
+  "'r((float) -> int or (float) -> float)"
+  "float"
+  "(float) -> int"
+  "(~int) -> 'q(Bottom, float)"
+  "(float) -> 'j(Bottom, float)" -> "'k((float) -> int or (float) -> float)"
+  "(float) -> ~int" -> "(float) -> int"
+  "float" -> "'q(Bottom, float)"
+  "float" -> "'j(Bottom, float)"
+  "'l(Bottom, ())" -> "'m(Bottom, ())"
+  "(~int) -> 'q(Bottom, float)" -> "'r((float) -> int or (float) -> float)"
+  "(float) -> 'm(Bottom, ())" -> "'n((float) -> int or (float) -> float)"
+}
