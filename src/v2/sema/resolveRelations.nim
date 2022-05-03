@@ -6,16 +6,21 @@ import strformat
 import sugar
 import algorithm
 
+import coerce
+
 import ../il
 import ../typeenv
 import ../orders
 import ../errors
 import ../utils
+import ../dots
 
 
-proc `<=`(t1, t2: Value): bool {.error.}
-proc `<=?`(t1, t2: Value): Option[seq[Constraint]] {.error.}
-template setTypeEnv(self: TypeEnv): untyped =
+proc `<=`*(t1, t2: Value): bool {.error.}
+proc `<=?`*(t1, t2: Value): Option[seq[Constraint]] {.error.}
+proc `<=`*(self: TypeEnv, t1, t2: Value): bool
+proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]]
+template setTypeEnv*(self: TypeEnv): untyped =
     proc `<=`(t1, t2: Value): bool =
         self.`<=`(t1, t2)
     proc `<=?`(t1, t2: Value): Option[seq[Constraint]] =
@@ -23,7 +28,7 @@ template setTypeEnv(self: TypeEnv): untyped =
 
 proc applicable(conv: (Value, Value), p: (Value, Value)): bool =
     false
-proc `<=`(self: TypeEnv, t1, t2: Value): bool =
+proc `<=`*(self: TypeEnv, t1, t2: Value): bool =
     setTypeEnv(self)
     if t1.kind == t2.kind:
         case t1.kind
@@ -196,8 +201,9 @@ proc Union*(_: typedesc[Value], t1, t2: Value): Value =
         res.incl t2
     Value.Union(res)
 proc glb(self: TypeEnv, t1, t2: Value): Value =
+    result = Value.Unit
     setTypeEnv(self)
-    if t1.kind != ValueKind.Intersection:
+    result = if t1.kind != ValueKind.Intersection:
         if t2.kind == ValueKind.Intersection:
             toSeq(t2.types).foldl(self.glb(a, b), result)
             # for t2 in t2.types:
@@ -227,9 +233,10 @@ proc glb(self: TypeEnv, t1, t2: Value): Value =
 proc glb(self: TypeEnv, types: seq[Value]): Value =
     types.foldl(self.glb(a, b))
 proc lub(self: TypeEnv, t1, t2: Value): Value =
+    result = Value.Bottom
     setTypeEnv(self)
     assert t1.kind != ValueKind.Select or t2.kind != ValueKind.Select
-    if t1.kind != ValueKind.Union:
+    result = if t1.kind != ValueKind.Union:
         if t2.kind == ValueKind.Union:
             toSeq(t2.types).foldl(self.lub(a, b), result)
         else:
@@ -273,7 +280,7 @@ proc bindtv*(self: TypeEnv, v: Value) =
     for e in outs:
         self.order.add (v, e)
 proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
-    assert v1.kind == ValueKind.Var
+    assert v1.kind in {ValueKind.Var, ValueKind.Select}
     assert v2.kind != ValueKind.Var
     let (ins, outs) = self.order.clear(v1)
     # TODO: add ident
@@ -296,7 +303,7 @@ proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
     for e in outs.filter(it => (it != target)):
         self.order.add (target, e)
 
-proc expand*(self: TypeEnv, node: Value) =
+proc expand(self: TypeEnv, node: Value) =
     if node.kind == ValueKind.Var: return
     if self.order.outdegree(node) == 0: return
 
@@ -317,7 +324,7 @@ proc expand*(self: TypeEnv, node: Value) =
                 # TODO:
                 discard
 
-proc collapse*(self: TypeEnv, scc: seq[Value]): Value =
+proc collapse(self: TypeEnv, scc: seq[Value]): Value =
     # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
     # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
     # ohterwise, idk.
@@ -351,7 +358,7 @@ proc collapse*(self: TypeEnv, scc: seq[Value]): Value =
 
     collapsed
 
-proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
+proc resolve(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
     setTypeEnv(self)
     # i can assume v1 is not type value
     # if both of v1 and v2 are not type value, check v1 <= v2.
@@ -408,7 +415,7 @@ proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
     #     elif not primal and not self.`<=?`(v2, v).isNone:
     #         self.errs.add TypeError.Subtype(v2, v)
 
-proc resolve*(self: TypeEnv, v: Value, primal: bool=true): bool =
+proc resolve(self: TypeEnv, v: Value, primal: bool=true): bool =
     # if v is type value, bind it into its upper bound
     # if v is of intersection type, simplify it.
     let
@@ -422,98 +429,116 @@ proc resolve*(self: TypeEnv, v: Value, primal: bool=true): bool =
         if self.resolve(v, target, primal):
             result = true
 
-proc decideType*(self: TypeEnv, v: Value) =
-    if v.kind != ValueKind.Var:
-        return
-
-    if self.`<=`(v.tv.lb, v.tv.ub):
-        # TODO: OK?
-        self.bindtv(v, v.tv.ub)
-    else:
-        self.errs.add TypeError.Undeciable()
 proc greatest(self: TypeEnv, v: Value): Option[Value] =
     setTypeEnv(self)
     assert v.kind == ValueKind.Select
-    let types = v.types.filter(it1 => v.types.all(it2 => it2 <= it1))
-    debug types
+    if v.types.len == 1:
+        return some toSeq(v.types)[0]
+
+    let
+        tmp = v.types.filter(it => not it.symbol.get.typ.isPolymorphic)
+        types = tmp.filter(it1 => tmp.all(it2 => it2 <= it1))
     case types.len
     of 0:
-        discard
+        none(Value)
     of 1:
-        discard
+        some toSeq(types)[0]
     else:
-        discard
+        none(Value)
+proc update(self: TypeEnv): bool {.discardable.} =
+    while self.constraints.len > 0:
+        self.order.add self.constraints.pop
+    self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var)
+    self.selects = self.selects.filter(it => it.kind == ValueKind.Select)
+    not (self.tvs.len == 0 and self.selects.len == 0)
+proc coerce(self: TypeEnv, v: Value) =
+    if v in self.order.primal:
+        for e in self.order.primal[v]:
+            coerce.coerce(self, v <= e)
+    if v in self.order.dual:
+        for e in self.order.dual[v]:
+            coerce.coerce(self, e <= v)
 proc resolve*(self: TypeEnv) =
-    for constraint in self.constraints:
-        self.order.add constraint
+    setTypeEnv(self)
 
-    self.order.dot("./dot1.md")
-
+    when not defined(release):
+        var
+            dot = newDot[Value]()
     var
         isChanged = true
         sorted: seq[Value]
-
-    while isChanged:
+    self.update
+    when not defined(release):
+        dot.add self.order
+    template cont: untyped =
+        self.update
+        when not defined(release):
+            dot.add self.order
+        if isChanged:
+            continue
+    while self.update and isChanged:
         isChanged = false
-        sorted = @[]
+        sorted = self.order.SCC.mapIt(self.collapse(it))
 
-        for n in self.order.nodes:
-            self.expand(n)
+        cont
 
-        for scc in self.order.SCC:
-            sorted.add self.collapse(scc)
-
-        self.order.dot("./dot2.md")
-
+        for n in sorted:
+            if self.resolve(n, primal=true):
+                isChanged = true
         for n in sorted.reversed:
             if self.resolve(n, primal=false):
                 isChanged = true
         for n in sorted:
             if self.resolve(n, primal=true):
                 isChanged = true
+        for n in sorted.reversed:
+            if self.resolve(n, primal=false):
+                isChanged = true
+        for e in self.selects:
+            if e.types.len == 1:
+                self.bindtv(e, e.types.pop)
+                self.coerce(e)
+                isChanged = true
+        cont
 
-        self.order.dot("./dot3.md")
+        for e in self.tvs:
+            assert e.kind == ValueKind.Var
+            if e.tv.ub == e.tv.lb and e.tv.ub.compilable:
+                self.bindtv(e, e.tv.ub)
+                isChanged = true
+        cont
 
-        for n in sorted.filterIt(it.kind == ValueKind.Var):
-            if n.kind == ValueKind.Select:
-                discard self.greatest(n)
-                if n.types.len == 1:
-                    self.bindtv(n, n.types.pop)
-                    isChanged = true
+        # for e in sorted.filterIt(it.kind == ValueKind.Select):
+        for e in self.selects:
+            let g = self.greatest(e)
+            if g.isSome and g.get.kind == ValueKind.Pi:
+                self.bindtv(e, g.get)
+                self.coerce(e)
+                isChanged = true
+        cont
 
-    self.order.dot("./dot4.md")
-
-    for n in sorted.reversed:
-        self.decideType(n)
-
-    self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var)
+        # for n in sorted.reversed:
+        for e in self.tvs:
+            if e.tv.lb <= e.tv.ub and e.tv.ub.compilable:
+                self.bindtv(e, e.tv.ub)
+                self.coerce(e)
+                isChanged = true
+        cont
+        for e in self.tvs:
+            if e.tv.lb <= e.tv.ub and e.tv.lb.compilable:
+                self.bindtv(e, e.tv.lb)
+                self.coerce(e)
+                isChanged = true
+        cont
+    for e in self.tvs:
+        if e.tv.lb <= e.tv.ub:
+            self.bindtv(e, e.tv.lb) # TODO: ub?
+        else:
+            self.bindtv(e, e.tv.lb)
+    # when not defined(release):
+    #     dot.save("./dots")
 
 when isMainModule:
-    # var
-    #     scope = newScope()
-    #     env = newTypeEnv(scope)
-    #     a = Value.Var(env)
-    #     b = Value.Var(env)
-    #     c = Value.Var(env)
-
-    # env.order.add (Value.Float, Value.String)
-    # env.order.add (Value.Integer, Value.Float)
-    # env.order.add (Value.Float, b)
-    # env.order.add (b, Value.Integer)
-    # env.order.add (b, a)
-    # env.order.add (a, c)
-    # env.order.add (c, a)
-
-    # debug env.order.primal
-    # debug env.order.dual
-
-    # env.order.dot("./dot.md")
-
-    # env.resolve()
-
-    # env.order.dot("./dot2.md")
-
-    # debug env.errs
     import eval
     import scopes
     import ../parsers
