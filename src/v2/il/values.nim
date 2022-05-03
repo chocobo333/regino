@@ -3,8 +3,10 @@ import sets
 import tables
 import hashes
 import sequtils
+import options
 
 import il
+import symbols
 import ../utils
 
 
@@ -92,6 +94,8 @@ proc dual*(self: Value): Value =
 
 proc hash*(self: Value): Hash =
     result = self.kind.int
+    if self.symbol.isSome:
+        result = result !& self.symbol.get.hash
     result = result !& (
         case self.kind
         of ValueKind.Literal:
@@ -354,6 +358,9 @@ proc `==`*(t1, t2: Value): bool =
             t1.to == t2.to
     else:
         false
+
+proc isPolymorphic*(self: Value): bool =
+    self.kind in {ValueKind.Pi, ValueKind.Family} and self.implicit.len > 0
 
 when isMainModule:
     assert Value.Integer == Value.Integer

@@ -107,9 +107,9 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.Binary:
         fmt"{self.lhs} {$$self.op} {self.rhs}"
     of ExpressionKind.Prefix:
-        fmt"{$self.op}{self.expression}"
+        fmt"{$$self.op}(: {self.op.typ}){self.expression}"
     of ExpressionKind.Postfix:
-        fmt"{self.expression}{$self.op}"
+        fmt"{self.expression}{$$self.op}(: {self.op.typ})"
     of ExpressionKind.Block:
         if self.label.isNone:
             &"block:\n{self.`block`}"

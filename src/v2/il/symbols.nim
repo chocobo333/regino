@@ -1,5 +1,6 @@
 
 import options
+import hashes
 
 import il
 
@@ -32,6 +33,11 @@ proc Func*(_: typedesc[Symbol], id: Ident, typ: Value, decl: Function, global: b
     typ.symbol = some result
 
 proc empty*(_: typedesc[Symbol]): Symbol = Symbol()
+
+proc hash*(self: Symbol): Hash =
+    result = self.kind.int
+    result = result !& self.id.name.hash
+    result = !$result
 
 import ../lineinfos
 proc loc*(self: Symbol): Location =
