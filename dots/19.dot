@@ -8,19 +8,20 @@ digraph order {
   edge [
     dir = back
     ];
-  "(()) -> ()"
+  "(float) -> float"
+  "(float) -> ~float"
   "(float) -> ()"
   "(int) -> ()"
   "(~int) -> ~int"
   "(float) -> ~int"
-  "(float) -> ~float"
   "T"
   "()"
   "float"
   "int"
   "~int"
+  "(()) -> ()"
   "(float) -> int"
-  "(float) -> float"
+  "(~int) -> ~int" -> "(float) -> int"
   "(float) -> ~int" -> "(float) -> int"
   "(float) -> ~float" -> "(float) -> float"
   "(float) -> ()" -> "(float) -> float"
@@ -30,5 +31,5 @@ digraph order {
   "()" -> "float"
   "()" -> "int"
   "(int) -> ()" -> "(()) -> ()"
-  "(~int) -> ~int" -> "(float) -> int"
+  "(int) -> ()" -> "(()) -> ()"
 }
