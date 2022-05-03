@@ -12,37 +12,14 @@ import ../orders
 import ../errors
 import ../utils
 
-type Graph = Table[Value, seq[Value]]
-
-proc reversed*(graph: ref Graph): Graph =
-    var ret: Graph
-    for source, targets in graph:
-        for target in targets:
-            if target in ret:
-                ret[target].add source
-            else:
-                ret[target] = @[source]
-    ret
-
-proc SCC*(graph: ref Graph): seq[seq[Value]] =
-    var
-        reversedGraph = graph.reversed
-        visited: HashSet[Value]
-    @[]
-
-proc resolveRelations*(env: TypeEnv) =
-    var graph: Graph
-    for (target, source) in env.constraints:
-        if source in graph:
-            graph[source].add target
-        else:
-            graph[source] = @[target]
-
 
 proc `<=`(t1, t2: Value): bool {.error.}
+proc `<=?`(t1, t2: Value): Option[seq[Constraint]] {.error.}
 template setTypeEnv(self: TypeEnv): untyped =
     proc `<=`(t1, t2: Value): bool =
         self.`<=`(t1, t2)
+    proc `<=?`(t1, t2: Value): Option[seq[Constraint]] =
+        self.`<=?`(t1, t2)
 
 proc applicable(conv: (Value, Value), p: (Value, Value)): bool =
     false
@@ -84,6 +61,8 @@ proc `<=`(self: TypeEnv, t1, t2: Value): bool =
             else:
                 # TODO:
                 false
+        of ValueKind.Family:
+            false
         of ValueKind.Sum:
             false
         of ValueKind.Trait:
@@ -96,6 +75,8 @@ proc `<=`(self: TypeEnv, t1, t2: Value): bool =
             t1.types.anyIt(self.`<=`(it, t2))
         of ValueKind.Union:
             t1.types.allIt(self.`<=`(it, t2))
+        of ValueKind.Select:
+            false
         of ValueKind.Cons:
             false
         of ValueKind.Lambda:
@@ -128,35 +109,390 @@ proc `<=`(self: TypeEnv, t1, t2: Value): bool =
         elif t2.kind == ValueKind.Var:
             (t1, t2) in self.order
         else:
-            toSeq(self.scope.converters.keys).anyIt(it.applicable((t1, t2)))
+            # toSeq(self.scope.converters.keys).anyIt(it.applicable((t1, t2)))
+            (t1, t2) in self.scope.converters
 
-
-proc simplify(self: TypeEnv, t: Value): Value =
-    setTypeEnv(self)
-    assert t.kind == ValueKind.Intersection
-    let types = t.types
-    var dels = initHashSet[Value]()
-    for t1 in types:
-        for t2 in types:
-            if t1 <= t2:
-                dels.incl t2
-                break
-    var res = types - dels
-    assert res.len != 0
-    if res.len == 1:
-        res.pop
+proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
+    proc `<=`(t1, t2: Value): bool =
+        env.`<=`(t1, t2)
+    if t1.kind == ValueKind.Link:
+        env.`<=?`(t1.to, t2)
+    elif t2.kind == ValueKind.Link:
+        env.`<=?`(t1, t2.to)
+    elif t1 <= t2:
+        some newSeq[Constraint]()
+    elif t1.kind == t2.kind:
+        case t1.kind
+        of ValueKind.Bottom, ValueKind.Unit, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
+            some newSeq[Constraint]()
+        of ValueKind.Pair:
+            let
+                first = env.`<=?`(t1.first, t2.first)
+                second = env.`<=?`(t1.second, t2.second)
+            if first.isSome and second.isSome:
+                some first.get & second.get
+            else:
+                none(seq[Constraint])
+        of ValueKind.Record:
+            let
+                ret = toSeq(t2.members.keys).mapIt(`<=?`(env, t1.members.getOrDefault(it, Value.Unit), t2.members[it]))
+            if ret.allIt(it.isSome):
+                some ret.mapIt(it.get).flatten
+            else:
+                none(seq[Constraint])
+        of ValueKind.Pi:
+            let
+                params = t1.params.zip(t2.params).mapIt(env.`<=?`(it[1], it[0]))
+                rety = env.`<=?`(t1.rety, t2.rety)
+            if params.allIt(it.isSome) and rety.isSome:
+                some params.mapIt(it.get).flatten & rety.get
+            else:
+                none(seq[Constraint])
+        of ValueKind.Var:
+            if t1.tv.lb <= t2.tv.ub:
+                some @[(t1, t2)]
+            else:
+                none(seq[Constraint])
+        else:
+            env.raise("not implemented")
+            none(seq[Constraint])
+    elif t2.kind == ValueKind.Var:
+        # if t2.tv.ub != t1 and t2.tv.ub <= t1:
+        #     none(seq[Constraint])
+        # else:
+        #     some @[(t1, t2)]
+        if t1 <= t2.tv.ub:
+            some @[(t1, t2)]
+        else:
+            none(seq[Constraint])
+    elif t1.kind == ValueKind.Var:
+        # if t2 != t1.tv.lb and t2 <= t1.tv.lb:
+        #     none(seq[Constraint])
+        # else:
+        #     some @[(t1, t2)]
+        if t1.tv.lb <= t2:
+            some @[(t1, t2)]
+        else:
+            none(seq[Constraint])
     else:
-        Value.Intersection(res)
-proc Intersection*(_: typedesc[Value], t1, t2: Value): Value =
+        # TODO: replace it with `applicable`
+        if env.scope.typeOrder.path(t1, t2).isSome:
+            some newSeq[Constraint]()
+        else:
+            none(seq[Constraint])
+
+proc Union*(_: typedesc[Value], t1, t2: Value): Value =
     var
         res = initHashSet[Value]()
-    if t1.kind == ValueKind.Intersection:
+    if t1.kind == ValueKind.Union:
         res.incl t1.types
     else:
         res.incl t1
-    if t2.kind == ValueKind.Intersection:
+    if t2.kind == ValueKind.Union:
         res.incl t2.types
     else:
         res.incl t2
+    Value.Union(res)
 proc glb(self: TypeEnv, t1, t2: Value): Value =
-    self.simplify(Value.Intersection(t1, t2))
+    setTypeEnv(self)
+    if t1.kind == ValueKind.Select:
+        let types = t1.types.filter(it => ((it <=? t2).isSome)).toSeq
+        # if types.len == 1:
+        #     types[0]
+        # else:
+        Value.Select(types)
+    elif t2.kind == ValueKind.Select:
+        let types = t2.types.filter(it => ((it <=? t1).isSome)).toSeq
+        # if types.len == 1:
+        #     types[0]
+        # else:
+        Value.Select(types)
+    elif t1.kind != ValueKind.Intersection:
+        if t2.kind == ValueKind.Intersection:
+            toSeq(t2.types).foldl(self.glb(a, b), result)
+            # for t2 in t2.types:
+                # result = self.glb(result, t2)
+        else:
+            if t1 <= t2:
+                t1
+            elif t2 <= t1:
+                t2
+            else:
+                Value.Intersection(@[t1, t2])
+    else:
+        if t2.kind == ValueKind.Intersection:
+            toSeq(t2.types).foldl(self.glb(a, b), result)
+            # for t2 in t2.types:
+            #     result = self.glb(result, t2)
+        else:
+            if toSeq(t1.types).anyIt(it <= t2):
+                t1
+            else:
+                var res = t1.types
+                for e in res:
+                    if t2 <= e:
+                        res.excl e
+                res.incl t2
+                Value.Intersection(res)
+proc glb(self: TypeEnv, types: seq[Value]): Value =
+    types.foldl(self.glb(a, b))
+proc lub(self: TypeEnv, t1, t2: Value): Value =
+    setTypeEnv(self)
+    assert t1.kind != ValueKind.Select or t2.kind != ValueKind.Select
+    if t1.kind == ValueKind.Select:
+        let types = t1.types.filter(it => ((t2 <=? it).isSome)).toSeq
+        # if types.len == 1:
+        #     types[0]
+        # else:
+        Value.Select(types)
+    elif t2.kind == ValueKind.Select:
+        let types = t2.types.filter(it => ((t1 <=? it).isSome)).toSeq
+        # if types.len == 1:
+        #     types[0]
+        # else:
+        Value.Select(types)
+    elif t1.kind != ValueKind.Union:
+        if t2.kind == ValueKind.Union:
+            toSeq(t2.types).foldl(self.lub(a, b), result)
+        else:
+            if t1 <= t2:
+                t2
+            elif t2 <= t1:
+                t1
+            else:
+                Value.Union(@[t1, t2])
+    else:
+        if t2.kind == ValueKind.Union:
+            toSeq(t2.types).foldl(self.lub(a, b), result)
+        else:
+            if toSeq(t1.types).anyIt(t2 <= it):
+                t1
+            else:
+                var res = t1.types
+                for e in res:
+                    if e <= t2:
+                        res.excl e
+                res.incl t2
+                Value.Union(res)
+proc lub(self: TypeEnv, types: seq[Value]): Value =
+    types.foldl(self.lub(a, b))
+proc simplify(self: TypeEnv, t: Value): Value =
+    assert t.kind in {ValueKind.Intersection, ValueKind.Union}
+    if t.kind == ValueKind.Intersection:
+        self.glb(toSeq(t.types))
+    else:
+        self.lub(toSeq(t.types))
+
+proc bindtv*(self: TypeEnv, v: Value) =
+    assert v.kind == ValueKind.Var
+    let (ins, outs) = self.order.clear(v)
+    # TODO: add ident
+    let symbol = if v.symbol.isSome: v.symbol else: v.tv.ub.symbol
+    v[] = v.tv.ub[]
+    v.symbol = symbol
+    for e in ins:
+        self.order.add (e, v)
+    for e in outs:
+        self.order.add (v, e)
+proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
+    assert v1.kind == ValueKind.Var
+    assert v2.kind != ValueKind.Var
+    let (ins, outs) = self.order.clear(v1)
+    # TODO: add ident
+    let symbol = if v1.symbol.isSome: v1.symbol else: v2.symbol
+    v1[] = v2[]
+    v1.symbol = symbol
+    let target = if v2.kind == ValueKind.Link: v2.to else: v2
+    for e in ins.filter(it => (it != target)):
+        self.order.add (e, target)
+    for e in outs.filter(it => (it != target)):
+        self.order.add (target, e)
+
+proc collapse*(env: TypeEnv, scc: seq[Value]): Value =
+    # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
+    # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
+    # ohterwise, idk.
+
+    if scc.len == 1: return scc[0]
+
+    let concretes = scc.filterIt(it.kind != ValueKind.Var)
+
+    var collapsed: Value
+
+    if concretes.len >= 1:
+
+        if concretes.len >= 2:
+            env.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
+
+        collapsed = concretes[0]
+
+        for n in scc.filterIt(it != collapsed):
+            if n.kind == ValueKind.Var:
+                env.bindtv(n, Value.Link(collapsed))
+            else:
+                let (ins, outs) = env.order.clear(n)
+                for e in ins.filter(it => (it != collapsed)):
+                    env.order.add (e, collapsed)
+                for e in outs.filter(it => (it != collapsed)):
+                    env.order.add (collapsed, e)
+    else:
+        collapsed = Value.Var(env)
+        for n in scc.filterIt(it != collapsed):
+            env.bindtv(n, Value.Link(collapsed))
+
+    collapsed
+
+proc isSelect*(self: Value): bool =
+    if self.kind != ValueKind.Var: false
+    else:
+        assert (self.tv.lb.kind == ValueKind.Select and self.tv.ub.kind == ValueKind.Select) or
+               (self.tv.lb.kind != ValueKind.Select and self.tv.ub.kind != ValueKind.Select)
+        self.tv.lb.kind == ValueKind.Select
+
+proc resolve*(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
+    # i can assume v1 is not type value
+    # if both of v1 and v2 are not type value, check v1 <= v2.
+    # if v2 is type type value, update v2's upper bound by glb(v1, v2.tv.ub)
+
+    let
+        v = if v1.kind != ValueKind.Var: v1
+            else:
+                if primal:
+                    if v1.isSelect:
+                        Value.Bottom()
+                    else:
+                        v1.tv.lb
+                else:
+                    if v1.isSelect:
+                        Value.Unit()
+                    else:
+                        v1.tv.ub
+
+    result = false
+
+    if v2.kind == ValueKind.Var:
+        if primal:
+            let lub = self.lub(v, v2.tv.lb)
+            if v2.tv.lb != lub: result = true
+            if v2.isSelect:
+                v2.tv.lb = lub
+                v2.tv.ub = lub
+            else:
+                v2.tv.lb = lub
+        else:
+            let glb = self.glb(v, v2.tv.ub)
+            if v2.tv.ub != glb: result = true
+            if v2.isSelect:
+                v2.tv.lb = glb
+                v2.tv.ub = glb
+            else:
+                v2.tv.ub = glb
+    # else:
+    #     if primal and not self.`<=?`(v, v2).isNone:
+    #         self.errs.add TypeError.Subtype(v, v2)
+    #     elif not primal and not self.`<=?`(v2, v).isNone:
+    #         self.errs.add TypeError.Subtype(v2, v)
+
+proc resolve*(self: TypeEnv, v: Value, primal: bool=true): bool =
+    # if v is type value, bind it into its upper bound
+    # if v is of intersection type, simplify it.
+    let
+        relation = if primal: self.order.primal else: self.order.dual
+
+    result = false
+
+    if v notin relation: return
+
+    for target in relation[v]:
+        if self.resolve(v, target, primal):
+            result = true
+
+proc decideType*(self: TypeEnv, v: Value) =
+    if v.kind != ValueKind.Var:
+        return
+
+    if self.`<=`(v.tv.lb, v.tv.ub):
+        # TODO: OK?
+        self.bindtv(v, v.tv.ub)
+    else:
+        self.errs.add TypeError.Undeciable()
+
+proc resolve*(self: TypeEnv) =
+    for constraint in self.constraints:
+        self.order.add constraint
+
+    self.order.dot("./dot1.md")
+
+    var
+        isChanged = true
+        sorted: seq[Value]
+
+    while isChanged:
+        isChanged = false
+        sorted = @[]
+
+        for scc in self.order.SCC:
+            sorted.add self.collapse(scc)
+
+        self.order.dot("./dot2.md")
+
+        for n in sorted.reversed:
+            if self.resolve(n, primal=false):
+                isChanged = true
+        for n in sorted:
+            if self.resolve(n, primal=true):
+                isChanged = true
+
+        for n in sorted.filterIt(it.kind == ValueKind.Var):
+            if n.isSelect and n.tv.lb.types.len == 1:
+                self.bindtv(n, n.tv.lb.types.pop)
+                isChanged = true
+
+    self.order.dot("./dot3.md")
+
+    for n in sorted.reversed:
+        self.decideType(n)
+
+when isMainModule:
+    # var
+    #     scope = newScope()
+    #     env = newTypeEnv(scope)
+    #     a = Value.Var(env)
+    #     b = Value.Var(env)
+    #     c = Value.Var(env)
+
+    # env.order.add (Value.Float, Value.String)
+    # env.order.add (Value.Integer, Value.Float)
+    # env.order.add (Value.Float, b)
+    # env.order.add (b, Value.Integer)
+    # env.order.add (b, a)
+    # env.order.add (a, c)
+    # env.order.add (c, a)
+
+    # debug env.order.primal
+    # debug env.order.dual
+
+    # env.order.dot("./dot.md")
+
+    # env.resolve()
+
+    # env.order.dot("./dot2.md")
+
+    # debug env.errs
+    import eval
+    import scopes
+    import ../parsers
+
+    let
+        f = open("test/unit.rgn")
+        s = f.readAll
+        program = Program(Source.from(s)).get
+        mainScope = program.setScope
+        env = newTypeEnv(mainScope)
+    for s in program.stmts:
+        discard s.infer(env)
+    env.resolve
+
+    debug env.tvs
+    debug env.errs
+    debug program

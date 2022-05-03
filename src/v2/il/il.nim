@@ -294,19 +294,22 @@ type
         Record
         Ptr
         Pi
+        Family
         Sum
         Trait
         Singleton
         Distinct
         Intersection
         Union
-        Cons
+        Select
         Lambda
+        Cons
         Var
         Gen
         Link
     Value* = ref ValueObject
     ValueObject = object
+        ident*: Option[Ident]
         symbol*: Option[Symbol]
         region*: Region
         case kind*: ValueKind
@@ -329,22 +332,25 @@ type
             members*: Table[Ident, Value]
         of ValueKind.Ptr:
             pointee*: Value
-        of ValueKind.Pi, ValueKind.Cons:
+        of ValueKind.Pi, ValueKind.Family:
             implicit*: seq[GenericType]
             instances*: seq[Value] # instances of implicit parameters
-            params*: seq[Value] # not concerned with `Cons`
+            params*: seq[Value] # not concerned with Type Family
             rety*: Value
         of ValueKind.Sum:
-            cons*: Table[Ident, Value]
+            constructors*: Table[Ident, Value]
         of ValueKind.Trait:
             paty*: (Pattern, Value)
             iss*: seq[(Pattern, Value)]
             fns*: seq[Function]
-        of ValueKind.Intersection, ValueKind.Union:
+        of ValueKind.Intersection, ValueKind.Union, ValueKind.Select:
             types*: HashSet[Value]
         of ValueKind.Lambda:
             l_param*: seq[Ident]
             suite*: Suite
+        of ValueKind.Cons:
+            constructor*: Value
+            args*: seq[Value]
         of ValueKind.Var:
             tv*: TypeVar
         of ValueKind.Gen:

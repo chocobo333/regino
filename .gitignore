@@ -13,3 +13,5 @@ tools/
 profile_results.txt
 
 target
+
+dot*.md

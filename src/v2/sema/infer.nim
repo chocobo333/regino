@@ -134,8 +134,10 @@ proc bindtv*(self: TypeEnv, t1, t2: Value) =
             t1[] = t2[]
         else:
             let symbol = if t1.symbol.isSome: t1.symbol else: t2.symbol
+            let ident = if t1.ident.isSome: t1.ident else: t2.ident
             t1[] = t2[]
             t1.symbol = symbol
+            t1.ident = ident
 proc simplify*(self: TypeEnv, t: Value): Value {.discardable.} =
     setTypeEnv(self)
     result = t
@@ -319,11 +321,6 @@ proc resolveRelation(self: TypeEnv, t1, t2: Value) =
         else:
             debug t1
             debug t2
-            debug t1.symbol
-            debug t2.symbol
-            debug t1.kind
-            debug t2.kind
-            debug self.constraints
             self.raise(fmt"{t1} and {t2} can not be unified")
 
 proc resolveRelationsPartially*(self: TypeEnv) =
@@ -377,10 +374,6 @@ proc resolveRelations*(self: TypeEnv) =
             let
                 (t1, t2) = self.constraints.pop
             self.resolveRelation(t1, t2)
-
-        debug self.constraints
-        debug self.tvconstraints
-        debug self.interconstraints
 
         var
             ord = newOrder[Value]()

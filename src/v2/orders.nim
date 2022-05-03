@@ -24,6 +24,16 @@ proc newOrder*[T](): Order[T] =
 
 proc contains*[T](self: Order[T], val: (T, T)): bool =
     self.primal.contains val
+proc indegree*[T](self: Order[T], key: T): int =
+    if key in self.dual:
+        self.dual[key].len
+    else:
+        0
+proc outdegree*[T](self: Order[T], key: T): int =
+    if key in self.primal:
+        self.primal[key].len
+    else:
+        0
 proc add*[T](self: var Order[T], val: (T, T)) =
     self.primal[val[0]] = val[1]
     self.dual[val[1]] = val[0]
@@ -70,8 +80,45 @@ proc sort*[T](self: Order[T]): seq[T] =
                 for ee in self.primal[e].items:
                     indegree[ee] = indegree[ee] - 1
             indegree.del(e)
+proc SCC*[T](self: Order[T]): seq[seq[T]] =
+    var
+        visited: HashSet[T]
+        order: seq[T]
+        ret: seq[seq[T]] = @[]
+
+    proc ordering(self: Order[T], node: T) =
+        if node in visited:
+            return
+        visited.incl node
+
+        if self.outdegree(node) != 0:
+            for target in self.primal[node]:
+                self.ordering(target)
+
+        order.add node
+
+    for node in self.nodes:
+        if node notin visited:
+            self.ordering(node)
+
+    visited.clear
+    proc collect(self: Order[T], node: T) =
+        if node in visited:
+            return
+        visited.incl node
+        ret[^1].add node
+
+        if self.indegree(node) != 0:
+            for target in self.dual[node]:
+                self.collect(target)
 
 
+    for node in order.reversed:
+        if node notin visited:
+            ret.add @[]
+            self.collect(node)
+
+    ret
 
 proc path*[T](self: Order[T], t1, t2: T): Option[seq[(T, T)]] =
     if (t1, t2) in self:
@@ -109,10 +156,10 @@ proc dot*[T](self: Order[T]): string =
     result.add "node [\n  shape = none\n];\n"
     result.add "edge [\n  dir = back\n];\n"
     for n in self.nodes.items:
-        result.add &"{n}\n"
+        result.add &"\"{n}\"\n"
     for key in self.dual.keys:
         for v in self.dual[key].items:
-            result.add &"{key} -> {v}\n"
+            result.add &"\"{key}\" -> \"{v}\"\n"
     result = result[0..^2]
     result = result.indent(2)
     result = &"digraph order {{\n{result}\n}}"
@@ -124,3 +171,17 @@ proc dot*[T](self: Order[T], filename: string) =
     defer:
         close f
     f.write(s)
+
+when isMainModule:
+    var
+        order: Order[int] = newOrder[int]()
+
+    order.add((1, 2))
+    order.add((2, 3))
+    order.add((3, 1))
+    order.add((4, 5))
+    order.add((5, 4))
+    order.add((1, 5))
+    order.add((6, 7))
+
+    assert order.SCC() == @[@[6], @[7], @[3, 2, 1], @[4, 5]]

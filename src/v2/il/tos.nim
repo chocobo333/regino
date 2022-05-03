@@ -336,13 +336,15 @@ proc `$$`*(self: GenericType): string =
     let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {self.ub}" else: ""
     fmt"{self.ident.name}{ub}"
 proc `$`*(self: Value): string =
+    if self.ident.isSome:
+        return self.ident.get.name
     result = case self.kind
     of ValueKind.Literal:
         $self.litval
     of ValueKind.Bottom:
         "Bottom"
     of ValueKind.Unit:
-        "Unit"
+        "()"
     of ValueKind.Bool:
         "bool"
     of ValueKind.Integer:
@@ -388,8 +390,16 @@ proc `$`*(self: Value): string =
                     let params = self.params.join(", ")
                     fmt"({params})"
         fmt"{imp}{params} -> {self.rety}"
+    of ValueKind.Family:
+        let
+            imp = self.implicit.map(`$$`).join(", ")
+        fmt"[{imp}]{self.rety}"
     of ValueKind.Sum:
-        "Sum"
+        var res = "variant\n"
+        for (id, val) in self.constructors.pairs:
+            res.add &"  {id}{val}\n"
+        res = res[0..^2]
+        res
     of ValueKind.Trait:
         "Trait"
     of ValueKind.Singleton:
@@ -400,19 +410,21 @@ proc `$`*(self: Value): string =
         toSeq(self.types).join("^")
     of ValueKind.Union:
         toSeq(self.types).join"\/"
-    of ValueKind.Cons:
-        let
-            imp = self.implicit.map(`$$`).join(", ")
-        fmt"[{imp}]{self.rety}"
+    of ValueKind.Select:
+        toSeq(self.types).join(" or ")
     of ValueKind.Lambda:
         let params = self.l_param.join(", ")
         &"lambda {params}: \n{self.suite}"
+    of ValueKind.Cons:
+        let
+            args = self.args.join", "
+        fmt"{self.constructor}[{args}]"
     of ValueKind.Var:
         $self.tv
     of ValueKind.Gen:
         $self.gt
     of ValueKind.Link:
-        $self.to
+        fmt"~{self.to}"
     if not self.region.isNil:
         result = fmt"({result}, {self.region})"
 
