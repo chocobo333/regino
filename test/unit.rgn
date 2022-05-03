@@ -23,6 +23,7 @@ var
   b: int = f(0.0)
   c: float = f(0.0)
   d = f(0.0)
+  f: float
 
 f = f(a)
 
