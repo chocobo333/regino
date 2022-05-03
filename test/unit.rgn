@@ -16,15 +16,17 @@ func f(a: float) -> int:
   1
 func f(a: float) -> float:
   1.0
+func id[T](a: T) -> T:
+    a
 
 var
   a: int = 1
-  f: int
   b: int = f(0.0)
   c: float = f(0.0)
   d = f(0.0)
-  f: float
-
+  e = id 3
+  f: int
+  g = id 3
 f = f(a)
 
 
