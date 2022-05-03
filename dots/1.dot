@@ -1,29 +1,45 @@
 digraph order {
-  node [
+  graph [
+    size = "30,10"
     ];
   node [
+    shape = none
     ];
+  edge [
+    dir = back
+    ];
+  "(~int) -> 't(Bottom, ())"
+  "(int) -> 'p(Bottom, ())"
+  "(float) -> 'm(Bottom, ())"
   "(float) -> 'j(Bottom, ())"
-  "(float) -> 'g(Bottom, ())"
-  "'h(~int or (float) -> int or (float) -> float)"
-  "'k(~int or (float) -> int or (float) -> float)"
-  "'n(~int or (float) -> int or (float) -> float)"
-  "'m(Bottom, ())"
-  "'g(Bottom, ())"
+  "T"
+  "'h((float) -> int or (float) -> float)"
+  "'k((float) -> int or (float) -> float)"
+  "'n((float) -> int or (float) -> float)"
+  "'p(Bottom, ())"
   "'q(Bottom, ())"
+  "'m(Bottom, ())"
   "'j(Bottom, ())"
+  "'g(Bottom, ())"
+  "'t(Bottom, ())"
+  "'o(Bottom, ())"
   "'l(Bottom, ())"
-  "'r(~float or (float) -> int or (float) -> float)"
+  "'u(~int or (float) -> int or (float) -> float)"
   "float"
   "int"
-  "(~int) -> 'q(Bottom, ())"
-  "(float) -> 'm(Bottom, ())"
-  "(float) -> 'j(Bottom, ())" -> "'k(~int or (float) -> int or (float) -> float)"
-  "(float) -> 'g(Bottom, ())" -> "'h(~int or (float) -> int or (float) -> float)"
-  "float" -> "'q(Bottom, ())"
+  "('q(Bottom, ())) -> 'q(Bottom, ())"
+  "(float) -> 'g(Bottom, ())"
+  "(float) -> 'm(Bottom, ())" -> "'n((float) -> int or (float) -> float)"
+  "(float) -> 'j(Bottom, ())" -> "'k((float) -> int or (float) -> float)"
+  "(float) -> 'g(Bottom, ())" -> "'h((float) -> int or (float) -> float)"
+  "T" -> "T"
   "float" -> "'j(Bottom, ())"
-  "'l(Bottom, ())" -> "'m(Bottom, ())"
+  "'o(Bottom, ())" -> "'p(Bottom, ())"
   "int" -> "'g(Bottom, ())"
-  "(~int) -> 'q(Bottom, ())" -> "'r(~float or (float) -> int or (float) -> float)"
-  "(float) -> 'm(Bottom, ())" -> "'n(~int or (float) -> int or (float) -> float)"
+  "int" -> "'t(Bottom, ())"
+  "'q(Bottom, ())" -> "int"
+  "'p(Bottom, ())" -> "'q(Bottom, ())"
+  "'l(Bottom, ())" -> "'m(Bottom, ())"
+  "(~int) -> 't(Bottom, ())" -> "'u(~int or (float) -> int or (float) -> float)"
+  "(int) -> 'p(Bottom, ())" -> "('q(Bottom, ())) -> 'q(Bottom, ())"
 }

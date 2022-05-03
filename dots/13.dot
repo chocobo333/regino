@@ -1,0 +1,33 @@
+digraph order {
+  graph [
+    size = "30,10"
+    ];
+  node [
+    shape = none
+    ];
+  edge [
+    dir = back
+    ];
+  "(()) -> ()"
+  "(float) -> ~float"
+  "(int) -> ()"
+  "(float) -> ~int"
+  "(~int) -> ~int"
+  "(float) -> ()"
+  "T"
+  "()"
+  "float"
+  "int"
+  "~int"
+  "(float) -> int"
+  "(float) -> float"
+  "(~int) -> ~int" -> "(float) -> int"
+  "(float) -> ()" -> "(float) -> float"
+  "(float) -> ~float" -> "(float) -> float"
+  "T" -> "T"
+  "float" -> "~int"
+  "()" -> "float"
+  "()" -> "int"
+  "(int) -> ()" -> "(()) -> ()"
+  "(float) -> ~int" -> "(float) -> int"
+}

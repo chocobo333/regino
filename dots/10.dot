@@ -1,0 +1,40 @@
+digraph order {
+  graph [
+    size = "30,10"
+    ];
+  node [
+    shape = none
+    ];
+  edge [
+    dir = back
+    ];
+  "('q(int, ())) -> 'q(int, ())"
+  "(float) -> ~float"
+  "(int) -> 'p(int, ())"
+  "(float) -> ~int"
+  "(~int) -> ~int"
+  "(float) -> 'm(float, ())"
+  "T"
+  "'p(int, ())"
+  "'q(int, ())"
+  "'m(float, ())"
+  "'o(int, ())"
+  "'l(float, ())"
+  "float"
+  "int"
+  "~int"
+  "(float) -> int"
+  "(float) -> float"
+  "(~int) -> ~int" -> "(float) -> int"
+  "(float) -> 'm(float, ())" -> "(float) -> float"
+  "(float) -> ~float" -> "(float) -> float"
+  "T" -> "T"
+  "float" -> "~int"
+  "'o(int, ())" -> "'p(int, ())"
+  "'q(int, ())" -> "int"
+  "'p(int, ())" -> "'q(int, ())"
+  "'l(float, ())" -> "'m(float, ())"
+  "'m(float, ())" -> "float"
+  "(int) -> 'p(int, ())" -> "('q(int, ())) -> 'q(int, ())"
+  "(float) -> ~int" -> "(float) -> int"
+}
