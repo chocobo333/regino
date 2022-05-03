@@ -20,20 +20,29 @@ type
 proc newDot*[T](): Dot[T] =
     Dot[T]()
 
+proc graphAttr2string(self: Table[string, string]): string =
+    for (key, val) in self.pairs:
+        result.add &"{key} = \"{val}\""
+        result.add "\n"
+    result = result.indent(2)
+    result = &"graph [\n{result}];\n"
 proc nodeAttr2string(self: Table[string, string]): string =
     for (key, val) in self.pairs:
         result.add fmt"{key} = {val}"
+        result.add "\n"
     result = result.indent(2)
     result = &"node [\n{result}];\n"
 proc edgeAttr2string(self: Table[string, string]): string =
     for (key, val) in self.pairs:
         result.add fmt"{key} = {val}"
+        result.add "\n"
     result = result.indent(2)
     result = &"edge [\n{result}];\n"
 
 proc to*[T](self: DotElement[T]): string =
+    result.add graphAttr2string(self.graphAttr)
     result.add nodeAttr2string(self.nodeAttr)
-    result.add nodeAttr2string(self.edgeAttr)
+    result.add edgeAttr2string(self.edgeAttr)
 
     for n in self.order.nodes.items:
         result.add &"\"{n}\"\n"
@@ -45,7 +54,12 @@ proc to*[T](self: DotElement[T]): string =
     result = &"digraph order {{\n{result}\n}}"
 
 proc add*[T](self: var Dot[T], order: Order[T]) =
-    self.dots.add DotElement[T](order: order).to
+    var d = DotElement[T](order: order)
+    # d.graphAttr = [("layout", "circo"), ("size", "10,10")].toTable
+    d.graphAttr = [("size", "30,10")].toTable
+    d.nodeAttr = [("shape", "none")].toTable
+    d.edgeAttr = [("dir", "back")].toTable
+    self.dots.add d.to
 
 proc focus*[T](self: Dot[T], n: T) =
     self.dots[^1].focusedNode = n
