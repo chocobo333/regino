@@ -14,7 +14,9 @@ import ../orders
 import ../utils
 import ../lineinfos
 
-import infer as _
+# import infer as _
+import coerce
+import resolveRelations
 
 
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
@@ -40,7 +42,7 @@ proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
     of 1:
         syms[0].typ.inst(env)
     else:
-        Value.Select(syms.mapIt(it.typ.inst(env)))
+        Value.Select(syms.mapIt(it.typ.inst(env)), env)
         # Value.Intersection(syms.mapIt(it.typ.inst(env)))
     self.typ = result
 proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
@@ -151,7 +153,11 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
     of PatternKind.Ident:
         # TODO: index
         if asign:
-            self.ident.infer(env, global)
+            let res = self.ident.infer(env, global)
+            if res.kind == ValueKind.Select:
+                toSeq(res.types.filter(it => it.symbol.get.kind != SymbolKind.Func))[0]
+            else:
+                res
         else:
             let res = Value.Var(env)
             self.ident.typ = res
@@ -395,7 +401,7 @@ proc infer*(self: Suite, env: TypeEnv): Value =
             discard s.infer(env)
             # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
         result = self.stmts[^1].infer(env)
-    env.resolveRelationsPartially()
+    # env.resolveRelationsPartially()
 proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
     let
         cond = self.cond.infer(env, global)
@@ -412,7 +418,7 @@ proc infer*(self: Program, env: TypeEnv): Value =
         # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
     result = self.stmts[^1].infer(env)
     debug env.constraints
-    env.resolveRelations()
+    # env.resolveRelations()
     debug env.constraints
     debug env.tvs
     for e in env.tvs:
@@ -529,7 +535,7 @@ proc check(self: Expression, env: TypeEnv) =
                 env.scope = scope
                 let fn = Statement.Funcdef(inst)
                 discard fn.infer(env, false)
-                env.resolveRelations()
+                env.resolve()
                 fn.check(env) # must be succeded
                 calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
     of ExpressionKind.Dot:
