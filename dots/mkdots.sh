@@ -1,6 +1,7 @@
+mkdir -p png
 for file in *.dot
 do
-  dot -Tpng ${file} > ${file}.png
+  dot -Tpng ${file} > "png/${file}.png"
 done
 
-convert -delay 30 -loop 0 *.png movie.gif
+convert -delay 30 -loop 0 png/*.png movie.gif

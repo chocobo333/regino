@@ -9,11 +9,11 @@ digraph order {
     dir = back
     ];
   "('q(int, ())) -> 'q(int, ())"
-  "(float) -> 'j(Bottom, float)"
+  "(float) -> 'm(Bottom, ())"
   "(int) -> 'p(int, ())"
   "(float) -> ~int"
   "(~int) -> ~int"
-  "(float) -> 'm(Bottom, ())"
+  "(float) -> 'j(Bottom, float)"
   "T"
   "'p(int, ())"
   "'q(int, ())"
@@ -27,8 +27,8 @@ digraph order {
   "(float) -> int"
   "(float) -> float"
   "(~int) -> ~int" -> "(float) -> int"
-  "(float) -> 'm(Bottom, ())" -> "(float) -> float"
   "(float) -> 'j(Bottom, float)" -> "(float) -> float"
+  "(float) -> 'm(Bottom, ())" -> "(float) -> float"
   "T" -> "T"
   "float" -> "'j(Bottom, float)"
   "float" -> "~int"
@@ -36,8 +36,8 @@ digraph order {
   "'q(int, ())" -> "int"
   "'p(int, ())" -> "'q(int, ())"
   "'l(Bottom, ())" -> "'m(Bottom, ())"
-  "'j(Bottom, float)" -> "float"
   "'m(Bottom, ())" -> "float"
+  "'j(Bottom, float)" -> "float"
   "(int) -> 'p(int, ())" -> "('q(int, ())) -> 'q(int, ())"
   "(float) -> ~int" -> "(float) -> int"
 }
