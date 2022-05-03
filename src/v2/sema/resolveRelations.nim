@@ -110,7 +110,9 @@ proc `<=`(self: TypeEnv, t1, t2: Value): bool =
             (t1, t2) in self.order
         else:
             # toSeq(self.scope.converters.keys).anyIt(it.applicable((t1, t2)))
-            (t1, t2) in self.scope.converters
+            # (t1, t2) in self.scope.converters
+            let converters = toSeq(self.scope.converters.keys).filterIt(it[1] == t2)
+            converters.anyIt(t1 <= it[0])
 
 proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
     proc `<=`(t1, t2: Value): bool =
