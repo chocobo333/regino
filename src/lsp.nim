@@ -438,8 +438,8 @@ proc Lsp*(): int =
                 outstream.`textDocument/documentHighlight`(msg, configuration, project)
             of "textDocument/documentSymbol":
                 outstream.`textDocument/documentSymbol`(msg, configuration, project)
-            of "textDocument/semanticTokens/full":
-                outstream.`textDocument/semanticTokens/full`(msg, configuration, project)
+            # of "textDocument/semanticTokens/full":
+            #     outstream.`textDocument/semanticTokens/full`(msg, configuration, project)
         elif msg.isValid(NotificationMessage):
             let
                 msg = NotificationMessage(msg)

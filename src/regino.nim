@@ -1,8 +1,7 @@
 
-import v2/[
+import
     lsp,
     compiler
-]
 
 import cligen
 

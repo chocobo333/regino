@@ -449,11 +449,10 @@ proc check(self: Pattern, env: TypeEnv) =
 
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
-    debug e.typ
-    debug v
     assert e.typ <= v
     result = e
-    debug self.scope.converters
+    if v <= e.typ:
+        return
     for (s, t) in self.path(e.typ, v).sort(it => it.len)[0]:
         let c = self.scope.converters[(s, t)]
         result = Expression.Call(Expression.Id(c), @[result])
