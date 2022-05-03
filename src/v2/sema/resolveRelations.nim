@@ -430,6 +430,7 @@ proc resolve(self: TypeEnv, v: Value, primal: bool=true): bool =
             result = true
 
 proc greatest(self: TypeEnv, v: Value): Option[Value] =
+    # TODO: nanikasuru
     setTypeEnv(self)
     assert v.kind == ValueKind.Select
     if v.types.len == 1:
