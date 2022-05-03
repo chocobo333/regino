@@ -418,7 +418,7 @@ proc infer*(self: Program, env: TypeEnv): Value =
         # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
     result = self.stmts[^1].infer(env)
     debug env.constraints
-    # env.resolveRelations()
+    env.resolve()
     debug env.constraints
     debug env.tvs
     for e in env.tvs:
