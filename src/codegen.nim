@@ -296,41 +296,41 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
     of ExpressionKind.Fail:
         nil
 proc codegen(self: Pattern, module: Module, typ: Value, val: LValue, global: bool = false) =
-        case self.kind
-        of PatternKind.Literal:
-            discard
-        of PatternKind.Ident:
-            let
-                id = self.ident
-                sym = id.sym
-                name = id.name
-                typ = newLType(typ, module)
-            let
-                p = if global: module.module.newGlobal(typ, name) else: module.curBuilder.alloca(typ, name)
-            sym.val = p
-            sym.lty = typ
-            discard module.curBuilder.store(val, p, $self)
-        of PatternKind.Tuple:
-            assert false, "notimplemented"
-            # assert typ.kind == ValueKind.Pair
-            # case self.patterns.len
-            # of 0:
-            #     discard
-            # of 1:
-            #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
-            # of 2:
-            #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
-            #     codegen(self.patterns[1], module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
-            # else:
-            #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
-            #     codegen(Expression.Tuple(self.patterns[1..^1]), module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
-        of PatternKind.Record:
-            assert false, "notimplemented"
-            for (i, idpat) in self.members.pairs:
-                let (id, pat) = idpat
-                codegen(pat, module, typ.members[id], module.curBuilder.extractvalue(val, i, $self & "." & $id), global)
-        of PatternKind.UnderScore:
-            discard
+    case self.kind
+    of PatternKind.Literal:
+        discard
+    of PatternKind.Ident:
+        let
+            id = self.ident
+            sym = id.sym
+            name = id.name
+            typ = newLType(typ, module)
+        let
+            p = if global: module.module.newGlobal(typ, name) else: module.curBuilder.alloca(typ, name)
+        sym.val = p
+        sym.lty = typ
+        discard module.curBuilder.store(val, p, $self)
+    of PatternKind.Tuple:
+        assert false, "notimplemented"
+        # assert typ.kind == ValueKind.Pair
+        # case self.patterns.len
+        # of 0:
+        #     discard
+        # of 1:
+        #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+        # of 2:
+        #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+        #     codegen(self.patterns[1], module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
+        # else:
+        #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+        #     codegen(Expression.Tuple(self.patterns[1..^1]), module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
+    of PatternKind.Record:
+        assert false, "notimplemented"
+        for (i, idpat) in self.members.pairs:
+            let (id, pat) = idpat
+            codegen(pat, module, typ.members[id], module.curBuilder.extractvalue(val, i, $self & "." & $id), global)
+    of PatternKind.UnderScore:
+        discard
 proc link(self: Metadata, module: Module) =
     let param = self.params[0]
     assert param.kind == ExpressionKind.Literal and param.litval.kind == LiteralKind.string
