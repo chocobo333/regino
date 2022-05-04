@@ -8,7 +8,7 @@
   * macro or template
 * Have and Provide ffi(foreign function interface)
 * Provide lsp(Language server protocol)
-* Compile to [llvm ir]() or [wasm]()
+* Compile to [llvm ir](https://llvm.org/docs/LangRef.html) or [wasm](https://developer.mozilla.org/en-US/docs/WebAssembly)
 
 # Try it
 Currently, this project is implemented in the [Nim language](https://nim-lang.org/) and llvm.
