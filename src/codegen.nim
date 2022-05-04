@@ -6,6 +6,7 @@ import uri
 from os import `/`, splitPath, absolutePath
 
 import il
+import sema/region/infer
 import utils
 
 import llvm except Value, ValueKind, Type, Module
@@ -171,6 +172,10 @@ proc codegen(self: Ident, module: Module, global: bool = false, lval: bool = fal
             val
         else:
             module.curBuilder.load(ty, val, name)
+proc codegen(self: Statement, module: Module, global: bool = false): LValue
+proc codegen(self: Suite, module: Module, global: bool = false): LValue =
+    for e in self.stmts:
+        result = e.codegen(module, global)
 proc codegen(self: Expression, module: Module, global: bool = false, lval: bool = false): LValue =
     case self.kind
     of ExpressionKind.Literal:
@@ -193,14 +198,45 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
     of ExpressionKind.Record:
         nil
     of ExpressionKind.If:
-        nil
+        let
+            thenbs = self.elifs.mapIt(module.curFun.appendBasicBlock("then"))
+            elseb = module.curFun.appendBasicBlock("else")
+            ifcont = module.curFun.appendBasicBlock("ifcont")
+        var
+            thenvs: seq[LValue] = @[]
+        for i in 0..<thenbs.len:
+            if i == thenbs.len-1:
+                discard module.curBuilder.condBr(self.elifs[i][0].codegen(module), thenbs[i], elseb)
+            else:
+                var elifb = module.curFun.appendBasicBlock("elif")
+                discard module.curBuilder.condBr(self.elifs[i][0].codegen(module), thenbs[i], elifb)
+                module.curBuilder.atEndOf(elifb)
+                module.curBB = elifb
+        for i in 0..<thenbs.len:
+            module.curBuilder.atEndOf(thenbs[i])
+            module.curBB = thenbs[i]
+            let thenv = self.elifs[i][1].codegen(module)
+            thenvs.add thenv
+            module.curBuilder.br(ifcont)
+
+        module.curBuilder.atEndOf(elseb)
+        module.curBB = elseb
+        let elsev = self.elseb.get.codegen(module)
+        module.curBuilder.br(ifcont)
+
+        module.curBuilder.atEndOf(ifcont)
+        module.curBB = ifcont
+        if self.typ == Value.Unit:
+            nil
+        else:
+            let phi = module.curBuilder.phi(newLType(self.typ, module), "")
+            phi.addIncoming(thenvs.zip(thenbs) & @[(elsev, elseb)])
+            phi
     of ExpressionKind.When:
         nil
     of ExpressionKind.Case:
         nil
     of ExpressionKind.Call, ExpressionKind.Command:
-        echo self
-        echo self.typ
         let
             callee = self.callee
             args = self.args
@@ -214,13 +250,33 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
         #     discard module.curBuilder.call(callee2, args2 & ret)
         #     module.curBuilder.load(rety, ret, $self)
         # else:
-        module.curBuilder.call(callee2, args2)
+        if self.typ.hasRegion:
+            let ret = module.curBuilder.alloca(rety, "*" & $self)
+            discard module.curBuilder.call(callee2, args2 & ret)
+            module.curBuilder.load(rety, ret, $self)
+        else:
+            module.curBuilder.call(callee2, args2)
     of ExpressionKind.Dot:
         nil
     of ExpressionKind.Bracket:
         nil
     of ExpressionKind.Binary:
-        nil
+        let
+            op = self.op
+            lhs = self.lhs
+            rhs = self.rhs
+            op2 = op.codegen(module)
+            lhs2 = lhs.codegen(module)
+            rhs2 = rhs.codegen(module)
+            rety = newLType(self.typ, module)
+        # TODO: check returning void
+        # module.curBuilder.call(callee2, args2, $self)
+        if self.typ.hasRegion:
+            let ret = module.curBuilder.alloca(rety, "*" & $self)
+            discard module.curBuilder.call(op2, @[lhs2, rhs2] & ret)
+            module.curBuilder.load(rety, ret, $self)
+        else:
+            module.curBuilder.call(op2, @[lhs2, rhs2])
     of ExpressionKind.Prefix:
         nil
     of ExpressionKind.Postfix:
@@ -275,8 +331,6 @@ proc codegen(self: Pattern, module: Module, typ: Value, val: LValue, global: boo
                 codegen(pat, module, typ.members[id], module.curBuilder.extractvalue(val, i, $self & "." & $id), global)
         of PatternKind.UnderScore:
             discard
-        else:
-            assert false, "notimplemented"
 proc link(self: Metadata, module: Module) =
     let param = self.params[0]
     assert param.kind == ExpressionKind.Literal and param.litval.kind == LiteralKind.string
@@ -295,6 +349,51 @@ proc link(self: Metadata, module: Module) =
         assert false
     f.close()
 
+template enter(self: Module, fn: FunctionValue, body: untyped) =
+    block:
+        let
+            tmpBB = self.curBB
+            tmpFn = self.curFun
+            bb = fn.appendBasicBlock("entry")
+        module.curFun = fn
+        module.curBuilder.atEndOf(bb)
+        module.curBB = bb
+        body
+        module.curBB = tmpBB
+        module.curFun = tmpFn
+        if not tmpBB.isNil:
+            module.curBuilder.atEndOf(tmpBB)
+proc setParam(self: Pattern, module: Module, typ: Value, val: LValue) =
+    case self.kind
+    of PatternKind.Literal:
+        discard
+    of PatternKind.Ident:
+        let
+            id = self.ident
+            name = id.name
+            sym = id.sym
+            typ = newLType(typ, module)
+            p = module.curBuilder.alloca(typ, name)
+        sym.val = p
+        sym.lty = typ
+        discard module.curBuilder.store(val, p, name)
+    of PatternKind.Tuple:
+        case self.patterns.len
+        of 0:
+            discard
+        of 1:
+            setParam(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self))
+        of 2:
+            setParam(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self))
+            setParam(self.patterns[1], module, typ.second, module.curBuilder.extractvalue(val, 1, $self))
+        else:
+            setParam(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self))
+            setParam(Pattern.Tuple(self.patterns[1..^1]), module, typ.second, module.curBuilder.extractvalue(val, 1, $self))
+    of PatternKind.Record:
+        # TODO:
+        discard
+    of PatternKind.UnderScore:
+        discard
 proc codegen(self: Function, module: Module, global: bool = false) =
     if self.param.implicit.len > 0:
         #     # TODO: for quantified function
@@ -311,13 +410,44 @@ proc codegen(self: Function, module: Module, global: bool = false) =
         fnty = id.typ
         paramty = fnty.params.mapIt(newLType(it, module))
         rety = if fnty.rety == Value.Unit: voidType() else: newLType(fnty.rety, module)
-        # retyhasregion = fn.rety != Value.Unit and fn.rety.hasRegion
+        retyhasregion = fnty.rety != Value.Unit and fnty.rety.hasRegion
     var
         cxt = module.cxt
-        fnty2 = functionType(rety, paramty)
+        fnty2 = if retyhasregion:
+                functionType(module.cxt.voidType, paramty & pointerType(rety))
+            else:
+                functionType(rety, paramty)
         fn2 = module.module.addFunction(name, fnty2)
     sym.val = fn2
     sym.lty = fnty2
+    if fn.metadata.isSome:
+        case fn.metadata.get.kind
+        of MetadataKind.ImportLL:
+            let fun1 = module.linkFuncs.filterIt(it.name == name)
+            assert fun1.len == 1
+            # let fun = fun1[0]
+            # echo fun.typ
+            # echo newLType(sym.typ, module)
+            # echo fun.typ == newLType(sym.typ, module)
+            return
+        else:
+            discard
+    if fn.suite.isSome:
+        module.enter fn2:
+            for i in 0..<fn.param.params.len:
+                let
+                    pat = fn.param.params[i].pat
+                    typ = pat.typ
+                    val = fn2.param(i)
+                setParam(pat, module, typ, val)
+            var ret = fn.suite.get.codegen(module)
+            if not ret.isNil:
+                if retyhasregion:
+                    discard module.curBuilder.store(ret, fn2.param(fn.param.params.len))
+                    discard module.curBuilder.retVoid()
+                else:
+                    discard module.curBuilder.ret(ret)
+
 
 proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     case self.kind
@@ -360,21 +490,8 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     of StatementKind.Fail:
         nil
 
-template enter(self: Module, fn: FunctionValue, body: untyped) =
-    block:
-        let
-            tmpBB = self.curBB
-            tmpFn = self.curFun
-            bb = fn.appendBasicBlock("entry")
-        module.curFun = fn
-        module.curBuilder.atEndOf(bb)
-        module.curBB = bb
-        body
-        module.curBB = tmpBB
-        module.curFun = tmpFn
-        if not tmpBB.isNil:
-            module.curBuilder.atEndOf(tmpBB)
 proc codegen*(self: Program, module: Module, global: bool = false) =
+    debug self.typ
     let
         rety = self.typ.newLType(module)
         fnty = functionType(rety, @[])

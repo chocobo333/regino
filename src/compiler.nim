@@ -60,4 +60,4 @@ proc compile*(filename: string) =
         close f
 
 when isMainModule:
-    compile("test/test04.rgn")
+    compile("test/test05.rgn")

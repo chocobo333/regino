@@ -158,6 +158,8 @@ proc coerce(self: RegionEnv, t1, t2: Value) =
             assert false, "notimplementd"
         of ValueKind.Pi:
             assert false, "notimplementd"
+        of ValueKind.Family:
+            assert false, "notimplementd"
         of ValueKind.Sum:
             assert false, "notimplementd"
         of ValueKind.Trait:
@@ -171,6 +173,10 @@ proc coerce(self: RegionEnv, t1, t2: Value) =
         of ValueKind.Union:
             assert false, "notimplementd"
         of ValueKind.Cons:
+            assert false, "notimplementd"
+        of ValueKind.Lambda:
+            assert false, "notimplementd"
+        of ValueKind.Select:
             assert false, "notimplementd"
         of ValueKind.Var:
             assert false, "notimplementd"
@@ -328,7 +334,7 @@ proc resolve*(self: RegionEnv) =
         self.resolve(e)
 
 
-proc hasRegion(self: Value): bool =
+proc hasRegion*(self: Value): bool =
     case self.kind
     of ValueKind.Link:
         self.to.hasRegion
@@ -430,6 +436,8 @@ proc infer(self: Value, env: RegionEnv, suite: Region) =
         Region.Var(suite, env)
     of ValueKind.Pi:
         Region.Static
+    of ValueKind.Family:
+        Region.Static
     of ValueKind.Sum:
         Region.Static
     of ValueKind.Trait:
@@ -442,7 +450,12 @@ proc infer(self: Value, env: RegionEnv, suite: Region) =
         Region.Static
     of ValueKind.Cons:
         Region.Static
+    of ValueKind.Lambda:
+        Region.Static
     of ValueKind.Var:
+        assert false, "cant reach here"
+        Region.Static
+    of ValueKind.Select:
         assert false, "cant reach here"
         Region.Static
     of ValueKind.Gen:
