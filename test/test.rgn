@@ -63,6 +63,7 @@ type
 #         head + sum(tail)
 
 func id[T](a: T) -> T:
+    ## identity function
     a
 func swap[T, U]((a, b): (T, U)) -> (U, T):
     (b, a)
