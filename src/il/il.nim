@@ -122,6 +122,7 @@ type
         Fail
     Expression* = ref ExpressionObject
     ExpressionObject = object
+        inserted*: bool
         loc*: Location
         typ*: Value
         case kind*: ExpressionKind

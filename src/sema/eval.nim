@@ -457,6 +457,7 @@ proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
         let c = self.scope.converters[(s, t)]
         result = Expression.Call(Expression.Id(c), @[result])
         result.typ = t
+        result.inserted = true
 proc check(self: Statement, env: TypeEnv)
 proc check(self: Suite, env: TypeEnv) =
     env.enter(self.scope):
