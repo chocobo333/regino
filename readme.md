@@ -15,6 +15,7 @@ Currently, this project is implemented in the [Nim language](https://nim-lang.or
 
 
 ```sh
-nim c -r src/compiler.nim
-lli test/test.ll # or ./runTest.sh
+nimble install -y
+regino compile -f:test/test05.rgn
+lli test/test.ll # outputs fib(10)
 ```
