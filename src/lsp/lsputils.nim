@@ -65,6 +65,39 @@ proc find*(self: IdentDef, pos: rPosition): Option[Ident] =
         self.default.get.find(pos)
     else:
         self.pat.find(pos)
+proc find*(self: GenTypeDef, pos: rPosition): Option[Ident] =
+    if pos in self.id:
+        some self.id
+    else:
+        if self.ub.isSome:
+            self.ub.get.find(pos)
+        else:
+            none(Ident)
+proc find*(self: Suite | Program, pos: rPosition): Option[Ident]
+proc find*(self: Metadata, pos: rPosition): Option[Ident] =
+    for e in self.params:
+        result = e.find(pos)
+        if result.isSome:
+            return
+proc find*(self: FunctionParam, pos: rPosition): Option[Ident] =
+    for e in self.implicit:
+        result = e.find(pos)
+        if result.isSome:
+            return
+    for e in self.params:
+        result = e.find(pos)
+        if result.isSome:
+            return
+    if self.rety.isSome:
+        result = self.rety.get.find(pos)
+proc find*(self: Function, pos: rPosition): Option[Ident] =
+    if pos in self.id:
+        return some self.id
+    result = self.param.find(pos)
+    if result.isNone and self.suite.isSome:
+        result = self.suite.get.find(pos)
+    if result.isNone and self.metadata.isSome:
+        result = self.metadata.get.find(pos)
 proc find*(self: Statement, pos: rPosition): Option[Ident] =
     case self.kind
     of StatementKind.For:
@@ -91,7 +124,7 @@ proc find*(self: Statement, pos: rPosition): Option[Ident] =
         else:
             self.pat.find(pos)
     of StatementKind.Funcdef:
-        none(Ident)
+        self.fn.find(pos)
     of StatementKind.Meta:
         none(Ident)
     of StatementKind.Discard:
@@ -152,7 +185,10 @@ proc find*(self: Expression, pos: rPosition): Option[Ident] =
         else:
             self.expression.find(pos)
     of ExpressionKind.Block:
-        none(Ident)
+        if self.label.isSome:
+            if pos in self.label.get:
+                return some self.label.get
+        self.`block`.find(pos)
     of ExpressionKind.Lambda:
         none(Ident)
     of ExpressionKind.Malloc:
