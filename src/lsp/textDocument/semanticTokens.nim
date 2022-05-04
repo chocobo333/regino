@@ -83,7 +83,14 @@ proc coloring(self: Expression, tokenTypes: seq[string], data: var seq[Color]) =
     of ExpressionKind.Record:
         discard
     of ExpressionKind.If:
-        discard
+        for e in self.elifs:
+            let
+                cond = e.cond
+                suite = e.suite
+            cond.coloring(tokenTypes, data)
+            suite.coloring(tokenTypes, data)
+        if self.elseb.isSome:
+            self.elseb.get.coloring(tokenTypes, data)
     of ExpressionKind.When:
         discard
     of ExpressionKind.Case:
