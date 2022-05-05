@@ -325,6 +325,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of StatementKind.VarSection:
         for iddef in self.iddefs:
+            if iddef.kind == DefKind.Comment: continue
             let
                 pat = iddef.pat
                 typ = iddef.typ
@@ -346,6 +347,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of StatementKind.TypeSection:
         for typedef in self.typedefs:
+            if typedef.kind == DefKind.Comment: continue
             let
                 id = typedef.id
                 params = typedef.params

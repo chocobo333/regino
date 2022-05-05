@@ -71,18 +71,29 @@ type
         consts*: Table[string, seq[Symbol]] # deprecated
         typeOrder*: Order[Value]  # cumulative
         converters*: Table[(Value, Value), Ident]
+    DefKind* {.pure.} = enum
+        Def
+        Comment
     IdentDef* = ref object
-        # represents `pat: typ = default # docStr`
-        pat*: Pattern
-        typ*: Option[Expression]
-        default*: Option[Expression]
-        docStr*: Option[string]
+        case kind*: DefKind:
+        of DefKind.Def:
+            # represents `pat: typ = default # docStr`
+            pat*: Pattern
+            typ*: Option[Expression]
+            default*: Option[Expression]
+            docStr*: Option[string]
+        of DefKind.Comment:
+            comment*: string
     TypeDef* = ref object
-        # represents `pat[params] = typ`
-        id*: Ident
-        params*: Option[seq[GenTypeDef]]
-        typ*: TypeExpression
-        docStr*: Option[string]
+        case kind*: DefKind:
+        of DefKind.Def:
+            # represents `pat[params] = typ`
+            id*: Ident
+            params*: Option[seq[GenTypeDef]]
+            typ*: TypeExpression
+            docStr*: Option[string]
+        of DefKind.Comment:
+            comment*: string
     GenTypeDef* = ref object
         # represents `id <: ub`
         id*: Ident

@@ -342,6 +342,7 @@ let
 
 
     IdentDef = alt(
+        Comment @ (it => newIdentDef(it)),
         Patt + alt(
             ?preceded(colon, Expr) + (preceded(eq, Expr) @ (it => some it)),
             (preceded(colon, Expr) @ (it => some it)) + ?preceded(eq, Expr)
@@ -454,7 +455,10 @@ let
     )
     TraitType = preceded(s"trait" + sp1, Patt + preceded(colon, Expr)) + ?delimited(s"with" ^ sp0 + Indent, TraitElement ^+ Nodent, Dedent) @ (it => TypeExpression.TraitT(newTrait(it[0][0], it[0][1], it[1].get(@[]))))
 
-    TypeDef = Id + ?GenParams + preceded(eq, TypeExpr) + preceded(sp0, ?Comment) @ (it => newTypeDef(it[0][0][0], it[0][0][1], it[0][1], it[1]))
+    TypeDef = alt(
+        Comment @ (it => newTypeDef(it)),
+        Id + ?GenParams + preceded(eq, TypeExpr) + preceded(sp0, ?Comment) @ (it => newTypeDef(it[0][0][0], it[0][0][1], it[0][1], it[1]))
+    )
 
     LetSection = %preceded(s"let", Section) @ (it => Statement.LetSection(it[0], it[1]))
     VarSection = %preceded(s"var", Section) @ (it => Statement.Varsection(it[0], it[1]))

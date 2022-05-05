@@ -178,27 +178,35 @@ proc `$`*(self: Pattern): string =
     of PatternKind.UnderScore:
         "_"
 proc `$`*(self: IdentDef): string =
-    let
-        pat = $self.pat
-        typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
-        default = if self.default.isNone: "" else: fmt" = {self.default.get}"
-        docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
-    pat & typ & default & docStr
+    case self.kind
+    of DefKind.Def:
+        let
+            pat = $self.pat
+            typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
+            default = if self.default.isNone: "" else: fmt" = {self.default.get}"
+            docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
+        pat & typ & default & docStr
+    of DefKind.Comment:
+        "#" & self.comment
 proc `$`*(self: GenTypeDef): string =
     let ub = if self.ub.isSome: fmt" <: {self.ub.get}" else: ""
     fmt"{self.id}{ub}"
 proc `$`*(self: TypeDef): string =
-    let
-        id = $self.id
-        params =
-            if self.params.isNone:
-                ""
-            else:
-                let params = self.params.get.map(`$`).join(", ")
-                fmt"[{params}]"
-        typ = $self.typ
-        docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
-    fmt"{id}{params} = {typ}" & docStr
+    case self.kind
+    of DefKind.Def:
+        let
+            id = $self.id
+            params =
+                if self.params.isNone:
+                    ""
+                else:
+                    let params = self.params.get.map(`$`).join(", ")
+                    fmt"[{params}]"
+            typ = $self.typ
+            docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
+        fmt"{id}{params} = {typ}" & docStr
+    of DefKind.Comment:
+        "#" & self.comment
 proc `$`*(self: FunctionParam): string =
     let
         implicit = block:
@@ -618,3 +626,4 @@ when isMainModule:
     echo c
     echo d
     echo e
+    

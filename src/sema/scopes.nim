@@ -81,11 +81,15 @@ proc setScope(self: Suite, parent: Scope) =
 proc setScope(self: ElifBranch, parent: Scope) =
     self.suite.setScope(parent)
 proc setScope(self: IdentDef, parent: Scope) =
-    self.pat.setScope(parent)
-    if self.typ.isSome:
-        self.typ.get.setScope(parent)
-    if self.default.isSome:
-        self.default.get.setScope(parent)
+    case self.kind
+    of DefKind.Def:
+        self.pat.setScope(parent)
+        if self.typ.isSome:
+            self.typ.get.setScope(parent)
+        if self.default.isSome:
+            self.default.get.setScope(parent)
+    of DefKind.Comment:
+        discard
 proc setScope(self: GenTypeDef, parent: Scope) =
     if self.ub.isSome:
         self.ub.get.setScope(parent)
@@ -146,10 +150,14 @@ proc setScope(self: TypeExpression, parent: Scope) =
     of TypeExpressionKind.Expression:
         self.expression.setScope(parent)
 proc setScope(self: TypeDef, parent: Scope) =
-    if self.params.isSome:
-        for iddef in self.params.get:
-            iddef.setScope(parent)
-    self.typ.setScope(parent)
+    case self.kind
+    of DefKind.Def:
+        if self.params.isSome:
+            for iddef in self.params.get:
+                iddef.setScope(parent)
+        self.typ.setScope(parent)
+    of DefKind.Comment:
+        discard
 proc setScope(self: Statement, parent: Scope) =
     case self.kind
     of StatementKind.Loop:

@@ -40,11 +40,16 @@ proc inst(self: Pattern): Pattern =
     of PatternKind.UnderScore:
         Pattern.UnderScore()
 proc inst(self: IdentDef): IdentDef =
-    IdentDef(
-        pat: self.pat.inst,
-        typ: self.typ.map(inst),
-        default: self.default.map(inst)
-    )
+    case self.kind:
+    of DefKind.Def:
+        IdentDef(
+            kind: DefKind.Def,
+            pat: self.pat.inst,
+            typ: self.typ.map(inst),
+            default: self.default.map(inst)
+        )
+    of DefKind.Comment:
+        IdentDef(kind: DefKind.Comment, comment: self.comment)
 proc inst(self: ElifBranch): ElifBranch =
     newElif(self.cond.inst, self.suite.inst)
 proc inst(self: OfBranch): OfBranch =
@@ -152,7 +157,11 @@ proc inst(self: TypeExpression): TypeExpression =
     of TypeExpressionKind.Expression:
         TypeExpression.Expr(self.expression.inst)
 proc inst(self: TypeDef): TypeDef =
-    newTypedef(self.id.inst, self.params.map(it => it.map(inst)), self.typ.inst)
+    case self.kind
+    of DefKind.Def:
+        newTypedef(self.id.inst, self.params.map(it => it.map(inst)), self.typ.inst)
+    of DefKind.Comment:
+        newTypedef(self.comment)
 proc inst(self: Statement): Statement =
     case self.kind
     of StatementKind.For:

@@ -5,9 +5,13 @@ import il
 
 
 proc newIdentdef*(pat: Pattern, typ: Option[Expression] = none(Expression), default: Option[Expression] = none(Expression), docStr: Option[string] = none(string)): IdentDef =
-    IdentDef(pat: pat, typ: typ, default: default, docStr: docStr)
+    IdentDef(kind: DefKind.Def, pat: pat, typ: typ, default: default, docStr: docStr)
+proc newIdentdef*(comment: string): IdentDef =
+    IdentDef(kind: DefKind.Comment, comment: comment)
 proc newTypedef*(id: Ident, params: Option[seq[GenTypeDef]], typ: TypeExpression, docStr: Option[string] = none(string)): TypeDef =
-    TypeDef(id: id, params: params, typ: typ, docStr: docStr)
+    TypeDef(kind: DefKind.Def, id: id, params: params, typ: typ, docStr: docStr)
+proc newTypedef*(comment: string): TypeDef =
+    TypeDef(kind: DefKind.Comment, comment: comment)
 proc newGenTypedef*(id: Ident, ub: Option[Expression] = none(Expression)): GenTypeDef =
     GenTypeDef(id: id, ub: ub)
 
