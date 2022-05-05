@@ -7,7 +7,7 @@
 type
   int = typeof(0)
   float = typeof(0.0)
-  string = typeof("")
+  string = typeof("") # string
 
 func toFloat(a: int) -> float ![subtype]:
   0.0

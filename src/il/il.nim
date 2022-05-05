@@ -82,6 +82,7 @@ type
         id*: Ident
         params*: Option[seq[GenTypeDef]]
         typ*: TypeExpression
+        docStr*: Option[string]
     GenTypeDef* = ref object
         # represents `id <: ub`
         id*: Ident

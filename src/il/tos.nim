@@ -197,7 +197,8 @@ proc `$`*(self: TypeDef): string =
                 let params = self.params.get.map(`$`).join(", ")
                 fmt"[{params}]"
         typ = $self.typ
-    fmt"{id}{params} = {typ}"
+        docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
+    fmt"{id}{params} = {typ}" & docStr
 proc `$`*(self: FunctionParam): string =
     let
         implicit = block:

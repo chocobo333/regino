@@ -6,8 +6,8 @@ import il
 
 proc newIdentdef*(pat: Pattern, typ: Option[Expression] = none(Expression), default: Option[Expression] = none(Expression), docStr: Option[string] = none(string)): IdentDef =
     IdentDef(pat: pat, typ: typ, default: default, docStr: docStr)
-proc newTypedef*(id: Ident, params: Option[seq[GenTypeDef]], typ: TypeExpression): TypeDef =
-    TypeDef(id: id, params: params, typ: typ)
+proc newTypedef*(id: Ident, params: Option[seq[GenTypeDef]], typ: TypeExpression, docStr: Option[string] = none(string)): TypeDef =
+    TypeDef(id: id, params: params, typ: typ, docStr: docStr)
 proc newGenTypedef*(id: Ident, ub: Option[Expression] = none(Expression)): GenTypeDef =
     GenTypeDef(id: id, ub: ub)
 
