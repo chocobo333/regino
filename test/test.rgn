@@ -55,7 +55,7 @@ type
         Nil
         Cons(head: T, tail: List[T])
 
-# func sum(l: List[int32]) -> int32:
+# func sum(l: List[int]) -> int:
 #     case l
 #     of Nil:
 #         0

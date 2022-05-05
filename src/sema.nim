@@ -29,13 +29,8 @@ when isMainModule:
     import parsers
     import options
     let
-<<<<<<< HEAD
-        f = open("test/unit.rgn")
-=======
-        f = open("test/test05.rgn")
->>>>>>> main
+        f = open("test/test.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
         errs = program.sema
     f.close
-    debug program
