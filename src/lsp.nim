@@ -171,6 +171,9 @@ proc `textDocument/hover`(s: Stream, msg: RequestMessage, configuration: Configu
                 let focus = focus.get
                 if not focus.typ.isNil and focus.typ.symbol.isSome:
                     data.add $focus.typ.symbol.get
+                    if focus.typ.symbol.get.kind == il.SymbolKind.Func:
+                        if focus.typ.symbol.get.decl_funcdef.docStr.isSome:
+                            data.add focus.typ.symbol.get.decl_funcdef.docStr.get.join("\n")
                 data.add fmt"{focus.name}: {focus.typ}"
         s.respond(msg):
             if data.len == 0:
