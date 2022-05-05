@@ -97,7 +97,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             args = self.args.mapIt(it.infer(env, global))
             callee = self.callee.infer(env, global)
         env.coerce(callee <= Value.Arrow(args, tv))
-        # env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
+        env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Dot:
         let
@@ -105,7 +105,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             args = @[self.lhs.infer(env, global)]
             callee = self.rhs.infer(env, global)
         env.coerce(callee <= Value.Arrow(args, tv))
-        env.coerce(Value.Arrow(@[Value.Unit], tv) <= callee.dual) # i dont know whether this is correct.
+        env.coerce(Value.Arrow(@[Value.Unit], tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Bracket:
         Value.Unit
@@ -116,7 +116,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             rhs = self.rhs.infer(env, global)
             op = self.op.infer(env, global)
         env.coerce(op <= Value.Arrow(@[lhs, rhs], tv))
-        env.coerce(Value.Arrow(@[Value.Unit, Value.Unit], tv) <= op.dual) # i dont know whether this is correct.
+        env.coerce(Value.Arrow(@[Value.Unit, Value.Unit], tv) <= op) # i dont know whether this is correct.
         tv
     of ExpressionKind.Prefix, ExpressionKind.Postfix:
         let
@@ -124,7 +124,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             exp = self.expression.infer(env, global)
             op = self.op.infer(env, global)
         env.coerce(op <= Value.Arrow(@[exp], tv))
-        env.coerce(Value.Arrow(@[Value.Unit], tv) <= op.dual)
+        env.coerce(Value.Arrow(@[Value.Unit], tv) <= op)
         tv
     of ExpressionKind.Block:
         self.`block`.infer(env)
@@ -254,8 +254,8 @@ proc addParam(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat,
             env.addIdent(sym)
         of PatternKind.Tuple:
             assert typ.kind == ValueKind.Pair
-            for (pat, typ) in pat.patterns.zip(typ.PairToSeq):
-                env.addParam(impl, typ, pat, global)
+            for (p, typ) in pat.patterns.zip(typ.PairToSeq):
+                env.addParam(impl, typ, p, global)
         of PatternKind.Record:
             discard
         of PatternKind.UnderScore:
@@ -457,6 +457,7 @@ proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
         let c = self.scope.converters[(s, t)]
         result = Expression.Call(Expression.Id(c), @[result])
         result.typ = t
+        result.inserted = true
 proc check(self: Statement, env: TypeEnv)
 proc check(self: Suite, env: TypeEnv) =
     env.enter(self.scope):
@@ -681,16 +682,16 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         self.litval.eval
     of ExpressionKind.Ident:
         if self.typ.symbol.isSome:
-            return self.typ.symbol.get.val
+            return self.typ.symbol.get.val.inst(env)
         let
             syms = env.lookupId(self.ident.name)
         case syms.len
         of 0:
             Value.Var(env)
         of 1:
-            syms[0].val
+            syms[0].val.inst(env)
         else:
-            Value.Intersection(syms.mapIt(it.val))
+            Value.Intersection(syms.mapIt(it.val.inst(env)))
     of ExpressionKind.Tuple:
         self.exprs.mapIt(it.eval(env, global)).foldl(Value.Pair(a, b))
     of ExpressionKind.Array:

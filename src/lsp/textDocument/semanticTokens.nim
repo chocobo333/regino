@@ -69,6 +69,8 @@ proc coloring(self: Suite, tokenTypes: seq[string], data: var seq[Color]) =
     for s in self.stmts:
         s.coloring(tokenTypes, data)
 proc coloring(self: Expression, tokenTypes: seq[string], data: var seq[Color]) =
+    if self.inserted:
+        return
     case self.kind
     of ExpressionKind.Literal:
         self.litval.coloring(tokenTypes, self.loc, data)
@@ -81,7 +83,14 @@ proc coloring(self: Expression, tokenTypes: seq[string], data: var seq[Color]) =
     of ExpressionKind.Record:
         discard
     of ExpressionKind.If:
-        discard
+        for e in self.elifs:
+            let
+                cond = e.cond
+                suite = e.suite
+            cond.coloring(tokenTypes, data)
+            suite.coloring(tokenTypes, data)
+        if self.elseb.isSome:
+            self.elseb.get.coloring(tokenTypes, data)
     of ExpressionKind.When:
         discard
     of ExpressionKind.Case:
@@ -220,7 +229,7 @@ proc `textDocument/semanticTokens/full`*(s: Stream, msg: RequestMessage, configu
                     assert ch > prevCh, fmt"{ch} > {prevCh}, line: {line}"
                     @[0, ch - prevCh, l, typ, mods]
                 else:
-                    assert line > prevLine, fmt"{line} > {prevLine}"
+                    assert line > prevLine, fmt"{line} > {prevLine}, {tokenTypes[typ]}"
                     @[line - prevLine, ch, l, typ, mods]
                 prevLine = line
                 prevCh = ch

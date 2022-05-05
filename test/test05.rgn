@@ -1,5 +1,11 @@
 
+![link: "arith.ll"]
+![link: "io.ll"]
+![link: "int.ll"]
+![link: "string.ll"]
+
 type
+    bool = typeof(false)
     int = typeof(0)
 
 func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
@@ -20,4 +26,4 @@ func fib(n: int) -> int:
     else:
         fib(n-1) + fib(n-2)
 
-fib(3)
+fib(10)

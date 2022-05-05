@@ -1,9 +1,14 @@
-func a(n: int) -> int:
-    n + 3
-func a(n: int) -> float:
-    n + 3.5
-func b(n: int) -> int:
-    n * 2
-let
-    a: float = a(3)
-    b = b(a(1))
+
+![link: "arith.ll"]
+![link: "io.ll"]
+![link: "int.ll"]
+![link: "string.ll"]
+
+type
+    bool = typeof(false)
+    int = typeof(0)
+
+var
+    a: int = 3
+    b = 4
+a
