@@ -72,10 +72,11 @@ type
         typeOrder*: Order[Value]  # cumulative
         converters*: Table[(Value, Value), Ident]
     IdentDef* = ref object
-        # represents `pat: typ = default`
+        # represents `pat: typ = default # docStr`
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
+        docStr*: Option[string]
     TypeDef* = ref object
         # represents `pat[params] = typ`
         id*: Ident

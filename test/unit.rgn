@@ -12,24 +12,13 @@ type
 func toFloat(a: int) -> float ![subtype]:
   0.0
 
-func f(a: float) -> int:
-  1
-func f(a: float) -> float:
-  1.0
-func id[T](a: T) -> T:
-    a
-func id(a: int) -> int:
-    0
+func f(a: int) -> float:
+  ## hogehugo
+  ## hogepiyo
+  0.0
 
 var
-  a: int = 1
-  b: int = f(0.0)
-  c: float = f(0.0)
-  d = f(0.0)
-  e = id 3
-  f: int
-  g = id "4"
-  h: int = id 3
-f = f(a)
+  a = 1 # hoge
+  b = 1 # hoge
 
-
+f(1)

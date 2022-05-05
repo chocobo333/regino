@@ -182,7 +182,8 @@ proc `$`*(self: IdentDef): string =
         pat = $self.pat
         typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
         default = if self.default.isNone: "" else: fmt" = {self.default.get}"
-    pat & typ & default
+        docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
+    pat & typ & default & docStr
 proc `$`*(self: GenTypeDef): string =
     let ub = if self.ub.isSome: fmt" <: {self.ub.get}" else: ""
     fmt"{self.id}{ub}"

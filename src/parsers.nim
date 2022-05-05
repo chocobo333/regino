@@ -345,7 +345,7 @@ let
         Patt + alt(
             ?preceded(colon, Expr) + (preceded(eq, Expr) @ (it => some it)),
             (preceded(colon, Expr) @ (it => some it)) + ?preceded(eq, Expr)
-        ) @ (it => newIdentDef(it[0], it[1][0], it[1][1])),
+        ) + preceded(sp0, ?Comment) @ (it => newIdentDef(it[0][0], it[0][1][0], it[0][1][1], it[1])),
         Patt @ (it => newIdentDef(it))
     )
     GenTypeDef = alt(
