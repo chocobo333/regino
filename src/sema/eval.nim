@@ -315,13 +315,11 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                 let t = default.get.infer(env, global)
                 env.coerce(t <= paty)
             if typ.isSome:
-                debug typ
                 let
                     typ = typ.get
                     tv = typ.infer(env, global)
                 typ.check(env)
                 let t = typ.eval(env, global)
-                debug t
                 env.coerce(t == paty)
             env.addPatL(iddef, global=global)
         Value.Unit
@@ -420,13 +418,7 @@ proc infer*(self: Program, env: TypeEnv): Value =
         discard s.infer(env)
         # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
     result = self.stmts[^1].infer(env)
-    debug env.constraints
     env.resolve()
-    debug env.constraints
-    debug env.tvs
-    for e in env.tvs:
-        debug e.tv.lb
-        debug e.tv.ub
 
 proc check(self: Ident, env: TypeEnv) =
     if self.typ.symbol.isNone:
@@ -451,13 +443,14 @@ proc check(self: Pattern, env: TypeEnv) =
 proc resolveLink(self: Value) =
     if self.kind == ValueKind.Link:
         self.to.resolveLink
-        let symbol = self.symbol
+        let
+            ident = self.ident
+            symbol = self.symbol
         self[] = self.to[]
         self.symbol = symbol
+        self.ident = ident
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
-    debug e.typ
-    debug v
     assert e.typ <= v
     result = e
     if v <= e.typ:
@@ -704,7 +697,13 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         else:
             Value.Intersection(syms.mapIt(it.val.inst(env)))
     of ExpressionKind.Tuple:
-        self.exprs.mapIt(it.eval(env, global)).foldl(Value.Pair(a, b))
+        case self.exprs.len
+        of 0:
+            Value.Unit
+        of 1:
+            Value.Pair(self.exprs[0].eval(env, global), Value.Unit)
+        else:
+            self.exprs.mapIt(it.eval(env, global)).foldl(Value.Pair(a, b))
     of ExpressionKind.Array:
         Value.Array(self.exprs.mapIt(it.eval(env)))
     of ExpressionKind.Record:
@@ -733,7 +732,6 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Bracket:
         let
             val = self.callee.eval(env, global)
-        debug val
         case val.kind:
         of ValueKind.Pi:
             for (e, arg) in val.instances.zip(self.args):
