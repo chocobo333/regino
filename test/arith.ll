@@ -14,3 +14,9 @@ define i1 @"eq@bool/int32int32" (i32, i32) {
         %ret = icmp eq i32 %0, %1
         ret i1 %ret
 }
+
+define i32 @"mod@int32/int32int32" (i32, i32) {
+    entry:
+        %ret = srem i32 %0, %1
+        ret i32 %ret
+}

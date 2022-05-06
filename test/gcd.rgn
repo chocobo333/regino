@@ -1,0 +1,21 @@
+
+![link: "arith.ll"]
+
+type
+    int = typeof(0)
+    bool = typeof(false)
+
+func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
+func `mod@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `==`(a: int, b: int) -> bool:
+    `eq@bool/int32int32`(a, b)
+func `%`(a: int, b: int) -> int:
+    `mod@int32/int32int32`(a, b)
+
+func gcd(x: int, y: int) -> int:
+    if y == 0:
+        x
+    else:
+        gcd(y, x%y)
+
+gcd(24, 36)
