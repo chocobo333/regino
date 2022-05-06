@@ -5,9 +5,11 @@
 ![link: "string.ll"]
 
 type
-  int = typeof(0)
+  int = typeof(0) # hoge
+  # hoge
   float = typeof(0.0)
   string = typeof("") # string
+  # hoge
 
 func toFloat(a: int) -> float ![subtype]:
   0.0
@@ -19,6 +21,14 @@ func f(a: int) -> float:
 
 var
   a = 1 # hoge
+  # hugo
+  # hugo
   b = 1 # hoge
+  # hugo
+  # hugo
+
+# hoge
+# hogehoge
+# hogehogehoge
 
 f(1)

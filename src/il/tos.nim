@@ -20,6 +20,9 @@ proc `$`*(self: Pattern): string
 proc `$`*(self: Suite): string
 proc `$`*(self: Value): string
 proc `$`*(self: Region): string
+proc `$`*(self: Comment): string = "#" & self.s
+proc `$`*(self: seq[Comment]): string = 
+    self.map(`$`).join("\n")
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.unit:
@@ -182,8 +185,13 @@ proc `$`*(self: IdentDef): string =
         pat = $self.pat
         typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
         default = if self.default.isNone: "" else: fmt" = {self.default.get}"
-        docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
-    pat & typ & default & docStr
+        docStrs = self.comments.filterIt(it.isDoc)
+        comments = self.comments.filterIt(not it.isDoc)
+    assert docStrs.len <= 1
+    let
+        docStr = if docStrs.len != 0: fmt" {docStrs[0]}" else: ""
+        comment = if comments.len != 0: "\n" & fmt"{comments}" else: ""
+    pat & typ & default & docStr & comment
 proc `$`*(self: GenTypeDef): string =
     let ub = if self.ub.isSome: fmt" <: {self.ub.get}" else: ""
     fmt"{self.id}{ub}"
@@ -197,8 +205,13 @@ proc `$`*(self: TypeDef): string =
                 let params = self.params.get.map(`$`).join(", ")
                 fmt"[{params}]"
         typ = $self.typ
-        docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
-    fmt"{id}{params} = {typ}" & docStr
+        docStrs = self.comments.filterIt(it.isDoc)
+        comments = self.comments.filterIt(not it.isDoc)
+    assert docStrs.len <= 1
+    let
+        docStr = if docStrs.len != 0: fmt" {docStrs[0]}" else: ""
+        comment = if comments.len != 0: "\n" & fmt"{comments}" else: ""
+    fmt"{id}{params} = {typ}" & docStr & comment
 proc `$`*(self: FunctionParam): string =
     let
         implicit = block:
@@ -211,9 +224,6 @@ proc `$`*(self: FunctionParam): string =
         rety = if self.rety.isNone: "" else: fmt" -> {self.rety.get}"
     fmt"{implicit}({params}){rety}"
 
-proc `$`*(self: Comment): string = "#" & self.s
-proc `$`*(self: seq[Comment]): string = 
-    self.map(`$`).join("\n")
 proc `$`*(self: Function): string =
     let
         fn = ["func", "prop"][int self.isProp]

@@ -57,7 +57,7 @@ type
         of StatementKind.Discard:
             `discard`*: Option[Expression]
         of StatementKind.Comments:
-            comments*: seq[string]
+            comments*: seq[Comment]
         of StatementKind.Expression:
             expression*: Expression
         of StatementKind.Fail:
@@ -79,13 +79,13 @@ type
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
-        docStr*: Option[string]
+        comments*: seq[Comment]
     TypeDef* = ref object
         # represents `pat[params] = typ`
         id*: Ident
         params*: Option[seq[GenTypeDef]]
         typ*: TypeExpression
-        docStr*: Option[string]
+        comments*: seq[Comment]
     GenTypeDef* = ref object
         # represents `id <: ub`
         id*: Ident

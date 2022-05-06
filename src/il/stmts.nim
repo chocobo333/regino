@@ -27,7 +27,7 @@ proc Meta*(_: typedesc[Statement], meta: Metadata, loc: Location = newLocation()
     Statement(kind: StatementKind.Meta, meta: meta, loc: loc)
 proc Discard*(_: typedesc[Statement], dis: Option[Expression] = none(Expression), loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Discard, `discard`: dis, loc: loc)
-proc Comments*(_: typedesc[Statement], comments: seq[string], loc: Location = newLocation()): Statement =
+proc Comments*(_: typedesc[Statement], comments: seq[Comment], loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Comments, comments: comments, loc: loc)
 proc Expr*(_: typedesc[Statement], exp: Expression): Statement =
     Statement(kind: StatementKind.Expression, expression: exp, loc: exp.loc)

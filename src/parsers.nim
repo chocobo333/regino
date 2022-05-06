@@ -184,7 +184,8 @@ let
 
     NewLine = preceded(+(sp0 > p"\n"), sp0) @ (it => it.len)
 
-    Comment = preceded(s"#", p".*")
+    Comment = preceded(s"#", p".*") @ (it => newComment(it))
+    DocStr = preceded(s"#", p".*") @ (it => newComment(it, true))
     Comments = %(Comment ^+ Nodent) @ (it => Statement.Comments(it[0], it[1]))
 
     asop = %p"[\p{Sm}*/\\?!%&$^@-]*=" @ (it => newIdent(it[0], it[1]))
@@ -341,13 +342,12 @@ let
     # BracketPattern: AstNode = IdPattern > delimited(lbra, separated1(Pattern, comma), rbra)    @ (it => akBracketExpr.newTreeNode(it))
 
 
-    IdentDef = alt(
-        Patt + alt(
-            ?preceded(colon, Expr) + (preceded(eq, Expr) @ (it => some it)),
-            (preceded(colon, Expr) @ (it => some it)) + ?preceded(eq, Expr)
-        ) + preceded(sp0, ?Comment) @ (it => newIdentDef(it[0][0], it[0][1][0], it[0][1][1], it[1])),
-        Patt @ (it => newIdentDef(it))
-    )
+    IdentDef = Patt + 
+        ?preceded(colon, Expr) + 
+        ?preceded(eq, Expr) + 
+        preceded(sp0, alt(DocStr @ (it => @[it]), success[seq[Comment]]())) + 
+        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
+        (it => newIdentdef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
     GenTypeDef = alt(
         Id + ?preceded(tlt, Expr) @ (it => newGenTypedef(it[0], it[1]))
     )
@@ -454,7 +454,12 @@ let
     )
     TraitType = preceded(s"trait" + sp1, Patt + preceded(colon, Expr)) + ?delimited(s"with" ^ sp0 + Indent, TraitElement ^+ Nodent, Dedent) @ (it => TypeExpression.TraitT(newTrait(it[0][0], it[0][1], it[1].get(@[]))))
 
-    TypeDef = Id + ?GenParams + preceded(eq, TypeExpr) + preceded(sp0, ?Comment) @ (it => newTypeDef(it[0][0][0], it[0][0][1], it[0][1], it[1]))
+    TypeDef = Id + 
+        ?GenParams + 
+        preceded(eq, TypeExpr) + 
+        preceded(sp0, alt(DocStr @ (it => @[it]), success[seq[Comment]]())) +
+        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
+        (it => newTypeDef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
 
     LetSection = %preceded(s"let", Section) @ (it => Statement.LetSection(it[0], it[1]))
     VarSection = %preceded(s"var", Section) @ (it => Statement.Varsection(it[0], it[1]))
