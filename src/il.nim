@@ -2,6 +2,7 @@
 import il/[
     il,
     branches,
+    comment,
     exprs,
     idents,
     literals,
@@ -23,6 +24,7 @@ import il/[
 
 export il
 export branches
+export comment
 export exprs
 export idents
 export literals

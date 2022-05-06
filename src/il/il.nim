@@ -27,6 +27,9 @@ type
         Comments        ## comments or docuents
         Expression      ## expression and only this has a type
         Fail            ## occuring compiler-internal error
+    Comment* = ref object
+        s*: string
+        isDoc*: bool
     Statement* = ref StatementObject
     StatementObject = object
         ## that represents a statement
