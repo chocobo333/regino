@@ -211,7 +211,9 @@ proc `$`*(self: FunctionParam): string =
         rety = if self.rety.isNone: "" else: fmt" -> {self.rety.get}"
     fmt"{implicit}({params}){rety}"
 
-proc `$`*(self: Comment): string = self.s
+proc `$`*(self: Comment): string = "#" & self.s
+proc `$`*(self: seq[Comment]): string = 
+    self.map(`$`).join("\n")
 proc `$`*(self: Function): string =
     let
         fn = ["func", "prop"][int self.isProp]
