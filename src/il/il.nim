@@ -80,6 +80,9 @@ type
         consts*: Table[string, seq[Symbol]] # deprecated
         typeOrder*: Order[Value]  # cumulative
         converters*: Table[(Value, Value), Ident]
+    DefKind* {.pure.} = enum
+        Def
+        Comment
     IdentDef* = ref object
         # represents `pat: typ = default # docStr`
         pat*: Pattern
