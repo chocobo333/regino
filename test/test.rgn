@@ -46,11 +46,15 @@ type
     char = typeof('a')
     pairWithInt[T] = (int, T)
     pair[T, U] = (T, U)
-    
-    Shape = variant
-        Empty
-        Point(Vector2)
-        Rectangle(p: Vector2, w: int, h: int)
+
+    Vector2 = object
+        x: float   
+        y: float
+
+# Shape = variant
+#     Empty
+#     Point(Vector2)
+#     Rectangle(p: Vector2, w: int, h: int)
 # Nat = ref variant
 #     Zero
 #     Succ(Nat)
