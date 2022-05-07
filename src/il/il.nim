@@ -101,7 +101,7 @@ type
         id*: Ident
         param*: FunctionParam
         metadata*: Option[Metadata]
-        docStr*: Option[seq[string]]
+        docStr*: seq[Comment]
         suite*: Option[Suite]
     ExpressionKind* {.pure.} = enum
         Literal

@@ -406,22 +406,22 @@ let
                 Metadata.SubType(args)
             else:
                 Metadata.UserDef(id.name, args)
-    FuncDocStr: proc(self: ref Source): Option[seq[string]] = 
-        (preceded(s"## ", p".*") ^+ Nodent)
+    FuncDocStr: proc(self: ref Source): Option[seq[Comment]] = 
+        ((preceded(s"## ", p".*") @ (it => newComment(it, true))) ^+ Nodent)
     FuncBody = alt(
-        NoBody @ (it => (none[seq[string]](), it)),
+        NoBody @ (it => (newSeq[il.Comment](), it)),
         preceded(
             colon, 
             alt(
-                Stmt @ (it => (none(seq[string]), @[it])),
-                delimited(Indent, ?terminated(FuncDocStr, Nodent) + StmtList, Dedent)
+                Stmt @ (it => (newSeq[il.Comment](), @[it])),
+                delimited(Indent, alt(terminated(FuncDocStr, Dedent), success(seq[il.Comment])) + StmtList, Dedent)
             ) @ (it => (it[0], some newSuite(it[1])))
         )
     )
     FuncDef = (terminated(alt(fun @ (it => false), s"prop" @ (it => true)), sp1) +
         Id + ?GenParams + Params + ?Metadata + FuncBody
     ) @ (it => (it[0][0][0][0][0], it[0][0][0][0][1], it[0][0][0][1], it[0][0][1], it[0][1], it[1][0], it[1][1])) @
-        proc(it: (bool, Ident, Option[seq[GenTypeDef]], (seq[IdentDef], Option[Expression]), Option[il.Metadata], Option[seq[string]], Option[il.Suite])): Function =
+        proc(it: (bool, Ident, Option[seq[GenTypeDef]], (seq[IdentDef], Option[Expression]), Option[il.Metadata], seq[il.Comment], Option[il.Suite])): Function =
             let
                 (isProp, id, imp, prms, meta, docStr, body) = it
             Function(
