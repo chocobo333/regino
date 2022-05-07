@@ -5,6 +5,8 @@
 ![link: "string.ll"]
 
 type
+  # hogehugo
+  # hogehugo
   int = typeof(0) # hoge
   # hoge
   float = typeof(0.0)
@@ -14,12 +16,19 @@ type
 func toFloat(a: int) -> float ![subtype]:
   0.0
 
-func f(a: int) -> float:
+func f(a: int) -> float
+
+func g(a: int) -> float: 0.0
+
+func h(a: int) -> float:
   0.0
 
-func f(a: float) -> float: 0.0
+func f(a: float) -> float:
+  ## hoge
+  0.0
 
 var
+  # hogehugo
   a = 1 # hoge
   # hugo
   # hugo

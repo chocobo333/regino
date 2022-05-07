@@ -15,6 +15,7 @@ import il/[
     sums,
     traits,
     scopes,
+    section,
     values,
     tvs,
     symbols,
@@ -37,6 +38,7 @@ export typeexprs
 export sums
 export traits
 export scopes
+export section
 export values
 export tvs
 export symbols

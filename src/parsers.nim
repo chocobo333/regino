@@ -461,16 +461,32 @@ let
         alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
         (it => newTypeDef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
 
-    LetSection = %preceded(s"let", Section) @ (it => Statement.LetSection(it[0], it[1]))
-    VarSection = %preceded(s"var", Section) @ (it => Statement.Varsection(it[0], it[1]))
-    ConstSection = %preceded(s"const", Section) @ (it => Statement.ConstSection(it[0], it[1]))
-    TypeSection = %preceded(
-        s"type",
-        alt(
-            preceded(sp1, TypeDef) @ (it => @[it]),
-            delimited(Indent, TypeDef ^+ Nodent, Dedent)
-        )
-    ) @ (it => Statement.TypeSection(it[0], it[1]))
+    IdentDefSection = alt(
+        preceded(sp1, IdentDef) @ (it => (newSeq[il.Comment](), @[it])),
+        delimited(Indent, alt(terminated(Comment ^+ Nodent, Nodent), success(seq[Comment])) + (IdentDef ^+ Nodent), Dedent)
+    ) @ (it => newIddefSection(it[1], it[0]))
+    TypeDefSection = alt(
+        preceded(sp1, TypeDef) @ (it => (newSeq[il.Comment](), @[it])),
+        delimited(Indent, alt(terminated(Comment ^+ Nodent, Nodent), success(seq[Comment])) + (TypeDef ^+ Nodent), Dedent)
+    ) @ (it => newTypedefSection(it[1], it[0]))
+    # IdentDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) + 
+    #     alt(preceded(sp1, IdentDef) @ (it => @[it]), delimited(Indent, IdentDef ^+ Nodent, Dedent)) @ 
+    #     (it => newIddefSection(it[1], it[0]))
+    # TypeDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) + 
+    #     alt(preceded(sp1, TypeDef) @ (it => @[it]), delimited(Indent, TypeDef ^+ Nodent, Dedent)) @ 
+    #     (it => newTypedefSection(it[1], it[0]))
+
+    LetSection = %preceded(s"let", IdentDefSection) @ (it => Statement.LetSection(it[0], it[1]))
+    VarSection = %preceded(s"var", IdentDefSection) @ (it => Statement.Varsection(it[0], it[1]))
+    ConstSection = %preceded(s"const", IdentDefSection) @ (it => Statement.ConstSection(it[0], it[1]))
+    # TypeSection = %preceded(
+    #     s"type",
+    #     alt(
+    #         preceded(sp1, TypeDef) @ (it => @[it]),
+    #         delimited(Indent, TypeDef ^+ Nodent, Dedent)
+    #     )
+    # ) @ (it => Statement.TypeSection(it[0], it[1]))
+    TypeSection = %preceded(s"type", TypeDefSection) @ (it => Statement.TypeSection(it[0], it[1]))
 
 #     # epression
     CondBranch = alt(

@@ -230,6 +230,17 @@ proc `$`*(self: Function): string =
         metadata = if self.metadata.isNone: "" else: fmt" {self.metadata.get}"
         suite = if self.suite.isNone: "" else: fmt"{self.suite.get}"
     &"{fn} {self.id}{self.param}{metadata}:\n{suite}"
+
+proc `$`*(self: IdentDefSection): string = 
+    let
+        comments = if self.comments.len != 0: self.comments.map(`$`).join("\n") & "\n" else: ""
+        iddefs = self.iddefs.map(`$`).join("\n")
+    comments & iddefs
+proc `$`*(self: TypeDefSection): string =
+    let
+        comments = if self.comments.len != 0: self.comments.map(`$`).join("\n") & "\n" else: ""
+        typedefs = self.typedefs.map(`$`).join("\n")
+    comments & typedefs
 proc `$`*(self: Statement): string =
     case self.kind
     of StatementKind.For:
@@ -242,17 +253,17 @@ proc `$`*(self: Statement): string =
         else:
             &"loop {self.label.get}\n{self.`block`}"
     of StatementKind.LetSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"let\n{iddefs}"
+        "let\n" & fmt"{self.iddefSection}".indent(2)
     of StatementKind.VarSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"var\n{iddefs}"
+        "var\n" & fmt"{self.iddefSection}".indent(2)
     of StatementKind.ConstSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"const\n{iddefs}"
+        "const\n" & fmt"{self.iddefSection}".indent(2)
+        # let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
+        # &"const\n{iddefs}"
     of StatementKind.TypeSection:
-        let typedefs = self.typedefs.map(`$`).join("\n").indent(2)
-        &"type\n{typedefs}"
+        "type\n" & fmt"{self.typedefSection}".indent(2)
+        # let typedefs = self.typedefs.map(`$`).join("\n").indent(2)
+        # &"type\n{typedefs}"
     of StatementKind.Asign:
         fmt"{self.pat} = {self.val}"
     of StatementKind.Funcdef:
@@ -265,7 +276,7 @@ proc `$`*(self: Statement): string =
         else:
             fmt"discard"
     of StatementKind.Comments:
-        "#" & self.comments.join("\n#")
+        self.comments.join("\n")
     of StatementKind.Expression:
         $self.expression
     of StatementKind.Fail:

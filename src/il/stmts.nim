@@ -11,14 +11,14 @@ proc While*(_: typedesc[Statement], branch: ElifBranch, loc: Location = newLocat
     Statement(kind: StatementKind.While, branch: branch, loc: loc)
 proc Loop*(_: typedesc[Statement], `block`: Suite, label: Option[Ident] = none(Ident), loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Loop, `block`: `block`, label: label, loc: loc)
-proc LetSection*(_: typedesc[Statement], iddefs: openarray[IdentDef], loc: Location = newLocation()): Statement =
-    Statement(kind: StatementKind.LetSection, iddefs: @iddefs, loc: loc)
-proc VarSection*(_: typedesc[Statement], iddefs: openarray[IdentDef], loc: Location = newLocation()): Statement =
-    Statement(kind: StatementKind.VarSection, iddefs: @iddefs, loc: loc)
-proc ConstSection*(_: typedesc[Statement], iddefs: openarray[IdentDef], loc: Location = newLocation()): Statement =
-    Statement(kind: StatementKind.ConstSection, iddefs: @iddefs, loc: loc)
-proc TypeSection*(_: typedesc[Statement], typedefs: openarray[TypeDef], loc: Location = newLocation()): Statement =
-    Statement(kind: StatementKind.TypeSection, typedefs: @typedefs, loc: loc)
+proc LetSection*(_: typedesc[Statement], iddefSection: IdentDefSection, loc: Location = newLocation()): Statement =
+    Statement(kind: StatementKind.LetSection, iddefSection: iddefSection, loc: loc)
+proc VarSection*(_: typedesc[Statement], iddefSection: IdentDefSection, loc: Location = newLocation()): Statement =
+    Statement(kind: StatementKind.VarSection, iddefSection: iddefSection, loc: loc)
+proc ConstSection*(_: typedesc[Statement], iddefSection: IdentDefSection, loc: Location = newLocation()): Statement =
+    Statement(kind: StatementKind.ConstSection, iddefSection: iddefSection, loc: loc)
+proc TypeSection*(_: typedesc[Statement], typedefSection: TypeDefSection, loc: Location = newLocation()): Statement =
+    Statement(kind: StatementKind.TypeSection, typedefSection: typedefSection, loc: loc)
 proc Asign*(_: typedesc[Statement], pat: Pattern, op: Ident, val: Expression, loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Asign, pat: pat, op: op, val: val, loc: loc)
 proc Funcdef*(_: typedesc[Statement], fn: Function, loc: Location = newLocation()): Statement =

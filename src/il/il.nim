@@ -30,6 +30,12 @@ type
     Comment* = ref object
         s*: string
         isDoc*: bool
+    IdentDefSection* = ref object
+        iddefs*: seq[IdentDef]
+        comments*: seq[Comment]
+    TypeDefSection* = ref object
+        typedefs*: seq[TypeDef]
+        comments*: seq[Comment]
     Statement* = ref StatementObject
     StatementObject = object
         ## that represents a statement
@@ -42,9 +48,9 @@ type
         of StatementKind.While:
             branch*: ElifBranch
         of StatementKind.LetSection, StatementKind.VarSection, StatementKind.ConstSection:
-            iddefs*: seq[IdentDef]
+            iddefSection*: IdentDefSection
         of StatementKind.TypeSection:
-            typedefs*: seq[TypeDef]
+            typedefSection*: TypeDefSection
         of StatementKind.For, StatementKind.Asign:
             pat*: Pattern
             val*: Expression
