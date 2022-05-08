@@ -453,7 +453,7 @@ proc resolveLink(self: Value) =
 proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
     if v1 == v2:
         return e
-    if (v1, v2) in self.scope.converters:
+    result = if (v1, v2) in self.scope.converters:
         Expression.Call(Expression.Id(self.scope.converters[(v1, v2)]), @[e])
     elif v2.kind == ValueKind.Unit:
         let suite = newSuite(@[
@@ -505,6 +505,7 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
             debug v1
             debug v2
             nil
+    result.inserted = true
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
     debug e.typ
@@ -519,7 +520,6 @@ proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
         # result.typ = t
         discard result.infer(self)
         # result.check(self)
-        result.inserted = true
 proc check(self: Statement, env: TypeEnv)
 proc check(self: Suite, env: TypeEnv) =
     env.enter(self.scope):
