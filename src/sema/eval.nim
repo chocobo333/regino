@@ -27,7 +27,7 @@ proc eval*(self: Program, env: TypeEnv): Value
 proc eval*(self: Suite, env: TypeEnv): Value
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
-proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
+proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = false): Value
 
 
 proc infer*(self: Literal): Value =
@@ -172,12 +172,12 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
     of PatternKind.UnderScore:
         Value.Var(env)
     self.typ = result
-proc infer(self: TypeExpression, env: TypeEnv): Value =
+proc infer(self: TypeExpression, env: TypeEnv, ident: Ident): Value =
     case self.kind
     of TypeExpressionKind.Object:
         # TODO: ituka jissousuru
-        assert false, "notimplimented"
-        Value.Unit
+        let rec = Value.Record(self.members.mapIt((it[0], it[1].infer(env, it[0]))).toTable)
+        Value.Distinct(ident, rec)
     of TypeExpressionKind.Sum:
         # TODO: Add constructor
         let cons = self.sum.constructors.mapIt((
@@ -192,7 +192,7 @@ proc infer(self: TypeExpression, env: TypeEnv): Value =
         ))
         Value.Sum(cons.toTable)
     of TypeExpressionKind.Distinct:
-        Value.Distinct(self.base.infer(env))
+        Value.Distinct(ident, self.base.infer(env, ident))
     of TypeExpressionKind.Trait:
         assert false, "notimplimented"
         Value.Unit
@@ -357,18 +357,18 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
             env.addIdent(sym)
             if params.isNone:
                 # TODO: infer and check
-                let _ = typ.infer(env)
+                let _ = typ.infer(env, id)
                 # typ.check(env)
                 let
-                    typ = typ.eval(env, global)
+                    typ = typ.eval(env, id, global)
                 env.bindtv(tv, typ)
             else:
                 let scope = newScope(env.scope)
                 env.enter scope:
                     let implicit = params.get.mapIt(it.infer(env, global))
                     let
-                        _ = typ.infer(env)
-                        typ = typ.eval(env, global)
+                        _ = typ.infer(env, id)
+                        typ = typ.eval(env, id, global)
                     env.bindtv(tv, Value.Family(implicit, typ))
         Value.Unit
     of StatementKind.Asign:
@@ -465,17 +465,29 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
             case v1.kind
             of ValueKind.Integer:
                 Expression.IntCast(e, v1.bits, v2.bits)
+            of ValueKind.Record:
+                for (id, val) in v2.members.pairs:
+                    debug id
+                    debug val
+                    debug v1.members[id]
+                raise
             else:
+                debug v1
+                debug v2
                 nil
         else:
+            debug v1
+            debug v2
             nil
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
+    debug e.typ
+    debug v
     assert e.typ <= v
     result = e
     if v <= e.typ:
         return
-    assert self.path(e.typ, v).len == 1
+    # assert self.path(e.typ, v).len == 1
     for (s, t) in self.path(e.typ, v).sort(it => it.len)[0]:
         result = self.coercion(s, t, result)
         # result.typ = t
@@ -680,10 +692,11 @@ proc check*(self: Program, env: TypeEnv) =
 
 proc eval*(self: Literal): Value =
     Value.literal(self)
-proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
+proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = false): Value =
     result = case self.kind
     of TypeExpressionKind.Object:
-        Value.Unit
+        let rec = Value.Record(self.members.mapIt((it[0], it[1].eval(env, it[0]))).toTable)
+        Value.Distinct(ident, rec)
     of TypeExpressionKind.Sum:
         let cons = self.sum.constructors.mapIt((
             it.id,
@@ -697,7 +710,7 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
         ))
         Value.Sum(cons.toTable)
     of TypeExpressionKind.Distinct:
-        Value.Distinct(self.base.eval(env, global))
+        Value.Distinct(ident, self.base.eval(env, ident, global))
     of TypeExpressionKind.Trait:
         Value.Unit
     of TypeExpressionKind.Expression:

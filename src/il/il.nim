@@ -336,6 +336,7 @@ type
             first*: Value
             second*: Value
         of ValueKind.Array, ValueKind.Singleton, ValueKind.Distinct:
+            ident*: Ident
             base*: Value
         of ValueKind.ArrayV:
             vals*: seq[Value]

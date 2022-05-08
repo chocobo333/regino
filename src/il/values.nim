@@ -46,8 +46,8 @@ proc trait*(_: typedesc[Value], paty: (Pattern, Value), iss: seq[(Pattern, Value
     Value(kind: ValueKind.Trait, paty: paty, iss: iss, fns: fns)
 proc Singleton*(_: typedesc[Value], base: Value): Value =
     Value(kind: ValueKind.Singleton, base: base)
-proc Distinct*(_: typedesc[Value], base: Value): Value =
-    Value(kind: ValueKind.Distinct, base: base)
+proc Distinct*(_: typedesc[Value], ident: Ident, base: Value): Value =
+    Value(kind: ValueKind.Distinct, ident: ident, base: base)
 proc Intersection*(_: typedesc[Value], types: HashSet[Value]): Value =
     case types.len
     of 0:

@@ -106,6 +106,8 @@ proc `<=@`*(self: TypeEnv, t1, t2: Value): bool =
             true
         elif t2.kind == ValueKind.Bottom:
             false
+        elif t2.kind == ValueKind.Distinct:
+            t1 <= t2.base
         elif t1.kind == ValueKind.Intersection:
             t1.types.anyIt(self.`<=`(it, t2))
         elif t2.kind == ValueKind.Intersection:

@@ -405,7 +405,14 @@ proc `$`*(self: Value): string =
     of ValueKind.Singleton:
         fmt"sigleton[{self.base}]"
     of ValueKind.Distinct:
-        fmt"distinct {self.base}"
+        # case self.base.kind
+        # of ValueKind.Record:
+        #     var members: string
+        #     for (id, val) in self.base.members.pairs:
+        #         members.add &"\n  {id}: {val}"
+        #     &"{self.ident}{members}"
+        # else:
+            fmt"distinct {self.base}"
     of ValueKind.Intersection:
         toSeq(self.types).join("^")
     of ValueKind.Union:
