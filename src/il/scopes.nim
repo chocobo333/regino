@@ -67,5 +67,5 @@ proc newScope*(parent: Scope = nil): Scope =
             syms: initTable[string, seq[Symbol]](),
             consts: initTable[string, seq[Symbol]](),
             typeOrder: if parent.isNil: newOrder[Value]() else: parent.typeOrder,
-            converters: initTable[(Value, Value), Ident]()
+            converters: if parent.isNil: initTable[(Value, Value), Ident]() else: parent.converters
         )

@@ -455,7 +455,7 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
         Expression.Call(Expression.Id(self.scope.converters[(v1, v2)]), @[e])
     elif v2.kind == ValueKind.Unit:
         let suite = newSuite(@[
-            Statement.Expr(e),
+            Statement.Discard(some e),
             Statement.Expr(Expression.literal(Literal.unit))
         ])
         suite.scope = newScope(self.scope)
@@ -465,6 +465,30 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
             case v1.kind
             of ValueKind.Integer:
                 Expression.IntCast(e, v1.bits, v2.bits)
+            of ValueKind.Pair:
+                let scope = newScope(self.scope)
+                var
+                    a: Expression
+                    b: Expression
+                self.enter scope:
+                    a = self.coercion(v1.first, v2.first, Expression.Id("a"))
+                    b = self.coercion(v1.second, v2.second, Expression.Id("b"))
+                let suite = newSuite(
+                    @[
+                        Statement.LetSection(
+                            @[
+                                newIdentdef(
+                                    Pattern.Tuple(@[Pattern.Id("a"), Pattern.Id("b")]),
+                                    some Expression.Typeof(e),
+                                    some e
+                                )
+                            ]
+                        ),
+                        Statement.Expr(Expression.Tuple(@[a, b]))
+                    ]
+                )
+                suite.scope = scope
+                Expression.Block(suite)
             of ValueKind.Record:
                 for (id, val) in v2.members.pairs:
                     debug id
