@@ -12,8 +12,8 @@ import il
 import ../lineinfos
 
 
-proc `$`*(self: Statement): string
-proc `$`*(self: Expression): string
+proc `$`*(self: Statement, typed: bool = false): string
+proc `$`*(self: Expression, typed: bool = false): string
 proc `$`*(self: FunctionParam): string
 proc `$`*(self: TypeExpression): string
 proc `$`*(self: Pattern): string
@@ -53,24 +53,24 @@ proc `$`*(self: Ident): string =
 proc `$$`*(self: Ident): string =
     self.name
 proc `$`*(self: Suite): string =
-    self.stmts.map(`$`).join("\n").indent(2)
+    self.stmts.mapIt($it).join("\n").indent(2)
 proc `$`*(self: ElifBranch): string =
     let suite = $self.suite
     &"elif {self.cond}:\n{suite}"
 proc `$`*(self: OfBranch): string =
     let suite = $self.suite
     &"of {self.pat}:\n{suite}"
-proc `$`*(self: Expression): string =
+proc `$`*(self: Expression, typed: bool = false): string =
     result = case self.kind
     of ExpressionKind.Literal:
         $self.litval
     of ExpressionKind.Ident:
         $self.ident
     of ExpressionKind.Tuple:
-        let s = self.exprs.join(", ")
+        let s = self.exprs.mapIt(`$`(it, typed)).join(", ")
         fmt"({s})"
     of ExpressionKind.Array:
-        let s = self.exprs.join(", ")
+        let s = self.exprs.mapIt(`$`(it, typed)).join(", ")
         fmt"[{s}]"
     of ExpressionKind.Record:
         let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
@@ -139,7 +139,7 @@ proc `$`*(self: Expression): string =
         fmt"cast({self.int_exp}, {self.from}, {self.to})"
     of ExpressionKind.Fail:
         fmt"failed term"
-    if not self.typ.isNil:
+    if typed and not self.typ.isNil:
         result = fmt"{result} (: {self.typ})"
 
 proc `$`*(self: Metadata): string =
@@ -217,7 +217,7 @@ proc `$`*(self: Function): string =
         metadata = if self.metadata.isNone: "" else: fmt" {self.metadata.get}"
         suite = if self.suite.isNone: "" else: fmt"{self.suite.get}"
     &"{fn} {self.id}{self.param}{metadata}:\n{suite}"
-proc `$`*(self: Statement): string =
+proc `$`*(self: Statement, typed: bool = false): string =
     case self.kind
     of StatementKind.For:
         &"for {self.pat} in {self.val}:\n{self.suite}"
@@ -315,7 +315,7 @@ proc `$`*(self: TypeExpression): string =
             $self.expression
     )
 proc `$`*(self: Program): string =
-    self.stmts.map(`$`).join("\n")
+    self.stmts.mapIt($it).join("\n")
 
 proc id2s(self: int): string =
     let

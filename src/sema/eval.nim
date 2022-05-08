@@ -451,6 +451,8 @@ proc resolveLink(self: Value) =
         self.symbol = symbol
 
 proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
+    if v1 == v2:
+        return e
     if (v1, v2) in self.scope.converters:
         Expression.Call(Expression.Id(self.scope.converters[(v1, v2)]), @[e])
     elif v2.kind == ValueKind.Unit:
