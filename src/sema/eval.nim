@@ -139,6 +139,8 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of ExpressionKind.FnType:
         Value.Unit
+    of ExpressionKind.IntCast:
+        Value.Integer(self.to)
     of ExpressionKind.Fail:
         Value.Bottom
     self.typ = result
@@ -449,16 +451,38 @@ proc resolveLink(self: Value) =
         self[] = self.to[]
         self.symbol = symbol
         self.ident = ident
+
+proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
+    if (v1, v2) in self.scope.converters:
+        Expression.Call(Expression.Id(self.scope.converters[(v1, v2)]), @[e])
+    elif v2.kind == ValueKind.Unit:
+        let suite = newSuite(@[
+            Statement.Expr(e),
+            Statement.Expr(Expression.literal(Literal.unit))
+        ])
+        suite.scope = newScope(self.scope)
+        Expression.Block(suite)
+    else:
+        if v1.kind == v2.kind:
+            case v1.kind
+            of ValueKind.Integer:
+                Expression.IntCast(e, v1.bits, v2.bits)
+            else:
+                nil
+        else:
+            nil
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
     assert e.typ <= v
     result = e
     if v <= e.typ:
         return
+    assert self.path(e.typ, v).len == 1
     for (s, t) in self.path(e.typ, v).sort(it => it.len)[0]:
-        let c = self.scope.converters[(s, t)]
-        result = Expression.Call(Expression.Id(c), @[result])
-        result.typ = t
+        result = self.coercion(s, t, result)
+        # result.typ = t
+        discard result.infer(self)
+        # result.check(self)
         result.inserted = true
 proc check(self: Statement, env: TypeEnv)
 proc check(self: Suite, env: TypeEnv) =
@@ -575,6 +599,8 @@ proc check(self: Expression, env: TypeEnv) =
         discard
     of ExpressionKind.FnType:
         discard
+    of ExpressionKind.IntCast:
+        self.int_exp.check(env)
     of ExpressionKind.Fail:
         env.errs.add TypeError.SomethingWrong(self.loc)
 proc check(self: Statement, env: TypeEnv) =
@@ -597,6 +623,7 @@ proc check(self: Statement, env: TypeEnv) =
             if iddef.default.isSome:
                 iddef.default.get.check(env)
                 iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ)
+
     of StatementKind.VarSection:
         discard
     of StatementKind.ConstSection:
@@ -764,6 +791,9 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Ptr(self.`ref`.eval(env, global))
     of ExpressionKind.FnType:
         Value.Arrow(self.args.mapIt(it.eval(env, global)), self.rety.eval(env, global))
+    of ExpressionKind.IntCast:
+        # TODO:
+        self.int_exp.eval(env, global)
     of ExpressionKind.Fail:
         Value.Bottom
 proc asign(self: Pattern, val: Value) =

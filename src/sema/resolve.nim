@@ -17,105 +17,25 @@ import ../dots
 
 
 proc `<=`*(t1, t2: Value): bool {.error.}
+proc `<=@`*(t1, t2: Value): Option[seq[Constraint]] {.error.}
 proc `<=?`*(t1, t2: Value): Option[seq[Constraint]] {.error.}
 proc `<=`*(self: TypeEnv, t1, t2: Value): bool
+proc `<=@`*(self: TypeEnv, t1, t2: Value): bool
 proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]]
 template setTypeEnv*(self: TypeEnv): untyped =
     proc `<=`(t1, t2: Value): bool =
         self.`<=`(t1, t2)
+    proc `<=@`(t1, t2: Value): bool =
+        self.`<=@`(t1, t2)
     proc `<=?`(t1, t2: Value): Option[seq[Constraint]] =
         self.`<=?`(t1, t2)
 
-proc `==?`*(t1, t2: Value): bool =
-    if t1.kind == ValueKind.Link:
-        return t1.to ==? t2
-    if t2.kind == ValueKind.Link:
-        return t1 ==? t2.to
-    if t1.kind == t2.kind:
-        case t1.kind
-        of ValueKind.Literal:
-            t1.litval == t2.litval
-        of ValueKind.Bottom:
-            true
-        of ValueKind.Unit:
-            true
-        of ValueKind.Bool:
-            true
-        of ValueKind.Integer:
-            t1.bits == t2.bits
-        of ValueKind.Float:
-            t1.bits == t2.bits
-        of ValueKind.Char:
-            true
-        of ValueKind.String:
-            true
-        of ValueKind.Pair:
-            t1.first ==? t2.first and t1.second ==? t2.second
-        of ValueKind.Array:
-            t1.base ==? t2.base
-        of ValueKind.ArrayV:
-            true
-        of ValueKind.Record:
-            t1.members == t2.members
-        of ValueKind.Ptr:
-            t1.pointee ==? t2.pointee
-        of ValueKind.Pi:
-            t1.implicit == t2.implicit and
-            t1.params == t2.params and
-            t1.rety ==? t2.rety
-        of ValueKind.Family:
-            t1.implicit == t2.implicit and t1.rety ==? t2.rety
-        of ValueKind.Sum:
-            assert false, "notimplemented"
-            true
-        of ValueKind.Trait:
-            assert false, "notimplemented"
-            true
-        of ValueKind.Singleton:
-            t1.base ==? t2.base
-        of ValueKind.Distinct:
-            t1.base ==? t2.base
-        of ValueKind.Intersection:
-            t1.types == t2.types
-        of ValueKind.Union:
-            t1.types == t2.types
-        of ValueKind.Select:
-            t1.types == t2.types and t1.id == t2.id
-        of ValueKind.Lambda:
-            t1.l_param == t2.l_param and t1.suite == t2.suite
-        of ValueKind.Cons:
-            t1.constructor == t2.constructor and t1.args.zip(t2.args).allIt(it[0] == it[1])
-        of ValueKind.Var:
-            t1.tv.id == t2.tv.id
-        of ValueKind.Gen:
-            t1.gt == t2.gt
-        of ValueKind.Link:
-            t1.to ==? t2.to
-    else:
-        if t1.kind == ValueKind.Var:
-            discard
-        if t2.kind == ValueKind.Var:
-            discard
-        false
-
-proc path*(self: TypeEnv, t1, t2: Value): seq[seq[(Value, Value)]] =
-    if t1.kind == ValueKind.Link:
-        return self.path(t1.to, t2)
-    if t2.kind == ValueKind.Link:
-        return self.path(t1, t2.to)
+proc `<=@`*(self: TypeEnv, t1, t2: Value): bool =
+    ## premitive <=
     setTypeEnv(self)
-    let converters = toSeq(self.scope.converters.keys).filterIt(it[1] ==? t2)
-    for (s, _) in converters:
-        if s == t1:
-            result.add @[(s, t2)]
-        else:
-            result.add self.path(t1, s).mapIt(it & (s, t2))
-
-proc applicable(conv: (Value, Value), p: (Value, Value)): bool =
-    false
-proc `<=`*(self: TypeEnv, t1, t2: Value): bool =
-    setTypeEnv(self)
-    if t1.kind == t2.kind:
+    if t1 == t2:
+        true
+    elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Literal:
             t1.litval == t2.litval
@@ -176,7 +96,7 @@ proc `<=`*(self: TypeEnv, t1, t2: Value): bool =
         of ValueKind.Gen:
             false
         of ValueKind.Link:
-            t1.to <= t2.to
+            t1.to <=@ t2.to
     else:
         if t2.kind == ValueKind.Unit:
             true
@@ -199,10 +119,45 @@ proc `<=`*(self: TypeEnv, t1, t2: Value): bool =
         elif t2.kind == ValueKind.Var:
             (t1, t2) in self.order
         else:
-            # toSeq(self.scope.converters.keys).anyIt(it.applicable((t1, t2)))
-            # (t1, t2) in self.scope.converters
-            let converters = toSeq(self.scope.converters.keys).filterIt(it[1] ==? t2)
-            converters.anyIt(t1 <= it[0])
+            false
+
+proc path*(self: TypeEnv, t1, t2: Value): seq[seq[(Value, Value)]] =
+    if t1.kind == ValueKind.Link:
+        return self.path(t1.to, t2)
+    if t2.kind == ValueKind.Link:
+        return self.path(t1, t2.to)
+    setTypeEnv(self)
+    if t1 <=@ t2:
+        return @[@[(t1, t2)]]
+    var
+        converters1: seq[(Value, Value)]
+        converters2: seq[(Value, Value)]
+    for it in self.scope.converters.keys:
+        if it[1] == t2:
+            converters1.add it
+        elif self.`<=@`(it[1], t2):
+            converters2.add it
+    for (s, _) in converters1:
+        if t1 == s:
+            result.add @[(s, t2)]
+        else:
+            result.add self.path(t1, s).mapIt(it & (s, t2))
+    for (s, d) in converters2:
+        if t1 == s:
+            result.add @[(s, d), (d, t2)]
+        else:
+            result.add self.path(t1, s).mapIt(it & @[(s, d), (d, t2)])
+
+proc applicable(conv: (Value, Value), p: (Value, Value)): bool =
+    false
+
+proc `<=`*(self: TypeEnv, t1, t2: Value): bool =
+    setTypeEnv(self)
+    if t1 <=@ t2:
+        true
+    else:
+        let converters = toSeq(self.scope.converters.keys).filterIt(it[1] <=@ t2)
+        converters.anyIt(t1 <= it[0])
 
 proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
     proc `<=`(t1, t2: Value): bool =

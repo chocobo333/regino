@@ -47,9 +47,9 @@ type
     pairWithInt[T] = (int, T)
     pair[T, U] = (T, U)
 
-    Vector2 = object
-        x: float   
-        y: float
+# Vector2 = object
+#     x: float   
+#     y: float
 
 # Shape = variant
 #     Empty
