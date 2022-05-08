@@ -135,6 +135,8 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.FnType:
         let args = self.args.join(", ")
         fmt"func({args}) -> {self.rety}"
+    of ExpressionKind.IntCast:
+        fmt"cast({self.int_exp}, {self.from}, {self.to})"
     of ExpressionKind.Fail:
         fmt"failed term"
     if not self.typ.isNil:
@@ -554,6 +556,8 @@ proc treeRepr*(self: Expression): string =
     of ExpressionKind.FnType:
         let args = self.args.join(", ")
         fmt"func({args}) -> {self.rety}"
+    of ExpressionKind.IntCast:
+        $self
     of ExpressionKind.Fail:
         fmt"failed term"
 

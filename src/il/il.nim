@@ -120,6 +120,7 @@ type
         Typeof
         Ref
         FnType
+        IntCast
         Fail
     Expression* = ref ExpressionObject
     ExpressionObject = object
@@ -164,6 +165,10 @@ type
             `typeof`*: Expression
         of ExpressionKind.Ref:
             `ref`*: Expression
+        of ExpressionKind.IntCast:
+            int_exp*: Expression
+            `from`*: uint
+            `to`*: uint
         of ExpressionKind.Fail:
             nil
     TypeExpressionKind* {.pure.} = enum

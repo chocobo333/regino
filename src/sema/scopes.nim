@@ -57,6 +57,8 @@ proc setScope(self: Expression, parent: Scope) =
         for arg in self.args:
             arg.setScope(parent)
         self.rety.setScope(parent)
+    of ExpressionKind.IntCast:
+        discard
     of ExpressionKind.Fail:
         discard
 proc setScope(self: Pattern, parent: Scope) =
