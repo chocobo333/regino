@@ -446,11 +446,9 @@ proc resolveLink(self: Value) =
     if self.kind == ValueKind.Link:
         self.to.resolveLink
         let
-            ident = self.ident
             symbol = self.symbol
         self[] = self.to[]
         self.symbol = symbol
-        self.ident = ident
 
 proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
     if (v1, v2) in self.scope.converters:

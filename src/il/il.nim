@@ -321,7 +321,6 @@ type
         Link
     Value* = ref ValueObject
     ValueObject = object
-        ident*: Option[Ident]
         symbol*: Option[Symbol]
         region*: Region
         case kind*: ValueKind

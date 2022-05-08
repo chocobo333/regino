@@ -338,8 +338,6 @@ proc `$$`*(self: GenericType): string =
     let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {self.ub}" else: ""
     fmt"{self.ident.name}{ub}"
 proc `$`*(self: Value): string =
-    if self.ident.isSome:
-        return self.ident.get.name
     result = case self.kind
     of ValueKind.Literal:
         $self.litval
