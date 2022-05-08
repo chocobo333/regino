@@ -199,6 +199,8 @@ proc find*(self: Expression, pos: rPosition): Option[Ident] =
         none(Ident)
     of ExpressionKind.FnType:
         none(Ident)
+    of ExpressionKind.IntCast:
+        self.int_exp.find(pos)
     of ExpressionKind.Fail:
         none(Ident)
 
