@@ -184,7 +184,12 @@ let
 
     NewLine = preceded(+(sp0 > p"\n"), sp0) @ (it => it.len)
 
-    Comment = preceded(s"#", p".*")
+    Comment = alt(
+        preceded(s"##", p".*") @ (it => newComment(it, true)),
+        preceded(s"#", p".*") @ (it => newComment(it))
+    )
+    # Comment = preceded(s"#", p".*") @ (it => newComment(it))
+    # DocStr = preceded(s"#", p".*") @ (it => newComment(it, true))
     Comments = %(Comment ^+ Nodent) @ (it => Statement.Comments(it[0], it[1]))
 
     asop = %p"[\p{Sm}*/\\?!%&$^@-]*=" @ (it => newIdent(it[0], it[1]))
@@ -341,13 +346,12 @@ let
     # BracketPattern: AstNode = IdPattern > delimited(lbra, separated1(Pattern, comma), rbra)    @ (it => akBracketExpr.newTreeNode(it))
 
 
-    IdentDef = alt(
-        Patt + alt(
-            ?preceded(colon, Expr) + (preceded(eq, Expr) @ (it => some it)),
-            (preceded(colon, Expr) @ (it => some it)) + ?preceded(eq, Expr)
-        ) + preceded(sp0, ?Comment) @ (it => newIdentDef(it[0][0], it[0][1][0], it[0][1][1], it[1])),
-        Patt @ (it => newIdentDef(it))
-    )
+    IdentDef = Patt + 
+        ?preceded(colon, Expr) + 
+        ?preceded(eq, Expr) + 
+        preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) + 
+        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
+        (it => newIdentdef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
     GenTypeDef = alt(
         Id + ?preceded(tlt, Expr) @ (it => newGenTypedef(it[0], it[1]))
     )
@@ -406,22 +410,22 @@ let
                 Metadata.SubType(args)
             else:
                 Metadata.UserDef(id.name, args)
-    FuncDocStr: proc(self: ref Source): Option[seq[string]] = 
-        (preceded(s"## ", p".*") ^+ Nodent)
+    FuncDocStr: proc(self: ref Source): Option[seq[Comment]] = 
+        ((preceded(s"## ", p".*") @ (it => newComment(it, true))) ^+ Nodent)
     FuncBody = alt(
-        NoBody @ (it => (none[seq[string]](), it)),
+        NoBody @ (it => (newSeq[il.Comment](), it)),
         preceded(
             colon, 
             alt(
-                Stmt @ (it => (none(seq[string]), @[it])),
-                delimited(Indent, ?terminated(FuncDocStr, Nodent) + StmtList, Dedent)
+                Stmt @ (it => (newSeq[il.Comment](), @[it])),
+                delimited(Indent, alt(terminated(FuncDocStr, Dedent), success(seq[il.Comment])) + StmtList, Dedent)
             ) @ (it => (it[0], some newSuite(it[1])))
         )
     )
     FuncDef = (terminated(alt(fun @ (it => false), s"prop" @ (it => true)), sp1) +
         Id + ?GenParams + Params + ?Metadata + FuncBody
     ) @ (it => (it[0][0][0][0][0], it[0][0][0][0][1], it[0][0][0][1], it[0][0][1], it[0][1], it[1][0], it[1][1])) @
-        proc(it: (bool, Ident, Option[seq[GenTypeDef]], (seq[IdentDef], Option[Expression]), Option[il.Metadata], Option[seq[string]], Option[il.Suite])): Function =
+        proc(it: (bool, Ident, Option[seq[GenTypeDef]], (seq[IdentDef], Option[Expression]), Option[il.Metadata], seq[il.Comment], Option[il.Suite])): Function =
             let
                 (isProp, id, imp, prms, meta, docStr, body) = it
             Function(
@@ -454,18 +458,39 @@ let
     )
     TraitType = preceded(s"trait" + sp1, Patt + preceded(colon, Expr)) + ?delimited(s"with" ^ sp0 + Indent, TraitElement ^+ Nodent, Dedent) @ (it => TypeExpression.TraitT(newTrait(it[0][0], it[0][1], it[1].get(@[]))))
 
-    TypeDef = Id + ?GenParams + preceded(eq, TypeExpr) + preceded(sp0, ?Comment) @ (it => newTypeDef(it[0][0][0], it[0][0][1], it[0][1], it[1]))
+    TypeDef = Id + 
+        ?GenParams + 
+        preceded(eq, TypeExpr) + 
+        preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) +
+        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
+        (it => newTypeDef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
 
-    LetSection = %preceded(s"let", Section) @ (it => Statement.LetSection(it[0], it[1]))
-    VarSection = %preceded(s"var", Section) @ (it => Statement.Varsection(it[0], it[1]))
-    ConstSection = %preceded(s"const", Section) @ (it => Statement.ConstSection(it[0], it[1]))
-    TypeSection = %preceded(
-        s"type",
-        alt(
-            preceded(sp1, TypeDef) @ (it => @[it]),
-            delimited(Indent, TypeDef ^+ Nodent, Dedent)
-        )
-    ) @ (it => Statement.TypeSection(it[0], it[1]))
+    IdentDefSection = alt(
+        preceded(sp1, IdentDef) @ (it => (newSeq[il.Comment](), @[it])),
+        delimited(Indent, alt(terminated(Comment ^+ Nodent, Nodent), success(seq[Comment])) + (IdentDef ^+ Nodent), Dedent)
+    ) @ (it => newIddefSection(it[1], it[0]))
+    TypeDefSection = alt(
+        preceded(sp1, TypeDef) @ (it => (newSeq[il.Comment](), @[it])),
+        delimited(Indent, alt(terminated(Comment ^+ Nodent, Nodent), success(seq[Comment])) + (TypeDef ^+ Nodent), Dedent)
+    ) @ (it => newTypedefSection(it[1], it[0]))
+    # IdentDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) + 
+    #     alt(preceded(sp1, IdentDef) @ (it => @[it]), delimited(Indent, IdentDef ^+ Nodent, Dedent)) @ 
+    #     (it => newIddefSection(it[1], it[0]))
+    # TypeDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) + 
+    #     alt(preceded(sp1, TypeDef) @ (it => @[it]), delimited(Indent, TypeDef ^+ Nodent, Dedent)) @ 
+    #     (it => newTypedefSection(it[1], it[0]))
+
+    LetSection = %preceded(s"let", IdentDefSection) @ (it => Statement.LetSection(it[0], it[1]))
+    VarSection = %preceded(s"var", IdentDefSection) @ (it => Statement.Varsection(it[0], it[1]))
+    ConstSection = %preceded(s"const", IdentDefSection) @ (it => Statement.ConstSection(it[0], it[1]))
+    # TypeSection = %preceded(
+    #     s"type",
+    #     alt(
+    #         preceded(sp1, TypeDef) @ (it => @[it]),
+    #         delimited(Indent, TypeDef ^+ Nodent, Dedent)
+    #     )
+    # ) @ (it => Statement.TypeSection(it[0], it[1]))
+    TypeSection = %preceded(s"type", TypeDefSection) @ (it => Statement.TypeSection(it[0], it[1]))
 
 #     # epression
     CondBranch = alt(

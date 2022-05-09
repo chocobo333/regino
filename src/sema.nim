@@ -32,7 +32,6 @@ when isMainModule:
         f = open("test/unit.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
-    debug program.stmts[7].iddefs[0].docStr
     let
         errs = program.sema
     f.close

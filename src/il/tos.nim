@@ -20,6 +20,10 @@ proc `$`*(self: Pattern): string
 proc `$`*(self: Suite): string
 proc `$`*(self: Value): string
 proc `$`*(self: Region): string
+proc `$`*(self: Comment): string = 
+    if self.isDoc: "##" & self.s else: "#" & self.s
+proc `$`*(self: seq[Comment]): string = 
+    self.map(`$`).join("\n")
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.unit:
@@ -182,8 +186,8 @@ proc `$`*(self: IdentDef): string =
         pat = $self.pat
         typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
         default = if self.default.isNone: "" else: fmt" = {self.default.get}"
-        docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
-    pat & typ & default & docStr
+        comments = if self.comments.len != 0: "\n" & fmt"{self.comments}" else: ""
+    fmt"{pat}{typ}{default}{comments}"
 proc `$`*(self: GenTypeDef): string =
     let ub = if self.ub.isSome: fmt" <: {self.ub.get}" else: ""
     fmt"{self.id}{ub}"
@@ -197,8 +201,8 @@ proc `$`*(self: TypeDef): string =
                 let params = self.params.get.map(`$`).join(", ")
                 fmt"[{params}]"
         typ = $self.typ
-        docStr = if self.docStr.isNone: "" else: fmt" #{self.docStr.get}"
-    fmt"{id}{params} = {typ}" & docStr
+        comments = if self.comments.len != 0: "\n" & fmt"{self.comments}" else: ""
+    fmt"{id}{params} = {typ}{comments}"
 proc `$`*(self: FunctionParam): string =
     let
         implicit = block:
@@ -217,6 +221,17 @@ proc `$`*(self: Function): string =
         metadata = if self.metadata.isNone: "" else: fmt" {self.metadata.get}"
         suite = if self.suite.isNone: "" else: fmt"{self.suite.get}"
     &"{fn} {self.id}{self.param}{metadata}:\n{suite}"
+
+proc `$`*(self: IdentDefSection): string = 
+    let
+        comments = if self.comments.len != 0: self.comments.map(`$`).join("\n") & "\n" else: ""
+        iddefs = self.iddefs.map(`$`).join("\n")
+    comments & iddefs
+proc `$`*(self: TypeDefSection): string =
+    let
+        comments = if self.comments.len != 0: self.comments.map(`$`).join("\n") & "\n" else: ""
+        typedefs = self.typedefs.map(`$`).join("\n")
+    comments & typedefs
 proc `$`*(self: Statement): string =
     case self.kind
     of StatementKind.For:
@@ -229,17 +244,17 @@ proc `$`*(self: Statement): string =
         else:
             &"loop {self.label.get}\n{self.`block`}"
     of StatementKind.LetSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"let\n{iddefs}"
+        "let\n" & fmt"{self.iddefSection}".indent(2)
     of StatementKind.VarSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"var\n{iddefs}"
+        "var\n" & fmt"{self.iddefSection}".indent(2)
     of StatementKind.ConstSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"const\n{iddefs}"
+        "const\n" & fmt"{self.iddefSection}".indent(2)
+        # let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
+        # &"const\n{iddefs}"
     of StatementKind.TypeSection:
-        let typedefs = self.typedefs.map(`$`).join("\n").indent(2)
-        &"type\n{typedefs}"
+        "type\n" & fmt"{self.typedefSection}".indent(2)
+        # let typedefs = self.typedefs.map(`$`).join("\n").indent(2)
+        # &"type\n{typedefs}"
     of StatementKind.Asign:
         fmt"{self.pat} = {self.val}"
     of StatementKind.Funcdef:
@@ -252,7 +267,7 @@ proc `$`*(self: Statement): string =
         else:
             fmt"discard"
     of StatementKind.Comments:
-        "#" & self.comments.join("\n#")
+        self.comments.join("\n")
     of StatementKind.Expression:
         $self.expression
     of StatementKind.Fail:
@@ -618,3 +633,4 @@ when isMainModule:
     echo c
     echo d
     echo e
+    
