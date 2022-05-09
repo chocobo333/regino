@@ -184,8 +184,12 @@ let
 
     NewLine = preceded(+(sp0 > p"\n"), sp0) @ (it => it.len)
 
-    Comment = preceded(s"#", p".*") @ (it => newComment(it))
-    DocStr = preceded(s"#", p".*") @ (it => newComment(it, true))
+    Comment = alt(
+        preceded(s"#", p".*") @ (it => newComment(it)),
+        preceded(s"#", p".*") @ (it => newComment(it, true))
+    )
+    # Comment = preceded(s"#", p".*") @ (it => newComment(it))
+    # DocStr = preceded(s"#", p".*") @ (it => newComment(it, true))
     Comments = %(Comment ^+ Nodent) @ (it => Statement.Comments(it[0], it[1]))
 
     asop = %p"[\p{Sm}*/\\?!%&$^@-]*=" @ (it => newIdent(it[0], it[1]))
@@ -345,7 +349,7 @@ let
     IdentDef = Patt + 
         ?preceded(colon, Expr) + 
         ?preceded(eq, Expr) + 
-        preceded(sp0, alt(DocStr @ (it => @[it]), success[seq[Comment]]())) + 
+        preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) + 
         alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
         (it => newIdentdef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
     GenTypeDef = alt(
@@ -457,7 +461,7 @@ let
     TypeDef = Id + 
         ?GenParams + 
         preceded(eq, TypeExpr) + 
-        preceded(sp0, alt(DocStr @ (it => @[it]), success[seq[Comment]]())) +
+        preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) +
         alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
         (it => newTypeDef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
 

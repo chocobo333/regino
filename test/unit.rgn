@@ -25,13 +25,16 @@ func h(a: int) -> float:
 
 func f(a: float) -> float:
   ## hoge
+  # hoge
+  ## hoge
   0.0
 
 var
   # hogehugo
   a = 1 # hoge
+  ## hugo
   # hugo
-  # hugo
+  ## hugo
   b = 1 # hoge
   # hugo
   # hugo
