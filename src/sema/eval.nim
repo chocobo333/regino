@@ -167,8 +167,7 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
     of PatternKind.Tuple:
         self.patterns.mapIt(it.infer(env, global, asign)).foldl(Value.Pair(a, b))
     of PatternKind.Record:
-        # TODO:
-        Value.Unit
+        Value.Record(self.members.mapIt((it[0], it[1].infer(env, global, asign))).toTable)
     of PatternKind.UnderScore:
         Value.Var(env)
     self.typ = result
@@ -204,14 +203,14 @@ proc addPatL(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool
     of PatternKind.Literal:
         discard
     of PatternKind.Ident:
-        # TODO: index
         let sym = Symbol.Let(pat.ident, pat.typ, impl, global)
         env.addIdent(sym)
     of PatternKind.Tuple:
         for pat in pat.patterns:
             env.addPatL(impl, pat, global)
     of PatternKind.Record:
-        discard
+        for (id, pat) in pat.members:
+            env.addPatL(impl, pat, global)
     of PatternKind.UnderScore:
         discard
 proc addPatV(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool = false) =
@@ -463,7 +462,9 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
         suite.scope = newScope(self.scope)
         Expression.Block(suite)
     else:
-        if v1.kind == v2.kind:
+        if v2.kind == ValueKind.Distinct:
+            self.coercion(v1, v2.base, e)
+        elif v1.kind == v2.kind:
             case v1.kind
             of ValueKind.Integer:
                 Expression.IntCast(e, v1.bits, v2.bits)
@@ -492,11 +493,30 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
                 suite.scope = scope
                 Expression.Block(suite)
             of ValueKind.Record:
-                for (id, val) in v2.members.pairs:
-                    debug id
-                    debug val
-                    debug v1.members[id]
-                raise
+                let scope = newScope(self.scope)
+                var
+                    pat: Pattern = Pattern.Record(toSeq(v2.members.keys).mapIt((it, Pattern.Id(it.name))))
+                    exp: Expression = Expression.Record(@[])
+                self.enter scope:
+                    for (id, val) in v2.members.pairs:
+                        exp.members.add (
+                            id,
+                            self.coercion(v1.members[id], val, Expression.Id(id.name))
+                        )
+                let suite = newSuite(
+                    @[
+                        Statement.LetSection(@[
+                            newIdentdef(
+                                pat,
+                                some Expression.Typeof(e),
+                                some e
+                            )
+                        ]),
+                        Statement.Expr(exp)
+                    ]
+                )
+                suite.scope = scope
+                Expression.Block(suite)
             else:
                 debug v1
                 debug v2
@@ -510,6 +530,7 @@ proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
     debug e.typ
     debug v
+    debug self.path(e.typ, v)
     assert e.typ <= v
     result = e
     if v <= e.typ:
@@ -519,6 +540,7 @@ proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
         result = self.coercion(s, t, result)
         # result.typ = t
         discard result.infer(self)
+        self.resolve # kore de iino ka?
         # result.check(self)
 proc check(self: Statement, env: TypeEnv)
 proc check(self: Suite, env: TypeEnv) =

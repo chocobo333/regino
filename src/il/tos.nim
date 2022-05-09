@@ -139,7 +139,7 @@ proc `$`*(self: Expression, typed: bool = false): string =
         fmt"cast({self.int_exp}, {self.from}, {self.to})"
     of ExpressionKind.Fail:
         fmt"failed term"
-    if typed and not self.typ.isNil:
+    if not self.typ.isNil:
         result = fmt"{result} (: {self.typ})"
 
 proc `$`*(self: Metadata): string =
@@ -405,6 +405,7 @@ proc `$`*(self: Value): string =
     of ValueKind.Singleton:
         fmt"sigleton[{self.base}]"
     of ValueKind.Distinct:
+        self.ident.name
         # case self.base.kind
         # of ValueKind.Record:
         #     var members: string
@@ -412,7 +413,7 @@ proc `$`*(self: Value): string =
         #         members.add &"\n  {id}: {val}"
         #     &"{self.ident}{members}"
         # else:
-            fmt"distinct {self.base}"
+        #     fmt"distinct {self.base}"
     of ValueKind.Intersection:
         toSeq(self.types).join("^")
     of ValueKind.Union:
