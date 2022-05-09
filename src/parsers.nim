@@ -185,8 +185,8 @@ let
     NewLine = preceded(+(sp0 > p"\n"), sp0) @ (it => it.len)
 
     Comment = alt(
-        preceded(s"#", p".*") @ (it => newComment(it)),
-        preceded(s"#", p".*") @ (it => newComment(it, true))
+        preceded(s"##", p".*") @ (it => newComment(it, true)),
+        preceded(s"#", p".*") @ (it => newComment(it))
     )
     # Comment = preceded(s"#", p".*") @ (it => newComment(it))
     # DocStr = preceded(s"#", p".*") @ (it => newComment(it, true))

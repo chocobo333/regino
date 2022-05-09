@@ -20,7 +20,8 @@ proc `$`*(self: Pattern): string
 proc `$`*(self: Suite): string
 proc `$`*(self: Value): string
 proc `$`*(self: Region): string
-proc `$`*(self: Comment): string = "#" & self.s
+proc `$`*(self: Comment): string = 
+    if self.isDoc: "##" & self.s else: "#" & self.s
 proc `$`*(self: seq[Comment]): string = 
     self.map(`$`).join("\n")
 proc `$`*(self: Literal): string =
@@ -185,13 +186,8 @@ proc `$`*(self: IdentDef): string =
         pat = $self.pat
         typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
         default = if self.default.isNone: "" else: fmt" = {self.default.get}"
-        docStrs = self.comments.filterIt(it.isDoc)
-        comments = self.comments.filterIt(not it.isDoc)
-    assert docStrs.len <= 1
-    let
-        docStr = if docStrs.len != 0: fmt" {docStrs[0]}" else: ""
-        comment = if comments.len != 0: "\n" & fmt"{comments}" else: ""
-    pat & typ & default & docStr & comment
+        comments = if self.comments.len != 0: "\n" & fmt"{self.comments}" else: ""
+    fmt"{pat}{typ}{default}{comments}"
 proc `$`*(self: GenTypeDef): string =
     let ub = if self.ub.isSome: fmt" <: {self.ub.get}" else: ""
     fmt"{self.id}{ub}"
@@ -205,13 +201,8 @@ proc `$`*(self: TypeDef): string =
                 let params = self.params.get.map(`$`).join(", ")
                 fmt"[{params}]"
         typ = $self.typ
-        docStrs = self.comments.filterIt(it.isDoc)
-        comments = self.comments.filterIt(not it.isDoc)
-    assert docStrs.len <= 1
-    let
-        docStr = if docStrs.len != 0: fmt" {docStrs[0]}" else: ""
-        comment = if comments.len != 0: "\n" & fmt"{comments}" else: ""
-    fmt"{id}{params} = {typ}" & docStr & comment
+        comments = if self.comments.len != 0: "\n" & fmt"{self.comments}" else: ""
+    fmt"{id}{params} = {typ}{comments}"
 proc `$`*(self: FunctionParam): string =
     let
         implicit = block:
