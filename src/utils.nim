@@ -18,7 +18,10 @@ template debug*(exp: untyped): untyped =
             line = info.line
             column = info.column
             s = info.filename & "(" & $line & ", " & $column & ") "
-        debugEcho s, exp.astToStr, " in ", getFrame().procname, " :\n", exp
+        debugEcho s, exp.astToStr, " in ", getFrame().procname, " :"
+        when exp is seq:
+            for e in exp:
+                debugEcho "  ", e
 
 
 iterator reversed*[T](s: seq[T]): T =
