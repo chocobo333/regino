@@ -116,19 +116,12 @@ func fib(n: int) -> int:
         1
     else:
         fib(n-1) + fib(n-2)
-func Vector2(x: float, y: float) -> Vector2:
+func newVector2(x: float, y: float) -> Vector2:
     (x: x, y: y)
 func `$`(self: Vector2) -> string ![subtype]:
     "vector2"
-# let
-#     a = 3
-#     b: pairWithInt[int] = (3, 4)
-# let c: ptr[int] = malloc(int, 3)
-# let (x: a, y: b) = (x: 3, y: 5.6)
-# let e: (x: float, y: float) = (x: 3, y: 5.6)
-# let d: Vector2 = (x: 3, y: 5.6)
-let a: (x: float, y: float) = (x: 3, y: 5.6)
-let a: Vector2 = (x: 3, y: 5.6)
+let a = newVector2(3, 5)
+let a: Vector2 = newVector2(3, 5)
 echo a
 echo id a
 0

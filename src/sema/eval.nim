@@ -778,7 +778,7 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         of 1:
             syms[0].val.inst(env)
         else:
-            Value.Intersection(syms.mapIt(it.val.inst(env)))
+            Value.Select(syms.mapIt(it.val.inst(env)))
     of ExpressionKind.Tuple:
         case self.exprs.len
         of 0:
