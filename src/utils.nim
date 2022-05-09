@@ -22,6 +22,9 @@ template debug*(exp: untyped): untyped =
         when exp is seq:
             for e in exp:
                 debugEcho "  ", e
+        else:
+            debugEcho exp
+
 
 
 iterator reversed*[T](s: seq[T]): T =
