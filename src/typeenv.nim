@@ -133,13 +133,16 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Select:
         Value.Union(typ.types.map(it => it.inst(env, subs)))
     of ValueKind.Family:
-        let newSubs = subs.merge(
-                typ.implicit.filterIt(it notin subs).mapIt(block:
-                    let v = Value.Var(env)
-                    (it, v)
-                ).toTable
-            )
-        typ.rety.inst(env, newSubs)
+        var subs = subs
+        let instances = typ.implicit.mapIt(Value.Var(env))
+        for (e, v) in typ.implicit.zip(instances):
+            subs[e] = v
+            v.tv.ub = e.ub
+        Value.Family(
+            @[],
+            typ.rety.inst(env, subs),
+            instances
+        )
     of ValueKind.Lambda:
         # TODO: think twice later
         Value.Lambda(typ.l_param, typ.suite)

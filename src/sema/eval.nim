@@ -463,13 +463,7 @@ proc infer*(self: Program, env: TypeEnv): Value =
         discard s.infer(env)
         # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
     result = self.stmts[^1].infer(env)
-    debug env.constraints
     env.resolve()
-    debug env.constraints
-    debug env.tvs
-    for e in env.tvs:
-        debug e.tv.lb
-        debug e.tv.ub
 
 proc check(self: Ident, env: TypeEnv) =
     if self.typ.symbol.isNone:
@@ -491,7 +485,15 @@ proc check(self: Pattern, env: TypeEnv) =
         discard
     of PatternKind.UnderScore:
         discard
-
+proc resolveLink(self: Value) =
+    if self.kind == ValueKind.Link:
+        self.to.resolveLink
+        let
+            ident = self.ident
+            symbol = self.symbol
+        self[] = self.to[]
+        self.symbol = symbol
+        self.ident = ident
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
     assert e.typ <= v
@@ -521,6 +523,7 @@ proc check(self: Function, env: TypeEnv) =
         self.suite.get.check(env)
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
+    self.typ.resolveLink
     # TODO: invalid
     # if self.typ.kind == ValueKind.Link:
     #     env.bindtv(self.typ, self.typ.to)
@@ -565,6 +568,7 @@ proc check(self: Expression, env: TypeEnv) =
         self.callee.check(env)
         for i in 0..<self.args.len:
             self.args[i].check(env)
+            self.callee.typ.params[i].resolveLink
             self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i])
         let
             calleety = self.callee.typ
@@ -750,7 +754,13 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         else:
             Value.Intersection(syms.mapIt(it.val.inst(env)))
     of ExpressionKind.Tuple:
-        self.exprs.mapIt(it.eval(env, global)).foldl(Value.Pair(a, b))
+        case self.exprs.len
+        of 0:
+            Value.Unit
+        of 1:
+            Value.Pair(self.exprs[0].eval(env, global), Value.Unit)
+        else:
+            self.exprs.mapIt(it.eval(env, global)).foldl(Value.Pair(a, b))
     of ExpressionKind.Array:
         Value.Array(self.exprs.mapIt(it.eval(env)))
     of ExpressionKind.Record:
@@ -780,9 +790,16 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         let
             val = self.callee.eval(env, global)
         case val.kind:
-        of ValueKind.Pi, ValueKind.Family:
-            let subs = zip(val.implicit, self.args.mapIt(it.eval(env))).toTable
-            val.inst(env, subs)
+        of ValueKind.Pi:
+            for (e, arg) in val.instances.zip(self.args):
+                if e.kind == ValueKind.Var:
+                    env.bindtv(e, arg.eval(env))
+            val
+        of ValueKind.Family:
+            for (e, arg) in val.instances.zip(self.args):
+                if e.kind == ValueKind.Var:
+                    env.bindtv(e, arg.eval(env))
+            val.rety
         else:
             # TODO: ituka
             Value.Cons(val, self.args.mapIt(it.eval(env)))

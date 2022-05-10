@@ -65,8 +65,8 @@ proc Union*(_: typedesc[Value], types: HashSet[Value]): Value =
     Value(kind: ValueKind.Union, types: types)
 proc Select*(_: typedesc[Value], types: seq[Value]): Value =
     Value(kind: ValueKind.Select, types: types.toHashSet)
-proc Family*(_: typedesc[Value], implicit: seq[GenericType], rety: Value): Value =
-    Value(kind: ValueKind.Family, implicit: implicit, rety: rety)
+proc Family*(_: typedesc[Value], implicit: seq[GenericType], rety: Value, instances: seq[Value] = @[]): Value =
+    Value(kind: ValueKind.Family, implicit: implicit, rety: rety, instances: instances)
 proc Lambda*(_: typedesc[Value], l_params: seq[Ident], suite: Suite): Value =
     Value(kind: ValueKind.Lambda, l_param: l_params, suite: suite)
 proc Cons*(_: typedesc[Value], constructor: Value, args: seq[Value]): Value =
