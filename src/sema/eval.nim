@@ -294,6 +294,48 @@ proc infer(fn: Function, env: TypeEnv, global: bool = false) =
             let infered = fn.suite.get.infer(env)
             env.coerce(infered <= rety)
 
+proc infer*(self: IdentDefSection, env: TypeEnv, global: bool = false) = 
+    for iddef in self.iddefs:
+        let
+            pat = iddef.pat
+            typ = iddef.typ
+            default = iddef.default
+            paty = pat.infer(env, global)
+        if default.isSome:
+            let t = default.get.infer(env, global)
+            env.coerce(t <= paty)
+        if typ.isSome:
+            let
+                typ = typ.get
+                tv = typ.infer(env, global)
+            typ.check(env)
+            let t = typ.eval(env, global)
+            env.coerce(t == paty)
+        env.addPatL(iddef, global=global)
+proc infer*(self: TypeDefSection, env: TypeEnv, global: bool = false) = 
+    for typedef in self.typedefs:
+        let
+            id = typedef.id
+            params = typedef.params
+            typ = typedef.typ
+            tv = Value.Var(env)
+            sym = Symbol.Typ(id, tv, typedef, global)
+        env.addIdent(sym)
+        if params.isNone:
+            # TODO: infer and check
+            let _ = typ.infer(env)
+            # typ.check(env)
+            let
+                typ = typ.eval(env, global)
+            env.bindtv(tv, typ)
+        else:
+            let scope = newScope(env.scope)
+            env.enter scope:
+                let implicit = params.get.mapIt(it.infer(env, global))
+                let
+                    _ = typ.infer(env)
+                    typ = typ.eval(env, global)
+                env.bindtv(tv, Value.Family(implicit, typ))
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     result = case self.kind
     of StatementKind.For:
@@ -305,69 +347,72 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     of StatementKind.Loop:
         Value.Unit
     of StatementKind.LetSection:
-        for iddef in self.iddefs:
-            let
-                pat = iddef.pat
-                typ = iddef.typ
-                default = iddef.default
-                paty = pat.infer(env, global)
-            if default.isSome:
-                let t = default.get.infer(env, global)
-                env.coerce(t <= paty)
-            if typ.isSome:
-                let
-                    typ = typ.get
-                    tv = typ.infer(env, global)
-                typ.check(env)
-                let t = typ.eval(env, global)
-                env.coerce(t == paty)
-            env.addPatL(iddef, global=global)
+        self.iddefSection.infer(env, global)
+        # for iddef in self.iddefs:
+        #     let
+        #         pat = iddef.pat
+        #         typ = iddef.typ
+        #         default = iddef.default
+        #         paty = pat.infer(env, global)
+        #     if default.isSome:
+        #         let t = default.get.infer(env, global)
+        #         env.coerce(t <= paty)
+        #     if typ.isSome:
+        #         let
+        #             typ = typ.get
+        #             tv = typ.infer(env, global)
+        #         typ.check(env)
+        #         let t = typ.eval(env, global)
+        #         env.coerce(t == paty)
+        #     env.addPatL(iddef, global=global)
         Value.Unit
     of StatementKind.VarSection:
-        for iddef in self.iddefs:
-            let
-                pat = iddef.pat
-                typ = iddef.typ
-                default = iddef.default
-                paty = pat.infer(env, global)
-            if default.isSome:
-                let t = default.get.infer(env, global)
-                env.coerce(t <= paty)
-            if typ.isSome:
-                let
-                    typ = typ.get
-                    tv = typ.infer(env, global)
-                typ.check(env)
-                let t = typ.eval(env, global)
-                env.coerce(t == paty)
-            env.addPatV(iddef, global=global)
+        self.iddefSection.infer(env, global)
+        # for iddef in self.iddefs:
+        #     let
+        #         pat = iddef.pat
+        #         typ = iddef.typ
+        #         default = iddef.default
+        #         paty = pat.infer(env, global)
+        #     if default.isSome:
+        #         let t = default.get.infer(env, global)
+        #         env.coerce(t <= paty)
+        #     if typ.isSome:
+        #         let
+        #             typ = typ.get
+        #             tv = typ.infer(env, global)
+        #         typ.check(env)
+        #         let t = typ.eval(env, global)
+        #         env.coerce(t == paty)
+        #     env.addPatV(iddef, global=global)
         Value.Unit
     of StatementKind.ConstSection:
         Value.Unit
     of StatementKind.TypeSection:
-        for typedef in self.typedefs:
-            let
-                id = typedef.id
-                params = typedef.params
-                typ = typedef.typ
-                tv = Value.Var(env)
-                sym = Symbol.Typ(id, tv, typedef, global)
-            env.addIdent(sym)
-            if params.isNone:
-                # TODO: infer and check
-                let _ = typ.infer(env)
-                # typ.check(env)
-                let
-                    typ = typ.eval(env, global)
-                env.bindtv(tv, typ)
-            else:
-                let scope = newScope(env.scope)
-                env.enter scope:
-                    let implicit = params.get.mapIt(it.infer(env, global))
-                    let
-                        _ = typ.infer(env)
-                        typ = typ.eval(env, global)
-                    env.bindtv(tv, Value.Family(implicit, typ))
+        self.typedefSection.infer(env, global)
+        # for typedef in self.typedefs:
+        #     let
+        #         id = typedef.id
+        #         params = typedef.params
+        #         typ = typedef.typ
+        #         tv = Value.Var(env)
+        #         sym = Symbol.Typ(id, tv, typedef, global)
+        #     env.addIdent(sym)
+        #     if params.isNone:
+        #         # TODO: infer and check
+        #         let _ = typ.infer(env)
+        #         # typ.check(env)
+        #         let
+        #             typ = typ.eval(env, global)
+        #         env.bindtv(tv, typ)
+        #     else:
+        #         let scope = newScope(env.scope)
+        #         env.enter scope:
+        #             let implicit = params.get.mapIt(it.infer(env, global))
+        #             let
+        #                 _ = typ.infer(env)
+        #                 typ = typ.eval(env, global)
+        #             env.bindtv(tv, Value.Family(implicit, typ))
         Value.Unit
     of StatementKind.Asign:
         let
@@ -577,6 +622,17 @@ proc check(self: Expression, env: TypeEnv) =
         discard
     of ExpressionKind.Fail:
         env.errs.add TypeError.SomethingWrong(self.loc)
+proc check(self: IdentDefSection, env: TypeEnv) = 
+    for iddef in self.iddefs:
+        # TODO: implement check(Pattern)
+        # iddef.pat.check(env)
+        # TODO: Shoud I check TypeExpression?
+        # typ should be infered, checked and `eval`ed.
+        if iddef.typ.isSome:
+            iddef.typ.get.check(env)
+        if iddef.default.isSome:
+            iddef.default.get.check(env)
+            iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ)
 proc check(self: Statement, env: TypeEnv) =
     setTypeEnv(env)
     case self.kind
@@ -587,16 +643,17 @@ proc check(self: Statement, env: TypeEnv) =
     of StatementKind.Loop:
         discard
     of StatementKind.LetSection:
-        for iddef in self.iddefs:
-            # TODO: implement check(Pattern)
-            # iddef.pat.check(env)
-            # TODO: Shoud I check TypeExpression?
-            # typ should be infered, checked and `eval`ed.
-            if iddef.typ.isSome:
-                iddef.typ.get.check(env)
-            if iddef.default.isSome:
-                iddef.default.get.check(env)
-                iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ)
+        self.iddefSection.check(env)
+        # for iddef in self.iddefs:
+        #     # TODO: implement check(Pattern)
+        #     # iddef.pat.check(env)
+        #     # TODO: Shoud I check TypeExpression?
+        #     # typ should be infered, checked and `eval`ed.
+        #     if iddef.typ.isSome:
+        #         iddef.typ.get.check(env)
+        #     if iddef.default.isSome:
+        #         iddef.default.get.check(env)
+        #         iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ)
     of StatementKind.VarSection:
         discard
     of StatementKind.ConstSection:
@@ -783,6 +840,9 @@ proc asign(self: Pattern, val: Value) =
         discard
     of PatternKind.UnderScore:
         discard
+proc eval*(self: IdentDefSection, env: TypeEnv, global: bool = false) =
+    for e in self.iddefs:
+        e.pat.asign(e.default.get.eval(env, global))
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
     case self.kind
     of StatementKind.For:
@@ -792,13 +852,15 @@ proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
     of StatementKind.Loop:
         Value.Unit
     of StatementKind.LetSection:
-        for e in self.iddefs:
-            e.pat.asign(e.default.get.eval(env, global))
+        self.iddefSection.eval(env, global)
+        # for e in self.iddefs:
+        #     e.pat.asign(e.default.get.eval(env, global))
         Value.Unit
     of StatementKind.VarSection:
-        for e in self.iddefs:
-            if e.default.isSome:
-                e.pat.asign(e.default.get.eval(env, global))
+        self.iddefSection.eval(env, global)
+        # for e in self.iddefs:
+        #     if e.default.isSome:
+        #         e.pat.asign(e.default.get.eval(env, global))
         Value.Unit
     of StatementKind.ConstSection:
         Value.Unit
