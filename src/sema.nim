@@ -19,7 +19,7 @@ proc sema*(self: Program): seq[TypeError] =
         rety = self.infer(env)
     self.check(env)
     debug env.errs
-    # debug mainScope
+    debug mainScope
     # evalするとtypがおかしくなる
     # debug self.eval(env)
     env.errs
@@ -34,4 +34,4 @@ when isMainModule:
         program = Program(Source.from(s)).get
         errs = program.sema
     f.close
-    # debug program
+    debug program

@@ -121,7 +121,7 @@ func newVector2(x: float, y: float) -> Vector2:
 func `$`(self: Vector2) -> string ![subtype]:
     "vector2"
 let a = newVector2(3, 5)
-let a: Vector2 = newVector2(3, 5)
 echo a
 echo id a
+echo newVector2(3, 5)
 0

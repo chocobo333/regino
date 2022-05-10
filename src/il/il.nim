@@ -388,6 +388,7 @@ type
         Typ
         GenParam
         Func
+        Field
     SymbolId = int
     Symbol* = ref SymbolObject
     SymbolObject* = object
@@ -402,6 +403,8 @@ type
         of SymbolKind.Func:
             decl_funcdef*: Function                 ## declaration
             constraints*: seq[(Region, Region)]     ## function has some region-constraints concerned its paramteres
+        of SymbolKind.Field:
+            nil
         global*: bool                   ## is global?
         val*: Value                     ## symbol hold a value
         typ*: Value                     ## symbol has a type
