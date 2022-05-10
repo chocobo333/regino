@@ -100,13 +100,17 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Dot:
-        let
-            tv = Value.Var(env)
-            args = @[self.lhs.infer(env, global)]
-            callee = self.rhs.infer(env, global)
-        env.coerce(callee <= Value.Arrow(args, tv))
-        env.coerce(Value.Arrow(@[Value.Unit], tv) <= callee) # i dont know whether this is correct.
-        tv
+        if self.dotArgs.len != 0:
+            let
+                tv = Value.Var(env)
+                args = @[self.lhs.infer(env, global)] & self.dotArgs.mapIt(it.infer(env, global))
+                callee = self.rhs.infer(env, global)
+            env.coerce(callee <= Value.Arrow(args, tv))
+            env.coerce(Value.Arrow(@[Value.Unit], tv) <= callee) # i dont know whether this is correct.
+            tv
+        else:
+            # TODO: not call (ex a.b)
+            Value.Unit
     of ExpressionKind.Bracket:
         Value.Unit
     of ExpressionKind.Binary:

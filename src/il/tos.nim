@@ -107,7 +107,8 @@ proc `$`*(self: Expression): string =
         let args = self.args.join(", ")
         fmt"{self.callee} {args}"
     of ExpressionKind.Dot:
-        fmt"{self.lhs}.{self.rhs}"
+        let args = if self.dotArgs.len != 0: "(" & self.dotArgs.join(", ") & ")" else: ""
+        fmt"{self.lhs}.{self.rhs}{args}"
     of ExpressionKind.Binary:
         fmt"{self.lhs} {$$self.op} {self.rhs}"
     of ExpressionKind.Prefix:

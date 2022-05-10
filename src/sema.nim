@@ -29,9 +29,10 @@ when isMainModule:
     import parsers
     import options
     let
-        f = open("test/test.rgn")
+        f = open("test/unit.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
     let
         errs = program.sema
     f.close
+    debug program
