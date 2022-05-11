@@ -93,6 +93,8 @@ proc dual*(self: Value): Value =
         self
 
 proc hash*(self: Value): Hash =
+    if self.kind == ValueKind.Link:
+        return self.to.hash
     result = self.kind.int
     result = result !& (
         case self.kind
@@ -294,7 +296,11 @@ proc typ*(self: Value): Value =
 import literals
 import idents
 proc `==`*(t1, t2: Value): bool =
-    if t1.kind == t2.kind:
+    if t1.kind == ValueKind.Link:
+        t1.to == t2
+    elif t2.kind == ValueKind.Link:
+        t1 == t2.to
+    elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Literal:
             t1.litval == t2.litval
