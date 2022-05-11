@@ -2,6 +2,7 @@
 import il/[
     il,
     branches,
+    comments,
     exprs,
     idents,
     literals,
@@ -14,6 +15,7 @@ import il/[
     sums,
     traits,
     scopes,
+    sections,
     values,
     tvs,
     symbols,
@@ -23,6 +25,7 @@ import il/[
 
 export il
 export branches
+export comments
 export exprs
 export idents
 export literals
@@ -35,6 +38,7 @@ export typeexprs
 export sums
 export traits
 export scopes
+export sections
 export values
 export tvs
 export symbols
