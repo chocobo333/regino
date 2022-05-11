@@ -121,11 +121,12 @@ proc hash*(self: Value): Hash =
         of ValueKind.ArrayV:
             0
         of ValueKind.Record:
-            0
+            toSeq(self.members.pairs).mapIt(it[0].name.hash !& it[1].hash).foldl(a !& b)
         of ValueKind.Ptr:
-            0
+            self.pointee.hash
         of ValueKind.Pi:
-            0
+            self.params.foldl(a !& b.hash, 0) !&
+            self.rety.hash
         of ValueKind.Family:
             0
         of ValueKind.Sum:
@@ -147,7 +148,7 @@ proc hash*(self: Value): Hash =
         of ValueKind.Cons:
             0
         of ValueKind.Var:
-            0
+            self.tv.id
         of ValueKind.Gen:
             0
         of ValueKind.Link:
