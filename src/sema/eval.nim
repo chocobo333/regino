@@ -100,8 +100,6 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             tv = Value.Var(env)
             args = self.args.mapIt(it.infer(env, global))
             callee = self.callee.infer(env, global)
-        debug args
-        debug getStackTrace()
         env.coerce(callee <= Value.Arrow(args, tv))
         env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
@@ -213,6 +211,7 @@ proc addPatL(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool
     of PatternKind.Ident:
         let sym = Symbol.Let(pat.ident, pat.typ, impl, global)
         env.addIdent(sym)
+        debug sym
     of PatternKind.Tuple:
         for pat in pat.patterns:
             env.addPatL(impl, pat, global)

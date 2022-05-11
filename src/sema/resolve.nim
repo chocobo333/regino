@@ -436,10 +436,6 @@ proc resolve(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
             if v2.tv.ub != glb: result = true
             v2.tv.ub = glb
     elif v2.kind == ValueKind.Select:
-        if v1.kind == ValueKind.String:
-            debug v2
-            for e in v2.types:
-                debug e.symbol
         if primal:
             var lub = initHashSet[Value]()
             for e in v2.types:
