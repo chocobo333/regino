@@ -500,6 +500,11 @@ proc greatest(self: TypeEnv, v: Value): Option[Value] =
     else:
         none(Value)
 proc update(self: TypeEnv): bool {.discardable.} =
+    for t1, t2s in self.order.primal.pairs:
+        for t2 in t2s:
+            self.constraints.add (t1, t2)
+    self.order.primal.clear()
+    self.order.dual.clear()
     while self.constraints.len > 0:
         self.order.add self.constraints.pop
     self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var)
