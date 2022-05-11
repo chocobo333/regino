@@ -323,7 +323,7 @@ proc bindtv*(self: TypeEnv, v: Value) =
         self.order.add (v, e)
 proc bindtv*(self: TypeEnv, v1: Value, v2: Value) =
     assert v1.kind in {ValueKind.Var, ValueKind.Select}
-    assert v2.kind != ValueKind.Var
+    # assert v2.kind != ValueKind.Var
     let (ins, outs) = self.order.clear(v1)
     # TODO: add ident
     let symbol = if v1.symbol.isSome: v1.symbol else: v2.symbol
@@ -438,6 +438,8 @@ proc resolve(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
     elif v2.kind == ValueKind.Select:
         if v1.kind == ValueKind.String:
             debug v2
+            for e in v2.types:
+                debug e.symbol
         if primal:
             var lub = initHashSet[Value]()
             for e in v2.types:
@@ -580,8 +582,8 @@ proc resolve*(self: TypeEnv) =
             self.bindtv(e, e.tv.lb) # TODO: ub?
         else:
             self.bindtv(e, e.tv.lb)
-    when not defined(release):
-        dot.save("./dots")
+    # when not defined(release):
+    #     dot.save("./dots")
 
 when isMainModule:
     import eval

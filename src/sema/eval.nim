@@ -34,6 +34,8 @@ proc infer*(self: Literal): Value =
     ## that retrurns literal's type merely
     self.typ
 proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
+    if not self.typ.isNil:
+        return self.typ
     let
         syms = env.lookupId(self.name)
     result = case syms.len
@@ -46,6 +48,8 @@ proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
         # Value.Intersection(syms.mapIt(it.typ.inst(env)))
     self.typ = result
 proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
+    if not self.typ.isNil:
+        return self.typ
     result = case self.kind
     of ExpressionKind.Literal:
         self.litval.infer
@@ -96,6 +100,8 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             tv = Value.Var(env)
             args = self.args.mapIt(it.infer(env, global))
             callee = self.callee.infer(env, global)
+        debug args
+        debug getStackTrace()
         env.coerce(callee <= Value.Arrow(args, tv))
         env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
@@ -149,6 +155,8 @@ proc infer*(self: Metadata, env: TypeEnv, global: bool = false): Value =
         discard param.infer(env)
     Value.Unit
 proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = false): Value =
+    if not self.typ.isNil:
+        return self.typ
     result = case self.kind
     of PatternKind.Literal:
         self.litval.infer
@@ -313,6 +321,8 @@ proc addTypeExpr(self: TypeEnv, typ: Value, typeExpr: TypeExpression, global: bo
         discard
 
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
+    if not self.typ.isNil:
+        return self.typ
     result = case self.kind
     of StatementKind.For:
         Value.Unit
@@ -860,7 +870,7 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Malloc:
         Value.Ptr(self.mtype.eval(env, global))
     of ExpressionKind.Typeof:
-        self.`typeof`.infer(env, global)
+        self.`typeof`.typ
     of ExpressionKind.Ref:
         Value.Ptr(self.`ref`.eval(env, global))
     of ExpressionKind.FnType:
