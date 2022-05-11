@@ -35,7 +35,7 @@ proc coerceRelation*(self: TypeEnv, t1, t2: Value) =
         of ValueKind.Pair:
             self.coerceRelation(t1.first, t2.first)
             self.coerceRelation(t1.second, t2.second)
-        of ValueKind.Array, ValueKind.Singleton, ValueKind.Distinct:
+        of ValueKind.Array, ValueKind.Singleton:
             self.coerceRelation(t1.base, t2.base)
         of ValueKind.ArrayV:
             for (t1, t2) in t1.vals.zip(t2.vals):

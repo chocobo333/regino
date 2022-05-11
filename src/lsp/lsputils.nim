@@ -214,6 +214,8 @@ converter toSymbolKind*(self: il.SymbolKind): lspschema.SymbolKind =
         lspschema.SymbolKind.Class
     of il.SymbolKind.Func:
         lspschema.SymbolKind.Function
+    of il.SymbolKind.Field:
+        lspschema.SymbolKind.Field
 
 converter toCompletionItemKind*(self: il.SymbolKind): lspschema.CompletionItemKind =
     case self:
@@ -227,6 +229,8 @@ converter toCompletionItemKind*(self: il.SymbolKind): lspschema.CompletionItemKi
         CompletionItemKind.TypeParameter
     of il.SymbolKind.Func:
         CompletionItemKind.Function
+    of il.SymbolKind.Field:
+        CompletionItemKind.Field
 
 converter toSemanticTokens*(self: il.SymbolKind): lspschema.SemanticTokenTypes =
     case self
@@ -242,6 +246,8 @@ converter toSemanticTokens*(self: il.SymbolKind): lspschema.SemanticTokenTypes =
         SemanticTokenTypes.typeParameter
     of il.SymbolKind.Func:
         SemanticTokenTypes.function
+    of il.SymbolKind.Field:
+        SemanticTokenTypes.parameter
 
 
 proc scope(self: Statement, pos: rPosition): seq[Scope]

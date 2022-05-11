@@ -404,7 +404,7 @@ type
             decl_funcdef*: Function                 ## declaration
             constraints*: seq[(Region, Region)]     ## function has some region-constraints concerned its paramteres
         of SymbolKind.Field:
-            nil
+            fielddef*: (Ident, TypeExpression)
         global*: bool                   ## is global?
         val*: Value                     ## symbol hold a value
         typ*: Value                     ## symbol has a type

@@ -295,6 +295,23 @@ proc infer(fn: Function, env: TypeEnv, global: bool = false) =
             let infered = fn.suite.get.infer(env)
             env.coerce(infered <= rety)
 
+proc addTypeExpr(self: TypeEnv, typ: Value, typeExpr: TypeExpression, global: bool = false) =
+    case typeExpr.kind
+    of TypeExpressionKind.Object:
+        for (id, t) in typeExpr.members:
+            let
+                field = Value.Arrow(@[typ], typ.base.members[id])
+                sym = Symbol.Field(id, field, (id, t), global)
+            self.addIdent(sym)
+    of TypeExpressionKind.Sum:
+        discard
+    of TypeExpressionKind.Distinct:
+        discard
+    of TypeExpressionKind.Trait:
+        discard
+    of TypeExpressionKind.Expression:
+        discard
+
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     result = case self.kind
     of StatementKind.For:
@@ -369,6 +386,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
                         _ = typ.infer(env, id)
                         typ = typ.eval(env, id, global)
                     env.bindtv(tv, Value.Family(implicit, typ))
+            env.addTypeExpr(tv, typ, global)
         Value.Unit
     of StatementKind.Asign:
         let

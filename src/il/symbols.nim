@@ -30,6 +30,9 @@ proc GenParam*(_: typedesc[Symbol], id: Ident, val: Value, decl: GenTypeDef): Sy
 proc Func*(_: typedesc[Symbol], id: Ident, typ: Value, decl: Function, global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Func, id: id, typ: typ, decl_funcdef: decl, global: global)
     typ.symbol = some result
+proc Field*(_: typedesc[Symbol], id: Ident, typ: Value, decl: (Ident, TypeExpression), global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Field, id: id, typ: typ, fielddef: decl, global: global)
+    typ.symbol = some result
 
 proc empty*(_: typedesc[Symbol]): Symbol = Symbol()
 

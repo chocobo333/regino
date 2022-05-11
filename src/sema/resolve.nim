@@ -436,6 +436,8 @@ proc resolve(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
             if v2.tv.ub != glb: result = true
             v2.tv.ub = glb
     elif v2.kind == ValueKind.Select:
+        if v1.kind == ValueKind.String:
+            debug v2
         if primal:
             var lub = initHashSet[Value]()
             for e in v2.types:
@@ -456,7 +458,13 @@ proc resolve(self: TypeEnv, v1: Value, v2: Value, primal: bool): bool =
     #         self.errs.add TypeError.Subtype(v, v2)
     #     elif not primal and not self.`<=?`(v2, v).isNone:
     #         self.errs.add TypeError.Subtype(v2, v)
-
+proc coerce(self: TypeEnv, v: Value) =
+    if v in self.order.primal:
+        for e in self.order.primal[v]:
+            coerce.coerce(self, v <= e)
+    if v in self.order.dual:
+        for e in self.order.dual[v]:
+            coerce.coerce(self, e <= v)
 proc resolve(self: TypeEnv, v: Value, primal: bool=true): bool =
     # if v is type value, bind it into its upper bound
     # if v is of intersection type, simplify it.
@@ -470,6 +478,7 @@ proc resolve(self: TypeEnv, v: Value, primal: bool=true): bool =
     for target in relation[v]:
         if self.resolve(v, target, primal):
             result = true
+    self.coerce(v)
 
 proc greatest(self: TypeEnv, v: Value): Option[Value] =
     # TODO: nanikasuru
@@ -494,13 +503,6 @@ proc update(self: TypeEnv): bool {.discardable.} =
     self.tvs = self.tvs.filter(it => it.kind == ValueKind.Var)
     self.selects = self.selects.filter(it => it.kind == ValueKind.Select)
     not (self.tvs.len == 0 and self.selects.len == 0)
-proc coerce(self: TypeEnv, v: Value) =
-    if v in self.order.primal:
-        for e in self.order.primal[v]:
-            coerce.coerce(self, v <= e)
-    if v in self.order.dual:
-        for e in self.order.dual[v]:
-            coerce.coerce(self, e <= v)
 proc resolve*(self: TypeEnv) =
     setTypeEnv(self)
 
@@ -578,8 +580,8 @@ proc resolve*(self: TypeEnv) =
             self.bindtv(e, e.tv.lb) # TODO: ub?
         else:
             self.bindtv(e, e.tv.lb)
-    # when not defined(release):
-    #     dot.save("./dots")
+    when not defined(release):
+        dot.save("./dots")
 
 when isMainModule:
     import eval

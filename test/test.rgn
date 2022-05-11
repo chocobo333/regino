@@ -117,11 +117,11 @@ func fib(n: int) -> int:
     else:
         fib(n-1) + fib(n-2)
 func newVector2(x: float, y: float) -> Vector2:
-    (x: x, y: y)
+    let a: (x: float, y: float) = (x: x, y: y)
+    a
 func `$`(self: Vector2) -> string ![subtype]:
     "vector2"
 let a = newVector2(3, 5)
-echo a
-echo id a
-echo newVector2(3, 5)
+let x = a.x
+echo x
 0
