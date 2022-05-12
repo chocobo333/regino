@@ -20,8 +20,13 @@ template debug*(exp: untyped): untyped =
             s = info.filename & "(" & $line & ", " & $column & ") "
         debugEcho s, exp.astToStr, " in ", getFrame().procname, " :"
         when exp is seq:
-            for e in exp:
-                debugEcho "  ", e
+            if exp.len == 0:
+                debugEcho exp
+            else:
+                debugEcho "@["
+                for e in exp:
+                    debugEcho "  ", e
+                debugEcho "]"
         else:
             debugEcho exp
 
