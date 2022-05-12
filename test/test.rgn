@@ -124,5 +124,7 @@ func `$`(self: Vector2) -> string ![subtype]:
 let a = newVector2(3, 5)
 let
     x = a.x
+    y = a.y
 echo $x
+echo y
 0
