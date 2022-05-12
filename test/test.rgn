@@ -46,11 +46,15 @@ type
     char = typeof('a')
     pairWithInt[T] = (int, T)
     pair[T, U] = (T, U)
-    
-    Shape = variant
-        Empty
-        Point(Vector2)
-        Rectangle(p: Vector2, w: int, h: int)
+
+    Vector2 = object
+        x: float
+        y: float
+
+# Shape = variant
+#     Empty
+#     Point(Vector2)
+#     Rectangle(p: Vector2, w: int, h: int)
 # Nat = ref variant
 #     Zero
 #     Succ(Nat)
@@ -95,6 +99,8 @@ func toInt(a: bool) -> int ![subtype]:
         1
     else:
         0
+func toFloat(a: int) -> float ![subtype]:
+    0.0
 func `$`(a: bool) -> string ![subtype]:
     if a:
         "true"
@@ -110,11 +116,15 @@ func fib(n: int) -> int:
         1
     else:
         fib(n-1) + fib(n-2)
-
+func newVector2(x: float, y: float) -> Vector2:
+    let a: (x: float, y: float) = (x: x, y: y)
+    a
+func `$`(self: Vector2) -> string ![subtype]:
+    "vector2"
+let a = newVector2(3, 5)
 let
-    a = 3
-    b: pairWithInt[int] = (3, 4)
-let c: ptr[int] = malloc(int, 3)
-echo a
-echo id a
+    x = a.x
+    y = a.y
+echo $x
+echo y
 0

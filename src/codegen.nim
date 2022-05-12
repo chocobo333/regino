@@ -293,6 +293,8 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
         nil
     of ExpressionKind.FnType:
         nil
+    of ExpressionKind.IntCast:
+        raise
     of ExpressionKind.Fail:
         nil
 proc codegen(self: Pattern, module: Module, typ: Value, val: LValue, global: bool = false) =
