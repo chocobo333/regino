@@ -162,14 +162,23 @@ proc `<=`*(self: TypeEnv, t1, t2: Value): bool =
         converters.anyIt(t1 <= it[0])
 
 proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =
-    proc `<=`(t1, t2: Value): bool =
-        env.`<=`(t1, t2)
+    setTypeEnv(env)
     if t1.kind == ValueKind.Link:
         env.`<=?`(t1.to, t2)
     elif t2.kind == ValueKind.Link:
         env.`<=?`(t1, t2.to)
     elif t1 <= t2:
         some newSeq[Constraint]()
+    elif t1.kind == ValueKind.Select:
+        if t1.types.anyIt((it <=? t2).isSome):
+            some newSeq[Constraint]()
+        else:
+            none seq[Constraint]
+    elif t2.kind == ValueKind.Select:
+        if t2.types.anyIt((t1 <=? it).isSome):
+            some newSeq[Constraint]()
+        else:
+            none seq[Constraint]
     elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Bottom, ValueKind.Unit, ValueKind.Integer, ValueKind.Float, ValueKind.Char, ValueKind.String:
