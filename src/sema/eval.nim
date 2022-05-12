@@ -211,7 +211,6 @@ proc addPatL(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool
     of PatternKind.Ident:
         let sym = Symbol.Let(pat.ident, pat.typ, impl, global)
         env.addIdent(sym)
-        debug sym
     of PatternKind.Tuple:
         for pat in pat.patterns:
             env.addPatL(impl, pat, global)
