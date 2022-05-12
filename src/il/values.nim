@@ -46,8 +46,8 @@ proc trait*(_: typedesc[Value], paty: (Pattern, Value), iss: seq[(Pattern, Value
     Value(kind: ValueKind.Trait, paty: paty, iss: iss, fns: fns)
 proc Singleton*(_: typedesc[Value], base: Value): Value =
     Value(kind: ValueKind.Singleton, base: base)
-proc Distinct*(_: typedesc[Value], base: Value): Value =
-    Value(kind: ValueKind.Distinct, base: base)
+proc Distinct*(_: typedesc[Value], ident: Ident, base: Value): Value =
+    Value(kind: ValueKind.Distinct, ident: ident, base: base)
 proc Intersection*(_: typedesc[Value], types: HashSet[Value]): Value =
     case types.len
     of 0:
@@ -93,6 +93,8 @@ proc dual*(self: Value): Value =
         self
 
 proc hash*(self: Value): Hash =
+    if self.kind == ValueKind.Link:
+        return self.to.hash
     result = self.kind.int
     result = result !& (
         case self.kind
@@ -119,11 +121,12 @@ proc hash*(self: Value): Hash =
         of ValueKind.ArrayV:
             0
         of ValueKind.Record:
-            0
+            toSeq(self.members.pairs).mapIt(it[0].name.hash !& it[1].hash).foldl(a !& b)
         of ValueKind.Ptr:
-            0
+            self.pointee.hash
         of ValueKind.Pi:
-            0
+            self.params.foldl(a !& b.hash, 0) !&
+            self.rety.hash
         of ValueKind.Family:
             0
         of ValueKind.Sum:
@@ -145,7 +148,7 @@ proc hash*(self: Value): Hash =
         of ValueKind.Cons:
             0
         of ValueKind.Var:
-            0
+            self.tv.id
         of ValueKind.Gen:
             0
         of ValueKind.Link:
@@ -294,7 +297,11 @@ proc typ*(self: Value): Value =
 import literals
 import idents
 proc `==`*(t1, t2: Value): bool =
-    if t1.kind == t2.kind:
+    if t1.kind == ValueKind.Link:
+        t1.to == t2
+    elif t2.kind == ValueKind.Link:
+        t1 == t2.to
+    elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Literal:
             t1.litval == t2.litval

@@ -27,13 +27,15 @@ proc eval*(self: Program, env: TypeEnv): Value
 proc eval*(self: Suite, env: TypeEnv): Value
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
-proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value
+proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = false): Value
 
 
 proc infer*(self: Literal): Value =
     ## that retrurns literal's type merely
     self.typ
 proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
+    if not self.typ.isNil:
+        return self.typ
     let
         syms = env.lookupId(self.name)
     result = case syms.len
@@ -46,6 +48,8 @@ proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
         # Value.Intersection(syms.mapIt(it.typ.inst(env)))
     self.typ = result
 proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
+    if not self.typ.isNil:
+        return self.typ
     result = case self.kind
     of ExpressionKind.Literal:
         self.litval.infer
@@ -139,6 +143,8 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of ExpressionKind.FnType:
         Value.Unit
+    of ExpressionKind.IntCast:
+        Value.Integer(self.to)
     of ExpressionKind.Fail:
         Value.Bottom
     self.typ = result
@@ -147,6 +153,8 @@ proc infer*(self: Metadata, env: TypeEnv, global: bool = false): Value =
         discard param.infer(env)
     Value.Unit
 proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = false): Value =
+    if not self.typ.isNil:
+        return self.typ
     result = case self.kind
     of PatternKind.Literal:
         self.litval.infer
@@ -165,17 +173,16 @@ proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = fal
     of PatternKind.Tuple:
         self.patterns.mapIt(it.infer(env, global, asign)).foldl(Value.Pair(a, b))
     of PatternKind.Record:
-        # TODO:
-        Value.Unit
+        Value.Record(self.members.mapIt((it[0], it[1].infer(env, global, asign))).toTable)
     of PatternKind.UnderScore:
         Value.Var(env)
     self.typ = result
-proc infer(self: TypeExpression, env: TypeEnv): Value =
+proc infer(self: TypeExpression, env: TypeEnv, ident: Ident): Value =
     case self.kind
     of TypeExpressionKind.Object:
         # TODO: ituka jissousuru
-        assert false, "notimplimented"
-        Value.Unit
+        let rec = Value.Record(self.members.mapIt((it[0], it[1].infer(env, it[0]))).toTable)
+        Value.Distinct(ident, rec)
     of TypeExpressionKind.Sum:
         # TODO: Add constructor
         let cons = self.sum.constructors.mapIt((
@@ -190,7 +197,7 @@ proc infer(self: TypeExpression, env: TypeEnv): Value =
         ))
         Value.Sum(cons.toTable)
     of TypeExpressionKind.Distinct:
-        Value.Distinct(self.base.infer(env))
+        Value.Distinct(ident, self.base.infer(env, ident))
     of TypeExpressionKind.Trait:
         assert false, "notimplimented"
         Value.Unit
@@ -202,14 +209,14 @@ proc addPatL(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool
     of PatternKind.Literal:
         discard
     of PatternKind.Ident:
-        # TODO: index
         let sym = Symbol.Let(pat.ident, pat.typ, impl, global)
         env.addIdent(sym)
     of PatternKind.Tuple:
         for pat in pat.patterns:
             env.addPatL(impl, pat, global)
     of PatternKind.Record:
-        discard
+        for (id, pat) in pat.members:
+            env.addPatL(impl, pat, global)
     of PatternKind.UnderScore:
         discard
 proc addPatV(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool = false) =
@@ -294,7 +301,24 @@ proc infer(fn: Function, env: TypeEnv, global: bool = false) =
             let infered = fn.suite.get.infer(env)
             env.coerce(infered <= rety)
 
-proc infer*(self: IdentDefSection, env: TypeEnv, global: bool = false) = 
+proc addTypeExpr(self: TypeEnv, typ: Value, typeExpr: TypeExpression, global: bool = false) =
+    case typeExpr.kind
+    of TypeExpressionKind.Object:
+        for (id, t) in typeExpr.members:
+            let
+                field = Value.Arrow(@[typ], typ.base.members[id])
+                sym = Symbol.Field(id, field, (id, t), global)
+            self.addIdent(sym)
+    of TypeExpressionKind.Sum:
+        discard
+    of TypeExpressionKind.Distinct:
+        discard
+    of TypeExpressionKind.Trait:
+        discard
+    of TypeExpressionKind.Expression:
+        discard
+
+proc infer*(self: IdentDefSection, env: TypeEnv, global: bool = false) =
     for iddef in self.iddefs:
         let
             pat = iddef.pat
@@ -312,7 +336,7 @@ proc infer*(self: IdentDefSection, env: TypeEnv, global: bool = false) =
             let t = typ.eval(env, global)
             env.coerce(t == paty)
         env.addPatL(iddef, global=global)
-proc infer*(self: TypeDefSection, env: TypeEnv, global: bool = false) = 
+proc infer*(self: TypeDefSection, env: TypeEnv, global: bool = false) =
     for typedef in self.typedefs:
         let
             id = typedef.id
@@ -323,20 +347,23 @@ proc infer*(self: TypeDefSection, env: TypeEnv, global: bool = false) =
         env.addIdent(sym)
         if params.isNone:
             # TODO: infer and check
-            let _ = typ.infer(env)
+            let _ = typ.infer(env, id)
             # typ.check(env)
             let
-                typ = typ.eval(env, global)
+                typ = typ.eval(env, id, global)
             env.bindtv(tv, typ)
         else:
             let scope = newScope(env.scope)
             env.enter scope:
                 let implicit = params.get.mapIt(it.infer(env, global))
                 let
-                    _ = typ.infer(env)
-                    typ = typ.eval(env, global)
+                    _ = typ.infer(env, id)
+                    typ = typ.eval(env, id, global)
                 env.bindtv(tv, Value.Family(implicit, typ))
+        env.addTypeExpr(tv, typ, global)
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
+    if not self.typ.isNil:
+        return self.typ
     result = case self.kind
     of StatementKind.For:
         Value.Unit
@@ -348,71 +375,14 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of StatementKind.LetSection:
         self.iddefSection.infer(env, global)
-        # for iddef in self.iddefs:
-        #     let
-        #         pat = iddef.pat
-        #         typ = iddef.typ
-        #         default = iddef.default
-        #         paty = pat.infer(env, global)
-        #     if default.isSome:
-        #         let t = default.get.infer(env, global)
-        #         env.coerce(t <= paty)
-        #     if typ.isSome:
-        #         let
-        #             typ = typ.get
-        #             tv = typ.infer(env, global)
-        #         typ.check(env)
-        #         let t = typ.eval(env, global)
-        #         env.coerce(t == paty)
-        #     env.addPatL(iddef, global=global)
         Value.Unit
     of StatementKind.VarSection:
         self.iddefSection.infer(env, global)
-        # for iddef in self.iddefs:
-        #     let
-        #         pat = iddef.pat
-        #         typ = iddef.typ
-        #         default = iddef.default
-        #         paty = pat.infer(env, global)
-        #     if default.isSome:
-        #         let t = default.get.infer(env, global)
-        #         env.coerce(t <= paty)
-        #     if typ.isSome:
-        #         let
-        #             typ = typ.get
-        #             tv = typ.infer(env, global)
-        #         typ.check(env)
-        #         let t = typ.eval(env, global)
-        #         env.coerce(t == paty)
-        #     env.addPatV(iddef, global=global)
         Value.Unit
     of StatementKind.ConstSection:
         Value.Unit
     of StatementKind.TypeSection:
         self.typedefSection.infer(env, global)
-        # for typedef in self.typedefs:
-        #     let
-        #         id = typedef.id
-        #         params = typedef.params
-        #         typ = typedef.typ
-        #         tv = Value.Var(env)
-        #         sym = Symbol.Typ(id, tv, typedef, global)
-        #     env.addIdent(sym)
-        #     if params.isNone:
-        #         # TODO: infer and check
-        #         let _ = typ.infer(env)
-        #         # typ.check(env)
-        #         let
-        #             typ = typ.eval(env, global)
-        #         env.bindtv(tv, typ)
-        #     else:
-        #         let scope = newScope(env.scope)
-        #         env.enter scope:
-        #             let implicit = params.get.mapIt(it.infer(env, global))
-        #             let
-        #                 _ = typ.infer(env)
-        #                 typ = typ.eval(env, global)
-        #             env.bindtv(tv, Value.Family(implicit, typ))
         Value.Unit
     of StatementKind.Asign:
         let
@@ -489,22 +459,101 @@ proc resolveLink(self: Value) =
     if self.kind == ValueKind.Link:
         self.to.resolveLink
         let
-            ident = self.ident
             symbol = self.symbol
         self[] = self.to[]
         self.symbol = symbol
-        self.ident = ident
+
+proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
+    if v1 == v2:
+        return e
+    result = if (v1, v2) in self.scope.converters:
+        Expression.Call(Expression.Id(self.scope.converters[(v1, v2)]), @[e])
+    elif v2.kind == ValueKind.Unit:
+        let suite = newSuite(@[
+            Statement.Discard(some e),
+            Statement.Expr(Expression.literal(Literal.unit))
+        ])
+        suite.scope = newScope(self.scope)
+        Expression.Block(suite)
+    else:
+        if v2.kind == ValueKind.Distinct:
+            self.coercion(v1, v2.base, e)
+        elif v1.kind == v2.kind:
+            case v1.kind
+            of ValueKind.Integer:
+                Expression.IntCast(e, v1.bits, v2.bits)
+            of ValueKind.Pair:
+                let scope = newScope(self.scope)
+                var
+                    a: Expression
+                    b: Expression
+                self.enter scope:
+                    a = self.coercion(v1.first, v2.first, Expression.Id("a"))
+                    b = self.coercion(v1.second, v2.second, Expression.Id("b"))
+                let suite = newSuite(
+                    @[
+                        Statement.LetSection(
+                            newIddefSection(@[
+                                newIdentdef(
+                                    Pattern.Tuple(@[Pattern.Id("a"), Pattern.Id("b")]),
+                                    some Expression.Typeof(e),
+                                    some e
+                                )
+                            ], @[])
+                        ),
+                        Statement.Expr(Expression.Tuple(@[a, b]))
+                    ]
+                )
+                suite.scope = scope
+                Expression.Block(suite)
+            of ValueKind.Record:
+                let scope = newScope(self.scope)
+                var
+                    pat: Pattern = Pattern.Record(toSeq(v2.members.keys).mapIt((it, Pattern.Id(it.name))))
+                    exp: Expression = Expression.Record(@[])
+                self.enter scope:
+                    for (id, val) in v2.members.pairs:
+                        exp.members.add (
+                            id,
+                            self.coercion(v1.members[id], val, Expression.Id(id.name))
+                        )
+                let suite = newSuite(
+                    @[
+                        Statement.LetSection(
+                            newIddefSection(@[
+                                newIdentdef(
+                                    pat,
+                                    some Expression.Typeof(e),
+                                    some e
+                                )
+                        ], @[])),
+                        Statement.Expr(exp)
+                    ]
+                )
+                suite.scope = scope
+                Expression.Block(suite)
+            else:
+                debug v1
+                debug v2
+                nil
+        else:
+            debug v1
+            debug v2
+            nil
+    result.inserted = true
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
     assert e.typ <= v
     result = e
     if v <= e.typ:
         return
+    # assert self.path(e.typ, v).len == 1
     for (s, t) in self.path(e.typ, v).sort(it => it.len)[0]:
-        let c = self.scope.converters[(s, t)]
-        result = Expression.Call(Expression.Id(c), @[result])
-        result.typ = t
-        result.inserted = true
+        result = self.coercion(s, t, result)
+        # result.typ = t
+        discard result.infer(self)
+        self.resolve # kore de iino ka?
+        # result.check(self)
 proc check(self: Statement, env: TypeEnv)
 proc check(self: Suite, env: TypeEnv) =
     env.enter(self.scope):
@@ -620,9 +669,11 @@ proc check(self: Expression, env: TypeEnv) =
         discard
     of ExpressionKind.FnType:
         discard
+    of ExpressionKind.IntCast:
+        self.int_exp.check(env)
     of ExpressionKind.Fail:
         env.errs.add TypeError.SomethingWrong(self.loc)
-proc check(self: IdentDefSection, env: TypeEnv) = 
+proc check(self: IdentDefSection, env: TypeEnv) =
     for iddef in self.iddefs:
         # TODO: implement check(Pattern)
         # iddef.pat.check(env)
@@ -644,16 +695,6 @@ proc check(self: Statement, env: TypeEnv) =
         discard
     of StatementKind.LetSection:
         self.iddefSection.check(env)
-        # for iddef in self.iddefs:
-        #     # TODO: implement check(Pattern)
-        #     # iddef.pat.check(env)
-        #     # TODO: Shoud I check TypeExpression?
-        #     # typ should be infered, checked and `eval`ed.
-        #     if iddef.typ.isSome:
-        #         iddef.typ.get.check(env)
-        #     if iddef.default.isSome:
-        #         iddef.default.get.check(env)
-        #         iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ)
     of StatementKind.VarSection:
         discard
     of StatementKind.ConstSection:
@@ -712,10 +753,11 @@ proc check*(self: Program, env: TypeEnv) =
 
 proc eval*(self: Literal): Value =
     Value.literal(self)
-proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
+proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = false): Value =
     result = case self.kind
     of TypeExpressionKind.Object:
-        Value.Unit
+        let rec = Value.Record(self.members.mapIt((it[0], it[1].eval(env, it[0]))).toTable)
+        Value.Distinct(ident, rec)
     of TypeExpressionKind.Sum:
         let cons = self.sum.constructors.mapIt((
             it.id,
@@ -729,7 +771,7 @@ proc eval*(self: TypeExpression, env: TypeEnv, global: bool = false): Value =
         ))
         Value.Sum(cons.toTable)
     of TypeExpressionKind.Distinct:
-        Value.Distinct(self.base.eval(env, global))
+        Value.Distinct(ident, self.base.eval(env, ident, global))
     of TypeExpressionKind.Trait:
         Value.Unit
     of TypeExpressionKind.Expression:
@@ -752,7 +794,7 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         of 1:
             syms[0].val.inst(env)
         else:
-            Value.Intersection(syms.mapIt(it.val.inst(env)))
+            Value.Select(syms.mapIt(it.val.inst(env)))
     of ExpressionKind.Tuple:
         case self.exprs.len
         of 0:
@@ -816,11 +858,14 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Malloc:
         Value.Ptr(self.mtype.eval(env, global))
     of ExpressionKind.Typeof:
-        self.`typeof`.infer(env, global)
+        self.`typeof`.typ
     of ExpressionKind.Ref:
         Value.Ptr(self.`ref`.eval(env, global))
     of ExpressionKind.FnType:
         Value.Arrow(self.args.mapIt(it.eval(env, global)), self.rety.eval(env, global))
+    of ExpressionKind.IntCast:
+        # TODO:
+        self.int_exp.eval(env, global)
     of ExpressionKind.Fail:
         Value.Bottom
 proc asign(self: Pattern, val: Value) =
