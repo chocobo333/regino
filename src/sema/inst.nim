@@ -155,6 +155,10 @@ proc inst(self: TypeExpression): TypeExpression =
         TypeExpression.Expr(self.expression.inst)
 proc inst(self: TypeDef): TypeDef =
     newTypedef(self.id.inst, self.params.map(it => it.map(inst)), self.typ.inst)
+proc inst(self: IdentDefSection): IdentDefSection = 
+    newIddefSection(self.iddefs.map(inst), self.comments)
+proc inst(self: TypeDefSection): TypeDefSection = 
+    newTypedefSection(self.typedefs.map(inst), self.comments)
 proc inst(self: Statement): Statement =
     case self.kind
     of StatementKind.For:
@@ -164,13 +168,13 @@ proc inst(self: Statement): Statement =
     of StatementKind.Loop:
         Statement.Loop(self.`block`.inst, self.label.map(inst), self.loc)
     of StatementKind.LetSection:
-        Statement.LetSection(self.iddefs.map(inst), self.loc)
+        Statement.LetSection(self.iddefSection.inst, self.loc)
     of StatementKind.VarSection:
-        Statement.VarSection(self.iddefs.map(inst), self.loc)
+        Statement.VarSection(self.iddefSection.inst, self.loc)
     of StatementKind.ConstSection:
-        Statement.ConstSection(self.iddefs.map(inst), self.loc)
+        Statement.ConstSection(self.iddefSection.inst, self.loc)
     of StatementKind.TypeSection:
-        Statement.TypeSection(self.typedefs.map(inst), self.loc)
+        Statement.TypeSection(self.typedefSection.inst, self.loc)
     of StatementKind.Asign:
         Statement.Asign(self.pat.inst, self.op.inst, self.val.inst, self.loc)
     of StatementKind.Funcdef:

@@ -32,6 +32,7 @@ when isMainModule:
         f = open("test/test.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
+    let
         errs = program.sema
     f.close
-    # debug program
+    debug program
