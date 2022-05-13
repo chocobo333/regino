@@ -477,7 +477,9 @@ proc `$`*(self: Symbol): string =
             of SymbolKind.GenParam:
                 $self.decl_gendef
             of SymbolKind.Field:
-                $(self.fielddef)
+                $self.fielddef
+            of SymbolKind.Enum:
+                $self.enumdef
         loc = self.id.loc
     fmt"{loc}: ({kind}){id}: {typ} ({impl})"
 proc `$`*(self: Scope): string =

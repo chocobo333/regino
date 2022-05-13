@@ -25,7 +25,7 @@ proc lookupId*(self: Scope, name: string, kinds: set[SymbolKind] = {SymbolKind.l
         tmp: set[SymbolKind]
         varsKind = {SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param}
         typesKind = {SymbolKind.Typ, SymbolKind.GenParam}
-        funcsKind = {SymbolKind.Func, SymbolKind.Field}
+        funcsKind = {SymbolKind.Func, SymbolKind.Field, SymbolKind.Enum}
     for scope in self:
         if name in scope.syms:
             let
@@ -45,7 +45,7 @@ proc lookupId*(self: Scope, name: string, pos: Position, kinds: set[SymbolKind] 
         tmp: set[SymbolKind]
         varsKind = {SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param}
         typesKind = {SymbolKind.Typ, SymbolKind.GenParam}
-        funcsKind = {SymbolKind.Func, SymbolKind.Field}
+        funcsKind = {SymbolKind.Func, SymbolKind.Field, SymbolKind.Enum}
     for scope in self:
         if name in scope.syms:
             let

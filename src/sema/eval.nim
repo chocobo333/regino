@@ -310,7 +310,31 @@ proc addTypeExpr(self: TypeEnv, typ: Value, typeExpr: TypeExpression, global: bo
                 sym = Symbol.Field(id, field, (id, t), global)
             self.addIdent(sym)
     of TypeExpressionKind.Sum:
-        discard
+        for cons in typeExpr.sum.constructors:
+            case cons.kind
+            of SumConstructorKind.NoField:
+                let
+                    id = cons.id
+                    sym = Symbol.Enum(id, Value.Link(typ), cons, global)
+                self.addIdent(sym)
+            of SumConstructorKind.UnnamedField:
+                let
+                    id = cons.id
+                    typ =
+                        case typ.base.constructors[id].tupleLen
+                        of 0:
+                            Value.Arrow(@[], typ)
+                        of 1:
+                            Value.Arrow(@[typ.base.constructors[id].first], typ)
+                        else:
+                            Value.Arrow(typ.base.constructors[id].PairToSeq, typ)
+                    sym = Symbol.Enum(id, typ, cons, global)
+                self.addIdent(sym)
+            of SumConstructorKind.NamedField:
+                let
+                    id = cons.id
+                debug typ.base.constructors[id]
+                # TODO: object construction
     of TypeExpressionKind.Distinct:
         discard
     of TypeExpressionKind.Trait:
@@ -619,36 +643,37 @@ proc check(self: Expression, env: TypeEnv) =
             self.args[i].check(env)
             self.callee.typ.params[i].resolveLink
             self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i])
-        let
-            calleety = self.callee.typ
-            args = self.args.mapIt(it.typ)
-            genty = self.callee.typ.symbol.get.decl_funcdef.param.implicit.mapIt(it.id)
-            instances = self.callee.typ.instances
-            typdefs = self.callee.typ.symbol.get.decl_funcdef.param.params
-        if genty.len > 0:
-            # monomorphization
-            if calleety notin calleety.symbol.get.instances:
-                let
-                    inst = self.callee.typ.symbol.get.decl_funcdef.implInst
-                    scope = env.scope
-                env.scope = inst.param.scope
-                for i in 0..<genty.len:
+        if self.callee.typ.symbol.get.kind == SymbolKind.Func:
+            let
+                calleety = self.callee.typ
+                args = self.args.mapIt(it.typ)
+                genty = self.callee.typ.symbol.get.decl_funcdef.param.implicit.mapIt(it.id)
+                instances = self.callee.typ.instances
+                typdefs = self.callee.typ.symbol.get.decl_funcdef.param.params
+            if genty.len > 0:
+                # monomorphization
+                if calleety notin calleety.symbol.get.instances:
                     let
-                        id = genty[i]
-                        typ = instances[i]
-                        typedef = newTypedef(
-                            id,
-                            none(seq[GenTypeDef]),
-                            TypeExpression.Expr(Expression.Id($typ))
-                        )
-                        sym = Symbol.Typ(id, typ, typedef, false)
-                    env.addIdent(sym)
-                env.scope = scope
-                let fn = Statement.Funcdef(inst)
-                discard fn.infer(env, false)
-                env.resolve()
-                fn.check(env) # must be succeded
-                calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
+                        inst = self.callee.typ.symbol.get.decl_funcdef.implInst
+                        scope = env.scope
+                    env.scope = inst.param.scope
+                    for i in 0..<genty.len:
+                        let
+                            id = genty[i]
+                            typ = instances[i]
+                            typedef = newTypedef(
+                                id,
+                                none(seq[GenTypeDef]),
+                                TypeExpression.Expr(Expression.Id($typ))
+                            )
+                            sym = Symbol.Typ(id, typ, typedef, false)
+                        env.addIdent(sym)
+                    env.scope = scope
+                    let fn = Statement.Funcdef(inst)
+                    discard fn.infer(env, false)
+                    env.resolve()
+                    fn.check(env) # must be succeded
+                    calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
@@ -769,7 +794,7 @@ proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = fals
             of SumConstructorKind.NamedField:
                 Expression.Record(it.fields).eval(env)
         ))
-        Value.Sum(cons.toTable)
+        Value.Distinct(ident, Value.Sum(cons.toTable))
     of TypeExpressionKind.Distinct:
         Value.Distinct(ident, self.base.eval(env, ident, global))
     of TypeExpressionKind.Trait:

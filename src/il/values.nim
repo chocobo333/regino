@@ -130,13 +130,13 @@ proc hash*(self: Value): Hash =
         of ValueKind.Family:
             0
         of ValueKind.Sum:
-            0
+            toSeq(self.constructors.keys).foldl(a !& b.name.hash, 0)
         of ValueKind.Trait:
             0
         of ValueKind.Singleton:
             0
         of ValueKind.Distinct:
-            0
+            self.ident.name.hash !& self.base.hash
         of ValueKind.Intersection:
             0
         of ValueKind.Union:
@@ -226,6 +226,14 @@ proc typ*(self: Literal): Value =
         Value.Univ(self.level+1)
 proc isUniv*(self: Value): bool =
     self.kind == ValueKind.Literal and self.litval.kind == LiteralKind.Univ
+proc tupleLen*(self: Value): int =
+    if self.kind == ValueKind.Unit:
+        0
+    elif self.kind == ValueKind.Pair:
+        1 + self.second.tupleLen
+    else:
+        1
+
 proc typ*(self: Value): Value =
     case self.kind
     of ValueKind.Literal:
@@ -336,8 +344,7 @@ proc `==`*(t1, t2: Value): bool =
         of ValueKind.Family:
             t1.implicit == t2.implicit and t1.rety == t2.rety
         of ValueKind.Sum:
-            assert false, "notimplemented"
-            true
+            t1.constructors == t2.constructors
         of ValueKind.Trait:
             assert false, "notimplemented"
             true
