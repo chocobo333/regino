@@ -183,6 +183,10 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
             rety = `$`(self.rety, typed, regioned, comment)
             args = self.args.mapIt(`$`(it, typed, regioned, comment)).join(", ")
         fmt"func({args}) -> {rety}"
+    of ExpressionKind.IntCast:
+        let
+            int_exp = `$`(self.int_exp, typed, regioned, comment)
+        fmt"cast({self.int_exp}, {self.from}, {self.to})"
     of ExpressionKind.Fail:
         fmt"failed term"
     if not self.typ.isNil:
@@ -434,8 +438,6 @@ proc `$$`*(self: GenericType, typed: bool = false, regioned: bool = false, comme
     let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {`$`(self.ub, typed, regioned, comment)}" else: ""
     fmt"{self.ident.name}{ub}"
 proc `$`*(self: Value, typed: bool = false, regioned: bool = false, comment: bool = false): string =
-    if self.ident.isSome:
-        return self.ident.get.name
     result = case self.kind
     of ValueKind.Literal:
         `$`(self.litval, typed, regioned, comment)
@@ -517,8 +519,15 @@ proc `$`*(self: Value, typed: bool = false, regioned: bool = false, comment: boo
         let base = `$`(self.base, typed, regioned, comment)
         fmt"sigleton[{base}]"
     of ValueKind.Distinct:
-        let base = `$`(self.base, typed, regioned, comment)
-        fmt"distinct {base}"
+        self.ident.name
+        # case self.base.kind
+        # of ValueKind.Record:
+        #     var members: string
+        #     for (id, val) in self.base.members.pairs:
+        #         members.add &"\n  {id}: {val}"
+        #     &"{self.ident}{members}"
+        # else:
+        #     fmt"distinct {self.base}"
     of ValueKind.Intersection:
         toSeq(self.types).mapIt(`$`(it, typed, regioned, comment)).join("^")
     of ValueKind.Union:
@@ -571,6 +580,14 @@ proc `$`*(self: Symbol, typed: bool = false, regioned: bool = false, comment: bo
                 `$`(self.decl_typedef, typed, regioned, comment)
             of SymbolKind.GenParam:
                 `$`(self.decl_gendef, typed, regioned, comment)
+            of SymbolKind.Field:
+                "(" & 
+                `$`(self.fielddef[0], typed, regioned, comment) &
+                ", " &
+                `$`(self.fielddef[1], typed, regioned, comment) &
+                ")"
+            of SymbolKind.Enum:
+                `$`(self.enumdef, typed, regioned, comment)
         loc = self.id.loc
     fmt"{loc}: ({kind}){id}: {typ} ({impl})"
 proc `$`*(self: Scope, typed: bool = false, regioned: bool = false, comment: bool = false): string =
@@ -677,6 +694,8 @@ proc treeRepr*(self: Expression): string =
     of ExpressionKind.FnType:
         let args = self.args.mapIt(`$`(it)).join(", ")
         fmt"func({args}) -> {self.rety}"
+    of ExpressionKind.IntCast:
+        $self
     of ExpressionKind.Fail:
         fmt"failed term"
 
@@ -740,4 +759,3 @@ when isMainModule:
     echo c
     echo d
     echo e
-    

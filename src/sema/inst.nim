@@ -104,6 +104,8 @@ proc inst(self: Expression): Expression =
         Expression.Ref(self.`ref`.inst)
     of ExpressionKind.FnType:
         Expression.FnType(self.args.map(inst), self.rety.inst)
+    of ExpressionKind.IntCast:
+        Expression.IntCast(self.int_exp, self.from, self.to)
     of ExpressionKind.Fail:
         Expression.Fail()
 proc inst(self: Metadata): Metadata =
