@@ -19,8 +19,9 @@ proc `[]=`*[A, B](self: var Relation[A, B], a: A, b: B) =
     if a in self:
         self[a].incl b
     else:
-        self[a] = initHashSet[B]()
-        self[a].incl b
+        # self[a] = initHashSet[B]()
+        # self[a].incl b
+        self[a] = [b].toHashSet
 
 proc incl*[A, B](self: Relation[A, B], val: (A, B)) =
     let (a, b) = val

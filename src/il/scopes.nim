@@ -25,7 +25,7 @@ proc lookupId*(self: Scope, name: string, kinds: set[SymbolKind] = {SymbolKind.l
         tmp: set[SymbolKind]
         varsKind = {SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param}
         typesKind = {SymbolKind.Typ, SymbolKind.GenParam}
-        funcsKind = {SymbolKind.Func}
+        funcsKind = {SymbolKind.Func, SymbolKind.Field, SymbolKind.Enum}
     for scope in self:
         if name in scope.syms:
             let
@@ -45,7 +45,7 @@ proc lookupId*(self: Scope, name: string, pos: Position, kinds: set[SymbolKind] 
         tmp: set[SymbolKind]
         varsKind = {SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param}
         typesKind = {SymbolKind.Typ, SymbolKind.GenParam}
-        funcsKind = {SymbolKind.Func}
+        funcsKind = {SymbolKind.Func, SymbolKind.Field, SymbolKind.Enum}
     for scope in self:
         if name in scope.syms:
             let
@@ -62,10 +62,10 @@ proc lookupId*(self: Scope, name: string, pos: Position, kinds: set[SymbolKind] 
             result.add funcs
 
 proc newScope*(parent: Scope = nil): Scope =
-        Scope(
-            parent: parent,
-            syms: initTable[string, seq[Symbol]](),
-            consts: initTable[string, seq[Symbol]](),
-            typeOrder: if parent.isNil: newOrder[Value]() else: parent.typeOrder,
-            converters: initTable[(Value, Value), Ident]()
-        )
+    Scope(
+        parent: parent,
+        syms: initTable[string, seq[Symbol]](),
+        consts: initTable[string, seq[Symbol]](),
+        typeOrder: if parent.isNil: newOrder[Value]() else: parent.typeOrder,
+        converters: if parent.isNil: initTable[(Value, Value), Ident]() else: parent.converters
+    )

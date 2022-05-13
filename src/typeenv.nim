@@ -100,7 +100,7 @@ proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable
     of ValueKind.Singleton:
         Value.Singleton(typ.base.inst(env, subs))
     of ValueKind.Distinct:
-        Value.Distinct(typ.base.inst(env, subs))
+        Value.Distinct(typ.ident, typ.base.inst(env, subs))
     of ValueKind.ArrayV:
         Value.Array(typ.vals.mapIt(it.inst(env, subs)))
     of ValueKind.Record:

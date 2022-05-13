@@ -12,17 +12,17 @@ import il
 import ../lineinfos
 
 
-proc `$`*(self: Statement): string
-proc `$`*(self: Expression): string
+proc `$`*(self: Statement, typed: bool = false): string
+proc `$`*(self: Expression, typed: bool = false): string
 proc `$`*(self: FunctionParam): string
 proc `$`*(self: TypeExpression): string
 proc `$`*(self: Pattern): string
 proc `$`*(self: Suite): string
 proc `$`*(self: Value): string
 proc `$`*(self: Region): string
-proc `$`*(self: Comment): string = 
+proc `$`*(self: Comment): string =
     if self.isDoc: "##" & self.s else: "#" & self.s
-proc `$`*(self: seq[Comment]): string = 
+proc `$`*(self: seq[Comment]): string =
     self.map(`$`).join("\n")
 proc `$`*(self: Literal): string =
     case self.kind
@@ -57,24 +57,24 @@ proc `$`*(self: Ident): string =
 proc `$$`*(self: Ident): string =
     self.name
 proc `$`*(self: Suite): string =
-    self.stmts.map(`$`).join("\n").indent(2)
+    self.stmts.mapIt($it).join("\n").indent(2)
 proc `$`*(self: ElifBranch): string =
     let suite = $self.suite
     &"elif {self.cond}:\n{suite}"
 proc `$`*(self: OfBranch): string =
     let suite = $self.suite
     &"of {self.pat}:\n{suite}"
-proc `$`*(self: Expression): string =
+proc `$`*(self: Expression, typed: bool = false): string =
     result = case self.kind
     of ExpressionKind.Literal:
         $self.litval
     of ExpressionKind.Ident:
         $self.ident
     of ExpressionKind.Tuple:
-        let s = self.exprs.join(", ")
+        let s = self.exprs.mapIt(`$`(it, typed)).join(", ")
         fmt"({s})"
     of ExpressionKind.Array:
-        let s = self.exprs.join(", ")
+        let s = self.exprs.mapIt(`$`(it, typed)).join(", ")
         fmt"[{s}]"
     of ExpressionKind.Record:
         let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
@@ -140,6 +140,8 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.FnType:
         let args = self.args.join(", ")
         fmt"func({args}) -> {self.rety}"
+    of ExpressionKind.IntCast:
+        fmt"cast({self.int_exp}, {self.from}, {self.to})"
     of ExpressionKind.Fail:
         fmt"failed term"
     if not self.typ.isNil:
@@ -223,7 +225,7 @@ proc `$`*(self: Function): string =
         suite = if self.suite.isNone: "" else: fmt"{self.suite.get}"
     &"{fn} {self.id}{self.param}{metadata}:\n{suite}"
 
-proc `$`*(self: IdentDefSection): string = 
+proc `$`*(self: IdentDefSection): string =
     let
         comments = if self.comments.len != 0: self.comments.map(`$`).join("\n") & "\n" else: ""
         iddefs = self.iddefs.map(`$`).join("\n")
@@ -233,7 +235,7 @@ proc `$`*(self: TypeDefSection): string =
         comments = if self.comments.len != 0: self.comments.map(`$`).join("\n") & "\n" else: ""
         typedefs = self.typedefs.map(`$`).join("\n")
     comments & typedefs
-proc `$`*(self: Statement): string =
+proc `$`*(self: Statement, typed: bool = false): string =
     case self.kind
     of StatementKind.For:
         &"for {self.pat} in {self.val}:\n{self.suite}"
@@ -331,7 +333,7 @@ proc `$`*(self: TypeExpression): string =
             $self.expression
     )
 proc `$`*(self: Program): string =
-    self.stmts.map(`$`).join("\n")
+    self.stmts.mapIt($it).join("\n")
 
 proc id2s(self: int): string =
     let
@@ -354,8 +356,6 @@ proc `$$`*(self: GenericType): string =
     let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {self.ub}" else: ""
     fmt"{self.ident.name}{ub}"
 proc `$`*(self: Value): string =
-    if self.ident.isSome:
-        return self.ident.get.name
     result = case self.kind
     of ValueKind.Literal:
         $self.litval
@@ -423,7 +423,15 @@ proc `$`*(self: Value): string =
     of ValueKind.Singleton:
         fmt"sigleton[{self.base}]"
     of ValueKind.Distinct:
-        fmt"distinct {self.base}"
+        self.ident.name
+        # case self.base.kind
+        # of ValueKind.Record:
+        #     var members: string
+        #     for (id, val) in self.base.members.pairs:
+        #         members.add &"\n  {id}: {val}"
+        #     &"{self.ident}{members}"
+        # else:
+        #     fmt"distinct {self.base}"
     of ValueKind.Intersection:
         toSeq(self.types).join("^")
     of ValueKind.Union:
@@ -469,6 +477,10 @@ proc `$`*(self: Symbol): string =
                 $self.decl_typedef
             of SymbolKind.GenParam:
                 $self.decl_gendef
+            of SymbolKind.Field:
+                $self.fielddef
+            of SymbolKind.Enum:
+                $self.enumdef
         loc = self.id.loc
     fmt"{loc}: ({kind}){id}: {typ} ({impl})"
 proc `$`*(self: Scope): string =
@@ -572,6 +584,8 @@ proc treeRepr*(self: Expression): string =
     of ExpressionKind.FnType:
         let args = self.args.join(", ")
         fmt"func({args}) -> {self.rety}"
+    of ExpressionKind.IntCast:
+        $self
     of ExpressionKind.Fail:
         fmt"failed term"
 
@@ -634,4 +648,3 @@ when isMainModule:
     echo c
     echo d
     echo e
-    
