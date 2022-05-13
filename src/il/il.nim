@@ -403,6 +403,7 @@ type
         GenParam
         Func
         Field
+        Enum
     SymbolId = int
     Symbol* = ref SymbolObject
     SymbolObject* = object
@@ -419,6 +420,8 @@ type
             constraints*: seq[(Region, Region)]     ## function has some region-constraints concerned its paramteres
         of SymbolKind.Field:
             fielddef*: (Ident, TypeExpression)
+        of SymbolKind.Enum:
+            enumdef*: SumConstructor
         global*: bool                   ## is global?
         val*: Value                     ## symbol hold a value
         typ*: Value                     ## symbol has a type
