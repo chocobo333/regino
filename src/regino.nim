@@ -6,5 +6,7 @@ import
 import cligen
 
 
+const version = "0.1.0"
 when isMainModule:
-    dispatchMulti([compile], [Lsp, cmdName="lsp"])
+    clCfg.version = version
+    dispatchMulti([compile, cmdName="c"], [Lsp, cmdName="lsp"])
