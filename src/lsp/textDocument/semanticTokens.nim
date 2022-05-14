@@ -3,7 +3,6 @@ import streams
 import json
 import tables
 import strformat
-import sequtils
 import options
 
 import ../lspschema
@@ -161,6 +160,9 @@ proc coloring(self: Function, tokenTypes: seq[string], data: var seq[Color]) =
     self.param.coloring(tokenTypes, data)
     if self.suite.isSome:
         self.suite.get.coloring(tokenTypes, data)
+proc coloring(self: IdentDefSection, tokenTypes: seq[string], data: var seq[Color]) =
+    for e in self.iddefs:
+        e.coloring(tokenTypes, data)
 proc coloring(self: Statement, tokenTypes: seq[string], data: var seq[Color]) =
     # TODO:
     case self.kind
@@ -171,8 +173,7 @@ proc coloring(self: Statement, tokenTypes: seq[string], data: var seq[Color]) =
     of StatementKind.Loop:
         discard
     of StatementKind.LetSection, StatementKind.VarSection:
-        for e in self.iddefs:
-            e.coloring(tokenTypes, data)
+        self.iddefSection.coloring(tokenTypes, data)
     of StatementKind.ConstSection:
         discard
     of StatementKind.TypeSection:

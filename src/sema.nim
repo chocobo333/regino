@@ -1,6 +1,4 @@
 
-import options
-
 import il
 import typeenv
 import errors

@@ -7,7 +7,6 @@ import options
 
 import il
 import symbols
-import ../utils
 
 
 proc literal*(_: typedesc[Value], lit: Literal): Value =

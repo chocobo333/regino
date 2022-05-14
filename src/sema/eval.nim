@@ -11,7 +11,6 @@ import ../il
 import ../typeenv
 import ../errors
 
-import ../orders
 import ../utils
 import ../lineinfos
 

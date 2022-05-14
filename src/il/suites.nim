@@ -1,5 +1,7 @@
 
 import il
+import values
+
 import ../lineinfos
 
 
@@ -12,8 +14,6 @@ converter toSuite*(stmts: seq[Statement]): Suite =
 proc isFailed*(self: Suite): bool =
     self.stmts.len == 1 and self.stmts[0].kind == StatementKind.Fail
 
-import stmts
-import values
 proc typ*(self: Suite|Program): Value =
     if self.stmts.len == 0:
         Value.Unit

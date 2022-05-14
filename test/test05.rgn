@@ -12,6 +12,7 @@ func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
 func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
 func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
 func `+`(a: int, b: int) -> int:
+    ## adds two integer and outputs its result
     `add@int32/int32int32`(a, b)
 func `-`(a: int, b: int) -> int:
     `sub@int32/int32int32`(a, b)
@@ -19,6 +20,7 @@ func `==`(a: int, b: int) -> bool:
     `eq@bool/int32int32`(a, b)
 
 func fib(n: int) -> int:
+    ## calculates `n`th Fibonacci number
     if n == 0:
         1
     elif n == 1:
