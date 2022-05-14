@@ -575,14 +575,14 @@ proc resolve*(self: TypeEnv) =
 
         # for n in sorted.reversed:
         for e in self.tvs:
-            if e.tv.lb <= e.tv.ub and e.tv.ub.compilable:
-                self.bindtv(e, e.tv.ub)
+            if e.tv.lb <= e.tv.ub and e.tv.lb.compilable:
+                self.bindtv(e, e.tv.lb)
                 self.coerce(e)
                 isChanged = true
         cont
         for e in self.tvs:
-            if e.tv.lb <= e.tv.ub and e.tv.lb.compilable:
-                self.bindtv(e, e.tv.lb)
+            if e.tv.lb <= e.tv.ub and e.tv.ub.compilable:
+                self.bindtv(e, e.tv.ub)
                 self.coerce(e)
                 isChanged = true
         cont
