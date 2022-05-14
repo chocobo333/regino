@@ -2,6 +2,7 @@
 ![link: "arith.ll"]
 ![link: "io.ll"]
 ![link: "int.ll"]
+![link: "float.ll"]
 ![link: "string.ll"]
 
 
@@ -86,10 +87,12 @@ func `==`(a: int, b: int) -> bool:
     `eq@bool/int32int32`(a, b)
 
 func `tos@string/i32`(a: int) -> string ![importll]
+func `tos@string/float`(a: float) -> string ![importll]
+func `to@float/i32`(a: int) -> float ![importll]
 func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
 func `$`(a: float) -> string ![subtype]:
-    "float"
+    `tos@string/float`(a)
 func `$`[T <: string, U <: string]((a, b): (T, U)) -> string:
     let a: string = a
     a
@@ -100,7 +103,7 @@ func toInt(a: bool) -> int ![subtype]:
     else:
         0
 func toFloat(a: int) -> float ![subtype]:
-    0.0
+    `to@float/i32`(a)
 func `$`(a: bool) -> string ![subtype]:
     if a:
         "true"
@@ -124,8 +127,7 @@ func `$`(self: Vector2) -> string ![subtype]:
 let a = newVector2(3, 5)
 echo $a
 let
-    x = a.x
-    y = a.y
+    (x, y) = (a.x, a.y)
 echo $x
 echo y
 # func `$`(self: Shape) -> string:

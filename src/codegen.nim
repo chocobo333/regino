@@ -374,7 +374,7 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
     of ExpressionKind.Postfix:
         nil
     of ExpressionKind.Block:
-        nil
+        self.`block`.codegen(module)
     of ExpressionKind.Lambda:
         nil
     of ExpressionKind.Malloc:
@@ -405,19 +405,18 @@ proc codegen(self: Pattern, module: Module, typ: Value, val: LValue, global: boo
         sym.lty = typ
         discard module.curBuilder.store(val, p, $self)
     of PatternKind.Tuple:
-        assert false, "notimplemented"
-        # assert typ.kind == ValueKind.Pair
-        # case self.patterns.len
-        # of 0:
-        #     discard
-        # of 1:
-        #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
-        # of 2:
-        #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
-        #     codegen(self.patterns[1], module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
-        # else:
-        #     codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
-        #     codegen(Expression.Tuple(self.patterns[1..^1]), module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
+        assert typ.kind == ValueKind.Pair
+        case self.patterns.len
+        of 0:
+            discard
+        of 1:
+            codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+        of 2:
+            codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+            codegen(self.patterns[1], module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
+        else:
+            codegen(self.patterns[0], module, typ.first, module.curBuilder.extractvalue(val, 0, $self), global)
+            codegen(Pattern.Tuple(self.patterns[1..^1]), module, typ.second, module.curBuilder.extractvalue(val, 1, $self), global)
     of PatternKind.Record:
         assert false, "notimplemented"
         for (i, idpat) in self.members.pairs:

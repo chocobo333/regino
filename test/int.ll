@@ -6,6 +6,11 @@ declare i32 @sprintf(i8*, i8*, ...)
 
 @fmt = constant [3 x i8] c"%d\00"
 
+define float @"to@float/i32"(i32) {
+    %ret = sitofp i32 %0 to float
+    ret float %ret
+}
+
 define void @"tos@string/i32"(i32, %string*) {
     %len = sitofp i32 %0 to float
     %len2 = call float @log10f(float %len)
