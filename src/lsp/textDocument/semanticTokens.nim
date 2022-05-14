@@ -3,7 +3,6 @@ import streams
 import json
 import tables
 import strformat
-import sequtils
 import options
 
 import ../lspschema

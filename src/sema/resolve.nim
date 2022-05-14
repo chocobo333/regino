@@ -4,7 +4,6 @@ import sets
 import tables
 import strformat
 import sugar
-import algorithm
 
 import coerce
 

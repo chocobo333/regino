@@ -19,10 +19,6 @@ import lsp/[
 import
     il,
     parsers,
-    sema,
-    typeenv,
-    # codegen,
-    utils,
     errors
 import lineinfos except Position, Location
 type rPosition = lineinfos.Position
