@@ -124,8 +124,7 @@ func `$`(self: Vector2) -> string ![subtype]:
 let a = newVector2(3, 5)
 echo $a
 let
-    x = a.x
-    y = a.y
+    (x, y) = (a.x, a.y)
 echo $x
 echo y
 # func `$`(self: Shape) -> string:
