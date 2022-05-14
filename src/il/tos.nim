@@ -23,7 +23,8 @@ proc `$`*(self: Region, typed: bool = false, regioned: bool = false, comment: bo
 proc `$`*(self: Comment, typed: bool = false, regioned: bool = false, comment: bool = false): string = 
     if self.isDoc: "##" & self.s else: "#" & self.s
 proc `$`*(self: seq[Comment], typed: bool = false, regioned: bool = false, comment: bool = false): string = 
-    self.mapIt(`$`(self, typed, regioned, comment)).join("\n")
+    if comment: self.mapIt(`$`(it, typed, regioned, comment)).join("\n")
+    else: self.filterIt(it.isDoc).mapIt(`$`(it, typed, regioned, comment)).join("\n")
 proc `$`*(self: Literal, typed: bool = false, regioned: bool = false, comment: bool = false): string =
     case self.kind
     of LiteralKind.unit:
@@ -276,19 +277,21 @@ proc `$`*(self: Function, typed: bool = false, regioned: bool = false, comment: 
         id = `$`(self.id, typed, regioned, comment)
         param = `$`(self.param, typed, regioned, comment)
         metadata = if self.metadata.isNone: "" else: fmt" {self.metadata.get}"
-        suite = if self.suite.isNone: "" else: fmt"{`$`(self.suite.get, typed, regioned, comment)}"
-    &"{fn} {id}{param}{metadata}:\n{suite}"
+        suite = if self.suite.isNone: "" else: ":\n" & fmt"{`$`(self.suite.get, typed, regioned, comment)}"
+    &"{fn} {id}{param}{metadata}{suite}"
 
 proc `$`*(self: IdentDefSection, typed: bool = false, regioned: bool = false, comment: bool = false): string = 
     let
+        # comments = if comment and self.comments.len != 0: self.comments.mapIt(`$`(it, typed, regioned, comment)).join("\n") & "\n" else: ""
         comments = if self.comments.len != 0: self.comments.mapIt(`$`(it, typed, regioned, comment)).join("\n") & "\n" else: ""
         iddefs = self.iddefs.mapIt(`$`(it, typed, regioned, comment)).join("\n")
-    comments & iddefs
+    fmt"{comments}{iddefs}"
 proc `$`*(self: TypeDefSection, typed: bool = false, regioned: bool = false, comment: bool = false): string =
     let
+        # comments = if comment and self.comments.len != 0: self.comments.mapIt(`$`(it, typed, regioned, comment)).join("\n") & "\n" else: ""
         comments = if self.comments.len != 0: self.comments.mapIt(`$`(it, typed, regioned, comment)).join("\n") & "\n" else: ""
         typedefs = self.typedefs.mapIt(`$`(it, typed, regioned, comment)).join("\n")
-    comments & typedefs
+    fmt"{comments}{typedefs}"
 proc `$`*(self: Statement, typed: bool = false, regioned: bool = false, comment: bool = false): string =
     case self.kind
     of StatementKind.For:
@@ -340,7 +343,7 @@ proc `$`*(self: Statement, typed: bool = false, regioned: bool = false, comment:
         else:
             fmt"discard"
     of StatementKind.Comments:
-        self.comments.mapIt(`$`(it, typed, regioned, comment)).join("\n")
+        `$`(self.comments, typed, regioned, comment)
     of StatementKind.Expression:
         `$`(self.expression, typed, regioned, comment)
     of StatementKind.Fail:
