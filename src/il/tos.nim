@@ -136,15 +136,15 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
     of ExpressionKind.Prefix:
         let
             op = `$$`(self.op, typed, regioned, comment)
-            typ = `$`(self.typ, typed, regioned, comment)
+            typ = if typed: fmt"(:{`$`(self.typ, typed, regioned, comment)})" else: ""
             expression = `$`(self.expression, typed, regioned, comment)
-        fmt"{op}(: {typ}){expression}"
+        fmt"{op}{typ}{expression}"
     of ExpressionKind.Postfix:
         let
             expression = `$`(self.expression, typed, regioned, comment)
             op = `$$`(self.op, typed, regioned, comment)
-            typ = `$`(self.op.typ, typed, regioned, comment)
-        fmt"{expression}{op}(: {typ})"
+            typ = if typed: fmt"(:{`$`(self.op.typ, typed, regioned, comment)})" else: ""
+        fmt"{expression}{op}{typ}"
     of ExpressionKind.Block:
         if self.label.isNone:
             let blck = `$`(self.`block`, typed, regioned, comment)
@@ -189,7 +189,7 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
         fmt"cast({self.int_exp}, {self.from}, {self.to})"
     of ExpressionKind.Fail:
         fmt"failed term"
-    if not self.typ.isNil:
+    if typed and not self.typ.isNil:
         let typ = `$`(self.typ, typed, regioned, comment)
         result = fmt"{result} (: {typ})"
 
