@@ -2,7 +2,6 @@ import sequtils
 import options
 import sets
 import tables
-import strformat
 import sugar
 
 import coerce
