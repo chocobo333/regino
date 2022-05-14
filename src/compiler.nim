@@ -50,6 +50,7 @@ proc compile*(filename: seq[string]): int =
             echo e
         for e in terrs:
             echo e
+        return 1
     for e in module.linkModules:
         discard module.module.link(e)
     # module = module.optimize
