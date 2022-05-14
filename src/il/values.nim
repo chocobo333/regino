@@ -46,8 +46,8 @@ proc trait*(_: typedesc[Value], paty: (Pattern, Value), iss: seq[(Pattern, Value
     Value(kind: ValueKind.Trait, paty: paty, iss: iss, fns: fns)
 proc Singleton*(_: typedesc[Value], base: Value): Value =
     Value(kind: ValueKind.Singleton, base: base)
-proc Distinct*(_: typedesc[Value], base: Value): Value =
-    Value(kind: ValueKind.Distinct, base: base)
+proc Distinct*(_: typedesc[Value], ident: Ident, base: Value): Value =
+    Value(kind: ValueKind.Distinct, ident: ident, base: base)
 proc Intersection*(_: typedesc[Value], types: HashSet[Value]): Value =
     case types.len
     of 0:
@@ -65,8 +65,8 @@ proc Union*(_: typedesc[Value], types: HashSet[Value]): Value =
     Value(kind: ValueKind.Union, types: types)
 proc Select*(_: typedesc[Value], types: seq[Value]): Value =
     Value(kind: ValueKind.Select, types: types.toHashSet)
-proc Family*(_: typedesc[Value], implicit: seq[GenericType], rety: Value): Value =
-    Value(kind: ValueKind.Family, implicit: implicit, rety: rety)
+proc Family*(_: typedesc[Value], implicit: seq[GenericType], rety: Value, instances: seq[Value] = @[]): Value =
+    Value(kind: ValueKind.Family, implicit: implicit, rety: rety, instances: instances)
 proc Lambda*(_: typedesc[Value], l_params: seq[Ident], suite: Suite): Value =
     Value(kind: ValueKind.Lambda, l_param: l_params, suite: suite)
 proc Cons*(_: typedesc[Value], constructor: Value, args: seq[Value]): Value =
@@ -93,6 +93,8 @@ proc dual*(self: Value): Value =
         self
 
 proc hash*(self: Value): Hash =
+    if self.kind == ValueKind.Link:
+        return self.to.hash
     result = self.kind.int
     result = result !& (
         case self.kind
@@ -119,21 +121,22 @@ proc hash*(self: Value): Hash =
         of ValueKind.ArrayV:
             0
         of ValueKind.Record:
-            0
+            toSeq(self.members.pairs).mapIt(it[0].name.hash !& it[1].hash).foldl(a !& b)
         of ValueKind.Ptr:
-            0
+            self.pointee.hash
         of ValueKind.Pi:
-            0
+            self.params.foldl(a !& b.hash, 0) !&
+            self.rety.hash
         of ValueKind.Family:
             0
         of ValueKind.Sum:
-            0
+            toSeq(self.constructors.keys).foldl(a !& b.name.hash, 0)
         of ValueKind.Trait:
             0
         of ValueKind.Singleton:
             0
         of ValueKind.Distinct:
-            0
+            self.ident.name.hash !& self.base.hash
         of ValueKind.Intersection:
             0
         of ValueKind.Union:
@@ -145,7 +148,7 @@ proc hash*(self: Value): Hash =
         of ValueKind.Cons:
             0
         of ValueKind.Var:
-            0
+            self.tv.id
         of ValueKind.Gen:
             0
         of ValueKind.Link:
@@ -223,6 +226,14 @@ proc typ*(self: Literal): Value =
         Value.Univ(self.level+1)
 proc isUniv*(self: Value): bool =
     self.kind == ValueKind.Literal and self.litval.kind == LiteralKind.Univ
+proc tupleLen*(self: Value): int =
+    if self.kind == ValueKind.Unit:
+        0
+    elif self.kind == ValueKind.Pair:
+        1 + self.second.tupleLen
+    else:
+        1
+
 proc typ*(self: Value): Value =
     case self.kind
     of ValueKind.Literal:
@@ -294,7 +305,11 @@ proc typ*(self: Value): Value =
 import literals
 import idents
 proc `==`*(t1, t2: Value): bool =
-    if t1.kind == t2.kind:
+    if t1.kind == ValueKind.Link:
+        t1.to == t2
+    elif t2.kind == ValueKind.Link:
+        t1 == t2.to
+    elif t1.kind == t2.kind:
         case t1.kind
         of ValueKind.Literal:
             t1.litval == t2.litval
@@ -329,8 +344,7 @@ proc `==`*(t1, t2: Value): bool =
         of ValueKind.Family:
             t1.implicit == t2.implicit and t1.rety == t2.rety
         of ValueKind.Sum:
-            assert false, "notimplemented"
-            true
+            t1.constructors == t2.constructors
         of ValueKind.Trait:
             assert false, "notimplemented"
             true

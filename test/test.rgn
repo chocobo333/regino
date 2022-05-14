@@ -22,8 +22,6 @@
 
 
 # type
-#     ptr[T] = typeof(malloc(T, 1))
-# type
 #     Magma = trait (T, op): ([T], func(T, T) -> T)
 #     Magma = trait (T, op): (Type, func(T, T) -> T)
 #     SemiGroup = trait (T, op): (Type, func(T, T) -> T) with
@@ -39,6 +37,7 @@
 # seq[T] = (p: ptr T, len: int, size: int)
 
 type
+    ptr[T] = typeof(malloc(T, 1))
     bool = typeof(false)
     int = typeof(0)
     int32 = typeof(0'i32)
@@ -47,15 +46,23 @@ type
     char = typeof('a')
     pairWithInt[T] = (int, T)
     pair[T, U] = (T, U)
-    
-    Nat = ref variant
-        Zero
-        Succ(Nat)
-    List[T] = ref variant
-        Nil
-        Cons(head: T, tail: List[T])
 
-# func sum(l: List[int32]) -> int32:
+    Vector2 = object
+        x: float
+        y: float
+
+    Shape = variant
+        Empty
+        Point(Vector2)
+        Rectangle(p: Vector2, w: int, h: int)
+# Nat = ref variant
+#     Zero
+#     Succ(Nat)
+# List[T] = ref variant
+#     Nil
+#     Cons(head: T, tail: List[T])
+
+# func sum(l: List[int]) -> int:
 #     case l
 #     of Nil:
 #         0
@@ -92,6 +99,8 @@ func toInt(a: bool) -> int ![subtype]:
         1
     else:
         0
+func toFloat(a: int) -> float ![subtype]:
+    0.0
 func `$`(a: bool) -> string ![subtype]:
     if a:
         "true"
@@ -107,25 +116,19 @@ func fib(n: int) -> int:
         1
     else:
         fib(n-1) + fib(n-2)
-
-
-# echo "Hello world!"
-# let a = malloc(int, 3)
-# let c: pairWithInt[int] = (3, 3)
-# let b: ptr[int] = malloc(int, 3)
-# echo fib(10)
-# var d = 4
-# d = 5
-# echo d
-# func f(a: int) -> int:
-#     3
-# func f(a: int) -> float:
-#     4.5
-echo $(3, 4)
-echo $3
+func newVector2(x: float, y: float) -> Vector2:
+    let a: (x: float, y: float) = (x: x, y: y)
+    a
+func `$`(self: Vector2) -> string ![subtype]:
+    "vector2"
+let a = newVector2(3, 5)
 let
-    a = 3
-    b: pairWithInt[int] = (3, 4)
-echo a
-echo id a
+    x = a.x
+    y = a.y
+echo $x
+echo y
+func `$`(self: Shape) -> string:
+    "shape"
+let s = Empty
+echo $s
 0

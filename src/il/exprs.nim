@@ -49,6 +49,8 @@ proc Ref*(_: typedesc[Expression], `ref`: Expression, loc: Location = newLocatio
     Expression(kind: ExpressionKind.Ref, `ref`: `ref`, loc: loc)
 proc FnType*(_: typedesc[Expression], args: openArray[Expression], rety: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.FnType, rety: rety, args: @args, loc: loc)
+proc IntCast*(_: typedesc[Expression], int_exp: Expression, `from`: uint, `to`: uint, loc: Location = newLocation(), ): Expression =
+    Expression(kind: ExpressionKind.IntCast, int_exp: int_exp, `from`: `from`, `to`: `to`, loc: loc)
 proc Fail*(_: typedesc[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Fail, loc: loc)
 

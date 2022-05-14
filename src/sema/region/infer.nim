@@ -521,6 +521,8 @@ proc infer(self: Expression, env: RegionEnv, suite: Region) =
         discard
     of ExpressionKind.FnType:
         discard
+    of ExpressionKind.IntCast:
+        discard
     of ExpressionKind.Fail:
         discard
 proc infer(self: Pattern, env: RegionEnv, suite: Region) =

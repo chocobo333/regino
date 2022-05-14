@@ -5,31 +5,42 @@
 ![link: "string.ll"]
 
 type
-  int = typeof(0)
+  # hogehugo
+  # hogehugo
+  int = typeof(0) # hoge
+  # hoge
   float = typeof(0.0)
-  string = typeof("")
+  string = typeof("") # string
+  # hoge
 
 func toFloat(a: int) -> float ![subtype]:
   0.0
 
-func f(a: float) -> int:
-  1
+func f(a: int) -> float
+
+func g(a: int) -> float: 0.0
+
+func h(a: int) -> float:
+  0.0
+
 func f(a: float) -> float:
-  1.0
-func id[T](a: T) -> T:
-    a
-func id(a: int) -> int:
-    0
+  ## hoge
+  # hoge
+  ## hoge
+  0.0
 
 var
-  a: int = 1
-  b: int = f(0.0)
-  c: float = f(0.0)
-  d = f(0.0)
-  e = id 3
-  f: int
-  g = id "4"
-  h: int = id 3
-f = f(a)
+  # hogehugo
+  a = 1 # hoge
+  ## hugo
+  # hugo
+  ## hugo
+  b = 1 # hoge
+  # hugo
+  # hugo
 
+# hoge
+# hogehoge
+# hogehogehoge
 
+f(1)

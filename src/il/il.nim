@@ -27,6 +27,15 @@ type
         Comments        ## comments or docuents
         Expression      ## expression and only this has a type
         Fail            ## occuring compiler-internal error
+    Comment* = ref object
+        s*: string
+        isDoc*: bool
+    IdentDefSection* = ref object
+        iddefs*: seq[IdentDef]
+        comments*: seq[Comment]
+    TypeDefSection* = ref object
+        typedefs*: seq[TypeDef]
+        comments*: seq[Comment]
     Statement* = ref StatementObject
     StatementObject = object
         ## that represents a statement
@@ -39,9 +48,9 @@ type
         of StatementKind.While:
             branch*: ElifBranch
         of StatementKind.LetSection, StatementKind.VarSection, StatementKind.ConstSection:
-            iddefs*: seq[IdentDef]
+            iddefSection*: IdentDefSection
         of StatementKind.TypeSection:
-            typedefs*: seq[TypeDef]
+            typedefSection*: TypeDefSection
         of StatementKind.For, StatementKind.Asign:
             pat*: Pattern
             val*: Expression
@@ -54,7 +63,7 @@ type
         of StatementKind.Discard:
             `discard`*: Option[Expression]
         of StatementKind.Comments:
-            comments*: seq[string]
+            comments*: seq[Comment]
         of StatementKind.Expression:
             expression*: Expression
         of StatementKind.Fail:
@@ -71,16 +80,21 @@ type
         consts*: Table[string, seq[Symbol]] # deprecated
         typeOrder*: Order[Value]  # cumulative
         converters*: Table[(Value, Value), Ident]
+    DefKind* {.pure.} = enum
+        Def
+        Comment
     IdentDef* = ref object
-        # represents `pat: typ = default`
+        # represents `pat: typ = default # docStr`
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
+        comments*: seq[Comment]
     TypeDef* = ref object
         # represents `pat[params] = typ`
         id*: Ident
         params*: Option[seq[GenTypeDef]]
         typ*: TypeExpression
+        comments*: seq[Comment]
     GenTypeDef* = ref object
         # represents `id <: ub`
         id*: Ident
@@ -96,7 +110,7 @@ type
         id*: Ident
         param*: FunctionParam
         metadata*: Option[Metadata]
-        docStr*: Option[seq[string]]
+        docStr*: seq[Comment]
         suite*: Option[Suite]
     ExpressionKind* {.pure.} = enum
         Literal
@@ -120,6 +134,7 @@ type
         Typeof
         Ref
         FnType
+        IntCast
         Fail
     Expression* = ref ExpressionObject
     ExpressionObject = object
@@ -164,6 +179,10 @@ type
             `typeof`*: Expression
         of ExpressionKind.Ref:
             `ref`*: Expression
+        of ExpressionKind.IntCast:
+            int_exp*: Expression
+            `from`*: uint
+            `to`*: uint
         of ExpressionKind.Fail:
             nil
     TypeExpressionKind* {.pure.} = enum
@@ -316,7 +335,6 @@ type
         Link
     Value* = ref ValueObject
     ValueObject = object
-        ident*: Option[Ident]
         symbol*: Option[Symbol]
         region*: Region
         case kind*: ValueKind
@@ -332,6 +350,7 @@ type
             first*: Value
             second*: Value
         of ValueKind.Array, ValueKind.Singleton, ValueKind.Distinct:
+            ident*: Ident
             base*: Value
         of ValueKind.ArrayV:
             vals*: seq[Value]
@@ -383,6 +402,8 @@ type
         Typ
         GenParam
         Func
+        Field
+        Enum
     SymbolId = int
     Symbol* = ref SymbolObject
     SymbolObject* = object
@@ -397,6 +418,10 @@ type
         of SymbolKind.Func:
             decl_funcdef*: Function                 ## declaration
             constraints*: seq[(Region, Region)]     ## function has some region-constraints concerned its paramteres
+        of SymbolKind.Field:
+            fielddef*: (Ident, TypeExpression)
+        of SymbolKind.Enum:
+            enumdef*: SumConstructor
         global*: bool                   ## is global?
         val*: Value                     ## symbol hold a value
         typ*: Value                     ## symbol has a type

@@ -12,14 +12,18 @@ import il
 import ../lineinfos
 
 
-proc `$`*(self: Statement): string
-proc `$`*(self: Expression): string
+proc `$`*(self: Statement, typed: bool = false): string
+proc `$`*(self: Expression, typed: bool = false): string
 proc `$`*(self: FunctionParam): string
 proc `$`*(self: TypeExpression): string
 proc `$`*(self: Pattern): string
 proc `$`*(self: Suite): string
 proc `$`*(self: Value): string
 proc `$`*(self: Region): string
+proc `$`*(self: Comment): string =
+    if self.isDoc: "##" & self.s else: "#" & self.s
+proc `$`*(self: seq[Comment]): string =
+    self.map(`$`).join("\n")
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.unit:
@@ -53,24 +57,24 @@ proc `$`*(self: Ident): string =
 proc `$$`*(self: Ident): string =
     self.name
 proc `$`*(self: Suite): string =
-    self.stmts.map(`$`).join("\n").indent(2)
+    self.stmts.mapIt($it).join("\n").indent(2)
 proc `$`*(self: ElifBranch): string =
     let suite = $self.suite
     &"elif {self.cond}:\n{suite}"
 proc `$`*(self: OfBranch): string =
     let suite = $self.suite
     &"of {self.pat}:\n{suite}"
-proc `$`*(self: Expression): string =
+proc `$`*(self: Expression, typed: bool = false): string =
     result = case self.kind
     of ExpressionKind.Literal:
         $self.litval
     of ExpressionKind.Ident:
         $self.ident
     of ExpressionKind.Tuple:
-        let s = self.exprs.join(", ")
+        let s = self.exprs.mapIt(`$`(it, typed)).join(", ")
         fmt"({s})"
     of ExpressionKind.Array:
-        let s = self.exprs.join(", ")
+        let s = self.exprs.mapIt(`$`(it, typed)).join(", ")
         fmt"[{s}]"
     of ExpressionKind.Record:
         let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
@@ -135,6 +139,8 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.FnType:
         let args = self.args.join(", ")
         fmt"func({args}) -> {self.rety}"
+    of ExpressionKind.IntCast:
+        fmt"cast({self.int_exp}, {self.from}, {self.to})"
     of ExpressionKind.Fail:
         fmt"failed term"
     if not self.typ.isNil:
@@ -182,7 +188,8 @@ proc `$`*(self: IdentDef): string =
         pat = $self.pat
         typ = if self.typ.isNone: "" else: fmt": {self.typ.get}"
         default = if self.default.isNone: "" else: fmt" = {self.default.get}"
-    pat & typ & default
+        comments = if self.comments.len != 0: "\n" & fmt"{self.comments}" else: ""
+    fmt"{pat}{typ}{default}{comments}"
 proc `$`*(self: GenTypeDef): string =
     let ub = if self.ub.isSome: fmt" <: {self.ub.get}" else: ""
     fmt"{self.id}{ub}"
@@ -196,7 +203,8 @@ proc `$`*(self: TypeDef): string =
                 let params = self.params.get.map(`$`).join(", ")
                 fmt"[{params}]"
         typ = $self.typ
-    fmt"{id}{params} = {typ}"
+        comments = if self.comments.len != 0: "\n" & fmt"{self.comments}" else: ""
+    fmt"{id}{params} = {typ}{comments}"
 proc `$`*(self: FunctionParam): string =
     let
         implicit = block:
@@ -215,7 +223,18 @@ proc `$`*(self: Function): string =
         metadata = if self.metadata.isNone: "" else: fmt" {self.metadata.get}"
         suite = if self.suite.isNone: "" else: fmt"{self.suite.get}"
     &"{fn} {self.id}{self.param}{metadata}:\n{suite}"
-proc `$`*(self: Statement): string =
+
+proc `$`*(self: IdentDefSection): string =
+    let
+        comments = if self.comments.len != 0: self.comments.map(`$`).join("\n") & "\n" else: ""
+        iddefs = self.iddefs.map(`$`).join("\n")
+    comments & iddefs
+proc `$`*(self: TypeDefSection): string =
+    let
+        comments = if self.comments.len != 0: self.comments.map(`$`).join("\n") & "\n" else: ""
+        typedefs = self.typedefs.map(`$`).join("\n")
+    comments & typedefs
+proc `$`*(self: Statement, typed: bool = false): string =
     case self.kind
     of StatementKind.For:
         &"for {self.pat} in {self.val}:\n{self.suite}"
@@ -227,17 +246,17 @@ proc `$`*(self: Statement): string =
         else:
             &"loop {self.label.get}\n{self.`block`}"
     of StatementKind.LetSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"let\n{iddefs}"
+        "let\n" & fmt"{self.iddefSection}".indent(2)
     of StatementKind.VarSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"var\n{iddefs}"
+        "var\n" & fmt"{self.iddefSection}".indent(2)
     of StatementKind.ConstSection:
-        let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
-        &"const\n{iddefs}"
+        "const\n" & fmt"{self.iddefSection}".indent(2)
+        # let iddefs = self.iddefs.map(`$`).join("\n").indent(2)
+        # &"const\n{iddefs}"
     of StatementKind.TypeSection:
-        let typedefs = self.typedefs.map(`$`).join("\n").indent(2)
-        &"type\n{typedefs}"
+        "type\n" & fmt"{self.typedefSection}".indent(2)
+        # let typedefs = self.typedefs.map(`$`).join("\n").indent(2)
+        # &"type\n{typedefs}"
     of StatementKind.Asign:
         fmt"{self.pat} = {self.val}"
     of StatementKind.Funcdef:
@@ -250,7 +269,7 @@ proc `$`*(self: Statement): string =
         else:
             fmt"discard"
     of StatementKind.Comments:
-        "#" & self.comments.join("\n#")
+        self.comments.join("\n")
     of StatementKind.Expression:
         $self.expression
     of StatementKind.Fail:
@@ -313,7 +332,7 @@ proc `$`*(self: TypeExpression): string =
             $self.expression
     )
 proc `$`*(self: Program): string =
-    self.stmts.map(`$`).join("\n")
+    self.stmts.mapIt($it).join("\n")
 
 proc id2s(self: int): string =
     let
@@ -336,8 +355,6 @@ proc `$$`*(self: GenericType): string =
     let ub = if self.ub.kind != ValueKind.Unit: fmt" <: {self.ub}" else: ""
     fmt"{self.ident.name}{ub}"
 proc `$`*(self: Value): string =
-    if self.ident.isSome:
-        return self.ident.get.name
     result = case self.kind
     of ValueKind.Literal:
         $self.litval
@@ -405,7 +422,15 @@ proc `$`*(self: Value): string =
     of ValueKind.Singleton:
         fmt"sigleton[{self.base}]"
     of ValueKind.Distinct:
-        fmt"distinct {self.base}"
+        self.ident.name
+        # case self.base.kind
+        # of ValueKind.Record:
+        #     var members: string
+        #     for (id, val) in self.base.members.pairs:
+        #         members.add &"\n  {id}: {val}"
+        #     &"{self.ident}{members}"
+        # else:
+        #     fmt"distinct {self.base}"
     of ValueKind.Intersection:
         toSeq(self.types).join("^")
     of ValueKind.Union:
@@ -451,6 +476,10 @@ proc `$`*(self: Symbol): string =
                 $self.decl_typedef
             of SymbolKind.GenParam:
                 $self.decl_gendef
+            of SymbolKind.Field:
+                $self.fielddef
+            of SymbolKind.Enum:
+                $self.enumdef
         loc = self.id.loc
     fmt"{loc}: ({kind}){id}: {typ} ({impl})"
 proc `$`*(self: Scope): string =
@@ -554,6 +583,8 @@ proc treeRepr*(self: Expression): string =
     of ExpressionKind.FnType:
         let args = self.args.join(", ")
         fmt"func({args}) -> {self.rety}"
+    of ExpressionKind.IntCast:
+        $self
     of ExpressionKind.Fail:
         fmt"failed term"
 

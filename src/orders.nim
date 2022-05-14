@@ -7,6 +7,7 @@ import tables
 import options
 import sugar
 import sets
+import hashes
 
 import utils
 
@@ -35,6 +36,8 @@ proc outdegree*[T](self: Order[T], key: T): int =
     else:
         0
 proc add*[T](self: var Order[T], val: (T, T)) =
+    if val[0].hash == val[1].hash and val[0] == val[1]:
+        return
     self.primal[val[0]] = val[1]
     self.dual[val[1]] = val[0]
 proc remove*[T](self: var Order[T], val: (T, T)) =

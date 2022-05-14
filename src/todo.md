@@ -1,8 +1,11 @@
 ## TODOs
-* global value
-* ptr type
+* import system
+* case statement
 * Sum type
 * Sum pattern
+* global value
+* ptr type
+* return, break, continue
 * pattern exaustivity
 * tuple, list, record and distinct type, object
 * ref type

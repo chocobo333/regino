@@ -57,6 +57,8 @@ proc setScope(self: Expression, parent: Scope) =
         for arg in self.args:
             arg.setScope(parent)
         self.rety.setScope(parent)
+    of ExpressionKind.IntCast:
+        discard
     of ExpressionKind.Fail:
         discard
 proc setScope(self: Pattern, parent: Scope) =
@@ -150,6 +152,12 @@ proc setScope(self: TypeDef, parent: Scope) =
         for iddef in self.params.get:
             iddef.setScope(parent)
     self.typ.setScope(parent)
+proc setScope(self: IdentDefSection, parent: Scope) = 
+    for iddef in self.iddefs:
+        iddef.setScope(parent)
+proc setScope(self: TypeDefSection, parent: Scope) = 
+    for typedef in self.typedefs:
+        typedef.setScope(parent)
 proc setScope(self: Statement, parent: Scope) =
     case self.kind
     of StatementKind.Loop:
@@ -161,11 +169,9 @@ proc setScope(self: Statement, parent: Scope) =
     of StatementKind.While:
         self.branch.setScope(parent)
     of StatementKind.LetSection, StatementKind.VarSection, StatementKind.ConstSection:
-        for iddef in self.iddefs:
-            iddef.setScope(parent)
+        self.iddefSection.setScope(parent)
     of StatementKind.TypeSection:
-        for iddef in self.typedefs:
-            iddef.setScope(parent)
+        self.typedefSection.setScope(parent)
     of StatementKind.Asign:
         self.pat.setScope(parent)
         self.val.setScope(parent)
