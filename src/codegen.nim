@@ -136,7 +136,11 @@ proc codegen(self: Literal, module: Module, global: bool = false): LValue =
             intty = newLType(Value.Integer(bits), module)
         intty.constInt(int i)
     of LiteralKind.float:
-        nil
+        let
+            f = self.floatval
+            bits = self.floatbits
+            floatty = newLType(Value.Float(bits), module)
+        floatty.constReal(f)
     of LiteralKind.char:
         nil
     of LiteralKind.string:
@@ -304,7 +308,26 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
         else:
             module.curBuilder.call(op2, @[lhs2, rhs2])
     of ExpressionKind.Prefix:
-        nil
+        let
+            callee = self.op
+            args = self.expression
+            callee2 = codegen(callee, module)
+            args2 = @[args.codegen(module)]
+            rety = newLType(self.typ, module)
+        # TODO: check returning void
+        # module.curBuilder.call(callee2, args2, $self)
+        # if self.typ.hasRegion:
+        #     let ret = module.curBuilder.alloca(rety, "*" & $self)
+        #     discard module.curBuilder.call(callee2, args2 & ret)
+        #     module.curBuilder.load(rety, ret, $self)
+        # else:
+        let res = if self.typ.hasRegion:
+            let ret = module.curBuilder.alloca(rety, "*" & $self)
+            discard module.curBuilder.call(callee2, args2 & ret)
+            module.curBuilder.load(rety, ret, $self)
+        else:
+            module.curBuilder.call(callee2, args2)
+        res
     of ExpressionKind.Postfix:
         nil
     of ExpressionKind.Block:
@@ -521,7 +544,7 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
         nil
 
 proc codegen*(self: Program, module: Module, global: bool = false) =
-    debug self.typ
+    # debug self.typ
     let
         rety = self.typ.newLType(module)
         fnty = functionType(rety, @[])
@@ -534,4 +557,4 @@ proc codegen*(self: Program, module: Module, global: bool = false) =
             module.curBuilder.ret(res)
         else:
             module.curBuilder.retVoid
-    debug module.module
+    # debug module.module
