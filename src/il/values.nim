@@ -199,7 +199,7 @@ proc compilable*(self: Value): bool =
     of ValueKind.Link:
         self.to.compilable
     of ValueKind.Var:
-        assert false
+        # assert false
         false
     of ValueKind.Singleton:
         false

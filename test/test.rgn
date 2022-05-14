@@ -5,6 +5,8 @@
 ![link: "float.ll"]
 ![link: "string.ll"]
 
+import types
+
 
 # const
 #     ptr[T, n: int] = typeof(malloc[T, n]())
@@ -40,7 +42,7 @@
 type
     ptr[T] = typeof(malloc(T, 1))
     bool = typeof(false)
-    int = typeof(0)
+    # int = typeof(0)
     int32 = typeof(0'i32)
     float = typeof(0.0)
     string = typeof("")

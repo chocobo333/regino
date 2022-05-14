@@ -566,7 +566,11 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
             debug v1
             debug v2
             nil
-    result.inserted = true
+    if result.isNil:
+        self.errs.add TypeError.NoCoercion(v1, v2, e.loc)
+        result = e
+    else:
+        result.inserted = true
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
     assert e.typ <= v
@@ -645,7 +649,7 @@ proc check(self: Expression, env: TypeEnv) =
             self.args[i].check(env)
             self.callee.typ.params[i].resolveLink
             self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i])
-        if self.callee.typ.symbol.get.kind == SymbolKind.Func:
+        if self.callee.typ.symbol.isSome and self.callee.typ.symbol.get.kind == SymbolKind.Func:
             let
                 calleety = self.callee.typ
                 args = self.args.mapIt(it.typ)
