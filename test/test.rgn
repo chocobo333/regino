@@ -51,10 +51,10 @@ type
         x: float
         y: float
 
-    Shape = variant
-        Empty
-        Point(Vector2)
-        Rectangle(p: Vector2, w: int, h: int)
+# Shape = variant
+#     Empty
+#     Point(Vector2)
+#     Rectangle(p: Vector2, w: int, h: int)
 # Nat = ref variant
 #     Zero
 #     Succ(Nat)
@@ -122,13 +122,14 @@ func newVector2(x: float, y: float) -> Vector2:
 func `$`(self: Vector2) -> string ![subtype]:
     "vector2"
 let a = newVector2(3, 5)
+echo $a
 let
     x = a.x
     y = a.y
 echo $x
 echo y
-func `$`(self: Shape) -> string:
-    "shape"
-let s = Empty
-echo $s
+# func `$`(self: Shape) -> string:
+#     "shape"
+# let s = Empty
+# echo $s
 0
