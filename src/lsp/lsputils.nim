@@ -98,6 +98,12 @@ proc find*(self: Function, pos: rPosition): Option[Ident] =
         result = self.suite.get.find(pos)
     if result.isNone and self.metadata.isSome:
         result = self.metadata.get.find(pos)
+proc find*(self: IdentDefSection, pos: rPosition): Option[Ident] =
+    for iddef in self.iddefs:
+        let res = iddef.find(pos)
+        if res.isSome:
+            return res
+    none(Ident)
 proc find*(self: Statement, pos: rPosition): Option[Ident] =
     case self.kind
     of StatementKind.For:
@@ -107,11 +113,7 @@ proc find*(self: Statement, pos: rPosition): Option[Ident] =
     of StatementKind.Loop:
         none(Ident)
     of StatementKind.LetSection, StatementKind.VarSection:
-        for iddef in self.iddefs:
-            let res = iddef.find(pos)
-            if res.isSome:
-                return res
-        none(Ident)
+        self.iddefSection.find(pos)
     of StatementKind.ConstSection:
         none(Ident)
     of StatementKind.TypeSection:
@@ -216,6 +218,8 @@ converter toSymbolKind*(self: il.SymbolKind): lspschema.SymbolKind =
         lspschema.SymbolKind.Function
     of il.SymbolKind.Field:
         lspschema.SymbolKind.Field
+    of il.SymbolKind.Enum:
+        lspschema.SymbolKind.Enum
 
 converter toCompletionItemKind*(self: il.SymbolKind): lspschema.CompletionItemKind =
     case self:
@@ -231,6 +235,8 @@ converter toCompletionItemKind*(self: il.SymbolKind): lspschema.CompletionItemKi
         CompletionItemKind.Function
     of il.SymbolKind.Field:
         CompletionItemKind.Field
+    of il.SymbolKind.Enum:
+        CompletionItemKind.Enum
 
 converter toSemanticTokens*(self: il.SymbolKind): lspschema.SemanticTokenTypes =
     case self
@@ -248,6 +254,8 @@ converter toSemanticTokens*(self: il.SymbolKind): lspschema.SemanticTokenTypes =
         SemanticTokenTypes.function
     of il.SymbolKind.Field:
         SemanticTokenTypes.parameter
+    of il.SymbolKind.Enum:
+        SemanticTokenTypes.enumMember
 
 
 proc scope(self: Statement, pos: rPosition): seq[Scope]

@@ -1,8 +1,6 @@
 
 import os
 
-import parsers
-import sema
 import codegen
 import errors
 import projects

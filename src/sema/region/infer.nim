@@ -539,6 +539,13 @@ proc infer(self: Pattern, env: RegionEnv, suite: Region) =
         discard
     of PatternKind.UnderScore:
         discard
+proc infer(self: IdentDefSection, env: RegionEnv, suite: Region) =
+    for e in self.iddefs:
+        e.pat.LetSymbol(env, suite)
+        if e.default.isSome:
+            e.default.get.infer(env, suite)
+            # TODO: Pattern has no region?
+            env.coerce(e.pat.typ <= e.default.get.typ)
 proc infer(self: Statement, env: RegionEnv, suite: Region) =
     self.typ.infer(env, suite)
     case self.kind
@@ -549,12 +556,7 @@ proc infer(self: Statement, env: RegionEnv, suite: Region) =
     of StatementKind.Loop:
         discard
     of StatementKind.LetSection, StatementKind.VarSection:
-        for e in self.iddefs:
-            e.pat.LetSymbol(env, suite)
-            if e.default.isSome:
-                e.default.get.infer(env, suite)
-                # TODO: Pattern has no region?
-                env.coerce(e.pat.typ <= e.default.get.typ)
+        self.iddefSection.infer(env, suite)
     of StatementKind.ConstSection:
         discard
     of StatementKind.TypeSection:

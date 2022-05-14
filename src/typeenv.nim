@@ -4,7 +4,6 @@ import tables
 import hashes
 import sequtils
 import options
-import strformat
 import sugar
 
 import il

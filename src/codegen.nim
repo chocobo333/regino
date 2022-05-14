@@ -451,6 +451,13 @@ proc codegen(self: Function, module: Module, global: bool = false) =
                     discard module.curBuilder.ret(ret)
 
 
+proc codegen(self: IdentDefSection, module: Module, global: bool = false): LValue =
+    for e in self.iddefs:
+        let
+            pat = e.pat
+            default = e.default.get
+        codegen(pat, module, default.typ, default.codegen(module, global))
+    nil
 proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     case self.kind
     of StatementKind.For:
@@ -460,12 +467,7 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     of StatementKind.Loop:
         nil
     of StatementKind.LetSection, StatementKind.VarSection:
-        for e in self.iddefs:
-            let
-                pat = e.pat
-                default = e.default.get
-            codegen(pat, module, default.typ, default.codegen(module, global))
-        nil
+        self.iddefSection.codegen(module, global)
     of StatementKind.ConstSection:
         nil
     of StatementKind.TypeSection:
