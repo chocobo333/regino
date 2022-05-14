@@ -557,7 +557,7 @@ proc `$`*(self: Value, typed: bool = false, regioned: bool = false, comment: boo
     of ValueKind.Link:
         let to = `$`(self.to, typed, regioned, comment)
         fmt"~{to}"
-    if not self.region.isNil:
+    if  regioned and not self.region.isNil:
         let region = `$`(self.region, typed, regioned, comment)
         result = fmt"({result}, {region})"
 
