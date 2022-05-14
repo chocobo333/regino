@@ -570,6 +570,7 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
         self.errs.add TypeError.NoCoercion(v1, v2, e.loc)
         result = e
     else:
+        result.loc = e.loc
         result.inserted = true
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
