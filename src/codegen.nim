@@ -3,6 +3,8 @@ import sequtils
 import tables
 import options
 import uri
+import algorithm
+import sugar
 from os import `/`, splitPath, absolutePath
 
 import il
@@ -71,7 +73,7 @@ proc newLType(typ: Value, module: Module): LType =
     of il.ValueKind.Pair:
         cxt.createStruct(@[typ.first.newLType(module), typ.second.newLType(module)])
     of il.ValueKind.Record:
-        cxt.createStruct(toSeq(typ.members.values).mapIt(it.newLType(module)))
+        cxt.createStruct(toSeq(typ.members.pairs).sortedByIt(it[0].name).mapIt(it[1].newLType(module)))
     # of il.ValueKind.Arrow:
     #     let
     #         paramty = typ.paramty.mapIt(it.newLType(module))
@@ -91,11 +93,13 @@ proc newLType(typ: Value, module: Module): LType =
     #         paramty = typ.paramty.mapIt(it.newLType(module))
     #         rety = typ.rety.newLType(module)
     #     pointerType(functionType(rety, paramty))
+    of il.ValueKind.Distinct:
+        newLType(typ.base, module)
     of il.ValueKind.Link:
         newLType(typ.to, module)
     else:
-        echo typ
-        echo typ.kind
+        debug typ
+        debug typ.kind
         assert false, "notimplemnted"
         nil
 
@@ -165,6 +169,15 @@ proc codegen(self: Ident, module: Module, global: bool = false, lval: bool = fal
         sym = self.sym
         val = sym.val
         ty = sym.lty
+    if self.typ.symbol.get.kind == SymbolKind.Field:
+        if val.isNil and ty.isNil:
+            let
+                symbol = self.typ.symbol.get
+                obj = symbol.typ.params[0].newLType(module)
+                typ = symbol.typ.rety.newLType(module)
+            debug obj
+            debug typ
+            # TODO:
     if val.kind == llvm.ValueKind.FunctionValueKind:
         val
     else:
@@ -196,7 +209,17 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
     of ExpressionKind.Array:
         nil
     of ExpressionKind.Record:
-        nil
+        let
+            typ = self.typ.newLType(module)
+            alloca = module.curBuilder.alloca(typ)
+        var i = 0
+        for (id, val) in self.members.sortedByIt(it[0].name):
+            let
+                indices = [Literal.integer(0, 32).codegen(module), Literal.integer(i, 32).codegen(module)]
+                p = module.curBuilder.gep2(typ, alloca, indices, "")
+            discard module.curBuilder.store(val.codegen(module, global), p)
+            inc i
+        module.curBuilder.load(typ, alloca)
     of ExpressionKind.If:
         let
             thenbs = self.elifs.mapIt(module.curFun.appendBasicBlock("then"))
@@ -250,13 +273,16 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
         #     discard module.curBuilder.call(callee2, args2 & ret)
         #     module.curBuilder.load(rety, ret, $self)
         # else:
-        if self.typ.hasRegion:
+        let res = if self.typ.hasRegion:
             let ret = module.curBuilder.alloca(rety, "*" & $self)
             discard module.curBuilder.call(callee2, args2 & ret)
             module.curBuilder.load(rety, ret, $self)
         else:
             module.curBuilder.call(callee2, args2)
+        res
     of ExpressionKind.Dot:
+        debug self.lhs.codegen(module, global)
+        debug self.rhs.codegen(module, global)
         nil
     of ExpressionKind.Bracket:
         nil
@@ -451,6 +477,12 @@ proc codegen(self: Function, module: Module, global: bool = false) =
                     discard module.curBuilder.ret(ret)
 
 
+proc codegen(self: IdentDefSection, module: Module, global: bool = false) =
+    for e in self.iddefs:
+        let
+            pat = e.pat
+            default = e.default.get
+        codegen(pat, module, default.typ, default.codegen(module, global))
 proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     case self.kind
     of StatementKind.For:
@@ -460,11 +492,7 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     of StatementKind.Loop:
         nil
     of StatementKind.LetSection, StatementKind.VarSection:
-        for e in self.iddefs:
-            let
-                pat = e.pat
-                default = e.default.get
-            codegen(pat, module, default.typ, default.codegen(module, global))
+        self.iddefSection.codegen(module, global)
         nil
     of StatementKind.ConstSection:
         nil

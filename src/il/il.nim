@@ -419,6 +419,7 @@ type
             decl_funcdef*: Function                 ## declaration
             constraints*: seq[(Region, Region)]     ## function has some region-constraints concerned its paramteres
         of SymbolKind.Field:
+            index*: int
             fielddef*: (Ident, TypeExpression)
         of SymbolKind.Enum:
             enumdef*: SumConstructor

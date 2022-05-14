@@ -30,8 +30,8 @@ proc GenParam*(_: typedesc[Symbol], id: Ident, val: Value, decl: GenTypeDef): Sy
 proc Func*(_: typedesc[Symbol], id: Ident, typ: Value, decl: Function, global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Func, id: id, typ: typ, decl_funcdef: decl, global: global)
     typ.symbol = some result
-proc Field*(_: typedesc[Symbol], id: Ident, typ: Value, decl: (Ident, TypeExpression), global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Field, id: id, typ: typ, fielddef: decl, global: global)
+proc Field*(_: typedesc[Symbol], id: Ident, typ: Value, index: int, decl: (Ident, TypeExpression), global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Field, id: id, typ: typ, index: index, fielddef: decl, global: global)
     typ.symbol = some result
 proc Enum*(_: typedesc[Symbol], id: Ident, typ: Value, decl: SumConstructor, global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Enum, id: id, typ: typ, enumdef: decl, global: global)
