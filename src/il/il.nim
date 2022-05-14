@@ -13,6 +13,7 @@ type
         stmts*: seq[Statement]
         scope*: Scope
     StatementKind* {.pure.} = enum
+        Import
         For             ## represents for statement
         While           ## while statement
         Loop            ## loop statement
@@ -42,6 +43,8 @@ type
         loc*: Location
         typ*: Value
         case kind*: StatementKind
+        of StatementKind.Import:
+            module*: Ident
         of StatementKind.Loop:
             label*: Option[Ident]
             `block`*: Suite

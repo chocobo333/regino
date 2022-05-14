@@ -155,12 +155,14 @@ proc inst(self: TypeExpression): TypeExpression =
         TypeExpression.Expr(self.expression.inst)
 proc inst(self: TypeDef): TypeDef =
     newTypedef(self.id.inst, self.params.map(it => it.map(inst)), self.typ.inst)
-proc inst(self: IdentDefSection): IdentDefSection = 
+proc inst(self: IdentDefSection): IdentDefSection =
     newIddefSection(self.iddefs.map(inst), self.comments)
-proc inst(self: TypeDefSection): TypeDefSection = 
+proc inst(self: TypeDefSection): TypeDefSection =
     newTypedefSection(self.typedefs.map(inst), self.comments)
 proc inst(self: Statement): Statement =
     case self.kind
+    of StatementKind.Import:
+        Statement.Import(self.module.inst)
     of StatementKind.For:
         Statement.For(self.pat.inst, self.val.inst, self.suite.inst, self.loc)
     of StatementKind.While:

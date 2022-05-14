@@ -20,9 +20,9 @@ proc `$`*(self: Pattern, typed: bool = false, regioned: bool = false, comment: b
 proc `$`*(self: Suite, typed: bool = false, regioned: bool = false, comment: bool = false): string
 proc `$`*(self: Value, typed: bool = false, regioned: bool = false, comment: bool = false): string
 proc `$`*(self: Region, typed: bool = false, regioned: bool = false, comment: bool = false): string
-proc `$`*(self: Comment, typed: bool = false, regioned: bool = false, comment: bool = false): string = 
+proc `$`*(self: Comment, typed: bool = false, regioned: bool = false, comment: bool = false): string =
     if self.isDoc: "##" & self.s else: "#" & self.s
-proc `$`*(self: seq[Comment], typed: bool = false, regioned: bool = false, comment: bool = false): string = 
+proc `$`*(self: seq[Comment], typed: bool = false, regioned: bool = false, comment: bool = false): string =
     if comment: self.mapIt(`$`(it, typed, regioned, comment)).join("\n")
     else: self.filterIt(it.isDoc).mapIt(`$`(it, typed, regioned, comment)).join("\n")
 proc `$`*(self: Literal, typed: bool = false, regioned: bool = false, comment: bool = false): string =
@@ -60,12 +60,12 @@ proc `$$`*(self: Ident, typed: bool = false, regioned: bool = false, comment: bo
 proc `$`*(self: Suite, typed: bool = false, regioned: bool = false, comment: bool = false): string =
     self.stmts.mapIt(`$`(it, typed, regioned, comment)).join("\n").indent(2)
 proc `$`*(self: ElifBranch, typed: bool = false, regioned: bool = false, comment: bool = false): string =
-    let 
+    let
         cond = `$`(self.cond, typed, regioned, comment)
         suite = `$`(self.suite, typed, regioned, comment)
     &"elif {cond}:\n{suite}"
 proc `$`*(self: OfBranch, typed: bool = false, regioned: bool = false, comment: bool = false): string =
-    let 
+    let
         pat = `$`(self.pat, typed, regioned, comment)
         suite = `$`(self.suite, typed, regioned, comment)
     &"of {pat}:\n{suite}"
@@ -114,17 +114,17 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
                 ).get("")
         fmt"case {val}{ofs}{default}"
     of ExpressionKind.Call:
-        let 
+        let
             callee = `$`(self.callee, typed, regioned, comment)
             args = self.args.mapIt(`$`(it, typed, regioned, comment)).join(", ")
         fmt"{callee}({args})"
     of ExpressionKind.Command:
-        let 
+        let
             callee = `$`(self.callee, typed, regioned, comment)
             args = self.args.mapIt(`$`(it, typed, regioned, comment)).join(", ")
         fmt"{callee} {args}"
     of ExpressionKind.Dot:
-        let 
+        let
             lhs = `$`(self.lhs, typed, regioned, comment)
             rhs = `$`(self.rhs, typed, regioned, comment)
         fmt"{lhs}.{rhs}"
@@ -151,12 +151,12 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
             let blck = `$`(self.`block`, typed, regioned, comment)
             &"block:\n{blck}"
         else:
-            let 
+            let
                 label = `$`(self.label.get, typed, regioned, comment)
                 blck = `$`(self.`block`, typed, regioned, comment)
             &"block: {label}\n{blck}"
     of ExpressionKind.Bracket:
-        let 
+        let
             callee = `$`(self.callee, typed, regioned, comment)
             args = self.args.mapIt(`$`(it, typed, regioned, comment)).join(", ")
         fmt"{callee}[{args}]"
@@ -180,7 +180,7 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
         let rf = `$`(self.`ref`, typed, regioned, comment)
         fmt"ref {rf}"
     of ExpressionKind.FnType:
-        let 
+        let
             rety = `$`(self.rety, typed, regioned, comment)
             args = self.args.mapIt(`$`(it, typed, regioned, comment)).join(", ")
         fmt"func({args}) -> {rety}"
@@ -242,7 +242,7 @@ proc `$`*(self: IdentDef, typed: bool = false, regioned: bool = false, comment: 
         comments = if self.comments.len != 0: "\n" & fmt"{`$`(self.comments, typed, regioned, comment)}" else: ""
     fmt"{pat}{typ}{default}{comments}"
 proc `$`*(self: GenTypeDef, typed: bool = false, regioned: bool = false, comment: bool = false): string =
-    let 
+    let
         id = `$`(self.id, typed, regioned, comment)
         ub = if self.ub.isSome: fmt" <: {`$`(self.ub.get, typed, regioned, comment)}" else: ""
     fmt"{id}{ub}"
@@ -267,7 +267,7 @@ proc `$`*(self: FunctionParam, typed: bool = false, regioned: bool = false, comm
             else:
                 fmt"[{imp}]"
         params = self.params.mapIt(`$`(it, typed, regioned, comment)).join(", ")
-        rety = if self.rety.isNone: "" 
+        rety = if self.rety.isNone: ""
                else: fmt" -> {`$`(self.rety.get, typed, regioned, comment)}"
     fmt"{implicit}({params}){rety}"
 
@@ -280,7 +280,7 @@ proc `$`*(self: Function, typed: bool = false, regioned: bool = false, comment: 
         suite = if self.suite.isNone: "" else: ":\n" & fmt"{`$`(self.suite.get, typed, regioned, comment)}"
     &"{fn} {id}{param}{metadata}{suite}"
 
-proc `$`*(self: IdentDefSection, typed: bool = false, regioned: bool = false, comment: bool = false): string = 
+proc `$`*(self: IdentDefSection, typed: bool = false, regioned: bool = false, comment: bool = false): string =
     let
         # comments = if comment and self.comments.len != 0: self.comments.mapIt(`$`(it, typed, regioned, comment)).join("\n") & "\n" else: ""
         comments = if self.comments.len != 0: self.comments.mapIt(`$`(it, typed, regioned, comment)).join("\n") & "\n" else: ""
@@ -294,6 +294,8 @@ proc `$`*(self: TypeDefSection, typed: bool = false, regioned: bool = false, com
     fmt"{comments}{typedefs}"
 proc `$`*(self: Statement, typed: bool = false, regioned: bool = false, comment: bool = false): string =
     case self.kind
+    of StatementKind.Import:
+        fmt"import {self.module}"
     of StatementKind.For:
         let
             pat = `$`(self.pat, typed, regioned, comment)
@@ -307,7 +309,7 @@ proc `$`*(self: Statement, typed: bool = false, regioned: bool = false, comment:
             let blck = `$`(self.`block`, typed, regioned, comment)
             &"loop\n{blck}"
         else:
-            let 
+            let
                 label = `$`(self.label.get, typed, regioned, comment)
                 blck = `$`(self.`block`, typed, regioned, comment)
             &"loop {label}\n{blck}"
@@ -380,7 +382,7 @@ proc `$`*(self: Trait, typed: bool = false, regioned: bool = false, comment: boo
         fmt"{fn}"
 
 proc `$`*(self: TraitType, typed: bool = false, regioned: bool = false, comment: bool = false): string =
-    let 
+    let
         pat = `$`(self.pat, typed, regioned, comment)
         typ = `$`(self.typ, typed, regioned, comment)
         traits =
@@ -536,12 +538,12 @@ proc `$`*(self: Value, typed: bool = false, regioned: bool = false, comment: boo
     of ValueKind.Union:
         toSeq(self.types).mapIt(`$`(it, typed, regioned, comment)).join"\/"
     of ValueKind.Select:
-        let 
+        let
             id = self.id.id2s(typed, regioned, comment)
             s = toSeq(self.types).mapIt(`$`(it, typed, regioned, comment)).join(" or ")
         fmt"'{id}({s})"
     of ValueKind.Lambda:
-        let 
+        let
             params = self.l_param.mapIt(`$`(it, typed, regioned, comment)).join(", ")
             suite = `$`(self.suite, typed, regioned, comment)
         &"lambda {params}: \n{suite}"
@@ -584,7 +586,7 @@ proc `$`*(self: Symbol, typed: bool = false, regioned: bool = false, comment: bo
             of SymbolKind.GenParam:
                 `$`(self.decl_gendef, typed, regioned, comment)
             of SymbolKind.Field:
-                "(" & 
+                "(" &
                 `$`(self.fielddef[0], typed, regioned, comment) &
                 ", " &
                 `$`(self.fielddef[1], typed, regioned, comment) &

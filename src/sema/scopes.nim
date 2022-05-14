@@ -152,14 +152,16 @@ proc setScope(self: TypeDef, parent: Scope) =
         for iddef in self.params.get:
             iddef.setScope(parent)
     self.typ.setScope(parent)
-proc setScope(self: IdentDefSection, parent: Scope) = 
+proc setScope(self: IdentDefSection, parent: Scope) =
     for iddef in self.iddefs:
         iddef.setScope(parent)
-proc setScope(self: TypeDefSection, parent: Scope) = 
+proc setScope(self: TypeDefSection, parent: Scope) =
     for typedef in self.typedefs:
         typedef.setScope(parent)
 proc setScope(self: Statement, parent: Scope) =
     case self.kind
+    of StatementKind.Import:
+        discard
     of StatementKind.Loop:
         self.`block`.setScope(parent)
     of StatementKind.For:

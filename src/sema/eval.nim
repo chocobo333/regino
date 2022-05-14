@@ -391,6 +391,9 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     if not self.typ.isNil:
         return self.typ
     result = case self.kind
+    of StatementKind.Import:
+        Value.Unit
+        # TODO:
     of StatementKind.For:
         Value.Unit
     of StatementKind.While:
@@ -719,6 +722,9 @@ proc check(self: IdentDefSection, env: TypeEnv) =
 proc check(self: Statement, env: TypeEnv) =
     setTypeEnv(env)
     case self.kind
+    of StatementKind.Import:
+        # TODO:
+        discard
     of StatementKind.For:
         discard
     of StatementKind.While:
@@ -922,6 +928,9 @@ proc eval*(self: IdentDefSection, env: TypeEnv, global: bool = false) =
         e.pat.asign(e.default.get.eval(env, global))
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
     case self.kind
+    of StatementKind.Import:
+        # TODO:
+        Value.Unit
     of StatementKind.For:
         Value.Unit
     of StatementKind.While:
