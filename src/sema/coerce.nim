@@ -4,20 +4,15 @@ import ../il
 
 
 import sequtils
-import options
 import sets
 import tables
 import strformat
-import sugar
-import algorithm
 
 # import resolveRelations
 
 import ../il
 import ../typeenv
 import ../orders
-import ../errors
-import ../utils
 
 import macros
 

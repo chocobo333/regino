@@ -4,13 +4,13 @@ import sequtils
 import sugar
 import sets
 import tables
+import algorithm
 
 import inst
 import ../il
 import ../typeenv
 import ../errors
 
-import ../orders
 import ../utils
 import ../lineinfos
 
@@ -304,11 +304,13 @@ proc infer(fn: Function, env: TypeEnv, global: bool = false) =
 proc addTypeExpr(self: TypeEnv, typ: Value, typeExpr: TypeExpression, global: bool = false) =
     case typeExpr.kind
     of TypeExpressionKind.Object:
-        for (id, t) in typeExpr.members:
+        var i = 0
+        for (id, t) in typeExpr.members.sortedByIt(it[0].name):
             let
                 field = Value.Arrow(@[typ], typ.base.members[id])
-                sym = Symbol.Field(id, field, (id, t), global)
+                sym = Symbol.Field(id, field, i, (id, t), global)
             self.addIdent(sym)
+            inc i
     of TypeExpressionKind.Sum:
         for cons in typeExpr.sum.constructors:
             case cons.kind

@@ -2,9 +2,7 @@ import sequtils
 import options
 import sets
 import tables
-import strformat
 import sugar
-import algorithm
 
 import coerce
 
@@ -379,6 +377,7 @@ proc collapse(self: TypeEnv, scc: seq[Value]): Value =
     # if c has only one sort of concrete type (which is not type value), bind other type value into its type.
     # if c has only type values, generate new type value and bind other type values into Link type which is linked to the new one.
     # ohterwise, idk.
+    setTypeEnv(self)
 
     if scc.len == 1: return scc[0]
 
@@ -388,7 +387,7 @@ proc collapse(self: TypeEnv, scc: seq[Value]): Value =
 
     if concretes.len >= 1:
 
-        if concretes.len >= 2:
+        if concretes.len >= 2 and (not concretes.allIt((it <=? concretes[0]).isSome and (concretes[0] <=? it).isSome)):
             self.errs.add TypeError.CircularSubtype(concretes[0], concretes[1])
 
         collapsed = concretes[0]

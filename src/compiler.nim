@@ -1,8 +1,6 @@
 
 import os
 
-import parsers
-import sema
 import codegen
 import errors
 import projects
@@ -37,8 +35,9 @@ proc optimize(self: Module): Module =
     self.module.module = module
     self
 
-proc compile*(filename: string) =
+proc compile*(filename: seq[string]): int =
     var
+        filename = filename[0]
         module = newModule()
         project = newProject(filename)
         program = project.parse
@@ -51,6 +50,7 @@ proc compile*(filename: string) =
             echo e
         for e in terrs:
             echo e
+        return 1
     for e in module.linkModules:
         discard module.module.link(e)
     # module = module.optimize
@@ -58,6 +58,7 @@ proc compile*(filename: string) =
     f.write($module.module)
     defer:
         close f
+    0
 
 when isMainModule:
-    compile("test/test05.rgn")
+    discard compile(@["test/test.rgn"])
