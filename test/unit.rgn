@@ -8,12 +8,8 @@ type
   int = typeof(0)
   float = typeof(0.0)
   string = typeof("")
+  # Vec2 = object:
+  #   x: int
+  #   y: int
 
-func f(a: int, b: int) -> int:
-  1
-
-let
-  a: int = 0
-  b: int = 1
-
-a.f(b)
+let a = Vec2(x: 1, y: 2)

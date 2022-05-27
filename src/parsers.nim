@@ -251,6 +251,16 @@ let
                     )
                 )
             Expression.Record(members, it[1])
+    ObjectCons = %(
+        Id + 
+        delimited(
+            lpar,
+            (Id + (preceded(colon, Expr)))^*comma,
+            ?comma+rpar
+        )
+    ) @ 
+    proc(it: ((Ident, seq[(Ident, Expression)]), Location)): Expression = 
+        Expression.ObjCons(it[0][0], it[0][1], it[1])
 
     Typeof = %delimited(s"typeof" + lpar, Expr, rpar) @ (it => Expression.Typeof(it[0], it[1]))
     Malloc = %delimited(s"malloc" + lpar, Expr + preceded(comma, Expr), rpar) @ (it => Expression.Malloc(it[0][0], it[0][1], it[1]))
@@ -258,6 +268,7 @@ let
     FnType = %(delimited(s"func" + lpar, Expr ^* comma, rpar) + preceded(arr, Expr)) @ (it => Expression.FnType(it[0][0], it[0][1], it[1]))
 
     Atom = %(?Operators + alt(
+        ObjectCons,
         %Literal @ (it => Expression.literal(it[0], it[1])),
         Typeof, Malloc, Ref,
         FnType,
@@ -665,6 +676,9 @@ proc ArgList(self: ref Source): Option[seq[Expression]] =
                 Expression.Command(it[0][0], @[it[0][1]], it[1]),
         @Expr,
     ) ^* comma
+    parser(self)
+proc ObjArgList(self: ref Source): Option[seq[(Ident, Expression)]] = 
+    let parser = (Id + preceded(colon, Expr)) ^* comma
     parser(self)
 
 export parsers

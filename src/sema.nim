@@ -33,4 +33,4 @@ when isMainModule:
     let
         errs = program.sema
     f.close
-    # debug program
+    debug program
