@@ -87,6 +87,14 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
             fmt"{`$`(it[1], typed, regioned, comment)}"
         ).join(", ")
         fmt"({members})"
+    of ExpressionKind.ObjCons:
+        let
+            typname = `$`(self.typname, typed, regioned, comment)
+            members = self.members.mapIt(
+                fmt"{`$`(it[0], typed, regioned, comment)}: " &
+                fmt"{`$`(it[1], typed, regioned, comment)}"
+            ).join(", ")
+        fmt"{typname}({members})"
     of ExpressionKind.If:
         let
             elifs = self.elifs.mapIt(`$`(it, typed, regioned, comment)).join("\n")[2..^1]
@@ -644,6 +652,11 @@ proc treeRepr*(self: Expression): string =
     of ExpressionKind.Record:
         let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
         fmt"({members})"
+    of ExpressionKind.ObjCons:
+        let 
+            typname = fmt"{self.typname}"
+            members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+        fmt"{typname}({members})"
     of ExpressionKind.If:
         let
             elifs = self.elifs.map(`$`).join("\n")[2..^1]

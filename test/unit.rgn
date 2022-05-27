@@ -10,37 +10,9 @@ type
   int = typeof(0) # hoge
   # hoge
   float = typeof(0.0)
-  string = typeof("") # string
-  # hoge
+  string = typeof("")
+  # Vec2 = object:
+  #   x: int
+  #   y: int
 
-func toFloat(a: int) -> float ![subtype]:
-  0.0
-
-func f(a: int) -> float
-
-func g(a: int) -> float: 0.0
-
-func h(a: int) -> float:
-  0.0
-
-func f(a: float) -> float:
-  ## hoge
-  # hoge
-  ## hoge
-  0.0
-
-var
-  # hogehugo
-  a = 1 # hoge
-  ## hugo
-  # hugo
-  ## hugo
-  b = 1 # hoge
-  # hugo
-  # hugo
-
-# hoge
-# hogehoge
-# hogehogehoge
-
-f(1)
+let a = Vec2(x: 1, y: 2)
