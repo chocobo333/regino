@@ -118,7 +118,6 @@ type
         Tuple
         Array
         Record
-        ObjCons
         If
         When
         Case
@@ -149,8 +148,7 @@ type
             ident*: Ident
         of ExpressionKind.Tuple, ExpressionKind.Array:
             exprs*: seq[Expression]
-        of ExpressionKind.Record, ExpressionKind.ObjCons:
-            typname*: Ident # for ObjCons
+        of ExpressionKind.Record:
             members*: seq[(Ident, Expression)]
         of ExpressionKind.If, ExpressionKind.When:
             elifs*: seq[ElifBranch]

@@ -72,8 +72,6 @@ proc inst(self: Expression): Expression =
         Expression.Array(self.exprs.map(inst))
     of ExpressionKind.Record:
         Expression.Record(self.members.mapIt((it[0].inst, it[1].inst)))
-    of ExpressionKind.ObjCons:
-        Expression.ObjCons(self.typname.inst, self.members.mapIt((it[0].inst, it[1].inst)))
     of ExpressionKind.If:
         Expression.If(self.elifs.map(inst), self.elseb.map(inst))
     of ExpressionKind.When:

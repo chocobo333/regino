@@ -21,9 +21,6 @@ proc setScope(self: Expression, parent: Scope) =
     of ExpressionKind.Record:
         for (_, e) in self.members:
             e.setScope(parent)
-    of ExpressionKind.ObjCons:
-        for (_, e) in self.members:
-            e.setScope(parent)
     of ExpressionKind.If, ExpressionKind.When:
         for eli in self.elifs:
             eli.setScope(parent)
