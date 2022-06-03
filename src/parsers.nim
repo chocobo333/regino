@@ -249,14 +249,14 @@ let
                 )
             Expression.Record(members, it[1])
     ObjectCons = %(
-        Id + 
+        Id +
         delimited(
             lpar,
             (Id + (preceded(colon, Expr)))^*comma,
             ?comma+rpar
         )
-    ) @ 
-    proc(it: ((Ident, seq[(Ident, Expression)]), Location)): Expression = 
+    ) @
+    proc(it: ((Ident, seq[(Ident, Expression)]), Location)): Expression =
         Expression.ObjCons(it[0][0], it[0][1], it[1])
 
     Typeof = %delimited(s"typeof" + lpar, Expr, rpar) @ (it => Expression.Typeof(it[0], it[1]))
@@ -357,11 +357,11 @@ let
     # BracketPattern: AstNode = IdPattern > delimited(lbra, separated1(Pattern, comma), rbra)    @ (it => akBracketExpr.newTreeNode(it))
 
 
-    IdentDef = Patt + 
-        ?preceded(colon, Expr) + 
-        ?preceded(eq, Expr) + 
-        preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) + 
-        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
+    IdentDef = Patt +
+        ?preceded(colon, Expr) +
+        ?preceded(eq, Expr) +
+        preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) +
+        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @
         (it => newIdentdef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
     GenTypeDef = alt(
         Id + ?preceded(tlt, Expr) @ (it => newGenTypedef(it[0], it[1]))
@@ -421,12 +421,12 @@ let
                 Metadata.SubType(args)
             else:
                 Metadata.UserDef(id.name, args)
-    FuncDocStr: proc(self: ref Source): Option[seq[Comment]] = 
+    FuncDocStr: proc(self: ref Source): Option[seq[Comment]] =
         ((preceded(s"## ", p".*") @ (it => newComment(it, true))) ^+ Nodent)
     FuncBody = alt(
         NoBody @ (it => (newSeq[il.Comment](), it)),
         preceded(
-            colon, 
+            colon,
             alt(
                 Stmt @ (it => (newSeq[il.Comment](), @[it])),
                 delimited(Indent, alt(terminated(FuncDocStr, Dedent), success(seq[il.Comment])) + StmtList, Dedent)
@@ -469,11 +469,11 @@ let
     )
     TraitType = preceded(s"trait" + sp1, Patt + preceded(colon, Expr)) + ?delimited(s"with" ^ sp0 + Indent, TraitElement ^+ Nodent, Dedent) @ (it => TypeExpression.TraitT(newTrait(it[0][0], it[0][1], it[1].get(@[]))))
 
-    TypeDef = Id + 
-        ?GenParams + 
-        preceded(eq, TypeExpr) + 
+    TypeDef = Id +
+        ?GenParams +
+        preceded(eq, TypeExpr) +
         preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) +
-        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
+        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @
         (it => newTypeDef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
 
     IdentDefSection = alt(
@@ -484,11 +484,11 @@ let
         preceded(sp1, TypeDef) @ (it => (newSeq[il.Comment](), @[it])),
         delimited(Indent, alt(terminated(Comment ^+ Nodent, Nodent), success(seq[Comment])) + (TypeDef ^+ Nodent), Dedent)
     ) @ (it => newTypedefSection(it[1], it[0]))
-    # IdentDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) + 
-    #     alt(preceded(sp1, IdentDef) @ (it => @[it]), delimited(Indent, IdentDef ^+ Nodent, Dedent)) @ 
+    # IdentDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) +
+    #     alt(preceded(sp1, IdentDef) @ (it => @[it]), delimited(Indent, IdentDef ^+ Nodent, Dedent)) @
     #     (it => newIddefSection(it[1], it[0]))
-    # TypeDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) + 
-    #     alt(preceded(sp1, TypeDef) @ (it => @[it]), delimited(Indent, TypeDef ^+ Nodent, Dedent)) @ 
+    # TypeDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) +
+    #     alt(preceded(sp1, TypeDef) @ (it => @[it]), delimited(Indent, TypeDef ^+ Nodent, Dedent)) @
     #     (it => newTypedefSection(it[1], it[0]))
 
     LetSection = %preceded(s"let", IdentDefSection) @ (it => Statement.LetSection(it[0], it[1]))
@@ -674,7 +674,7 @@ proc ArgList(self: ref Source): Option[seq[Expression]] =
         @Expr,
     ) ^* comma
     parser(self)
-proc ObjArgList(self: ref Source): Option[seq[(Ident, Expression)]] = 
+proc ObjArgList(self: ref Source): Option[seq[(Ident, Expression)]] =
     let parser = (Id + preceded(colon, Expr)) ^* comma
     parser(self)
 

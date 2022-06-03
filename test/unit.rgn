@@ -11,8 +11,8 @@ type
   # hoge
   float = typeof(0.0)
   string = typeof("")
-  # Vec2 = object:
-  #   x: int
-  #   y: int
+  Vec2 = object
+    x: int
+    y: int
 
 let a = Vec2(x: 1, y: 2)
