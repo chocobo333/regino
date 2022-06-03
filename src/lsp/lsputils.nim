@@ -106,6 +106,11 @@ proc find*(self: IdentDefSection, pos: rPosition): Option[Ident] =
     none(Ident)
 proc find*(self: Statement, pos: rPosition): Option[Ident] =
     case self.kind
+    of StatementKind.Import:
+        if pos in self.module:
+            some(self.module)
+        else:
+            none(Ident)
     of StatementKind.For:
         none(Ident)
     of StatementKind.While:
@@ -267,6 +272,8 @@ proc scope(self: Suite, pos: rPosition): seq[Scope] =
 
 proc scope(self: Statement, pos: rPosition): seq[Scope] =
     case self.kind
+    of StatementKind.Import:
+        @[]
     of StatementKind.While:
         @[]
     of StatementKind.For:
