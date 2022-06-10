@@ -765,3 +765,34 @@ func sum(l: List[int32]) -> int32:
         p = Program(src).get
     echo p
     echo src.errs
+
+    let testSrc = Source.from(
+        """
+Vec2(x:0,y:1)
+let v = Vec2(x: 0, y: 1)
+let p = Pair(first: Pair(first: 1, second: 2), second: 3)
+"""
+    )
+    let testProgram = Program(testSrc).get
+    import utils
+    debug testProgram
+    let 
+        s1 = testProgram.stmts[0]
+        s2 = testProgram.stmts[1]
+        s3 = testProgram.stmts[2]
+
+    debug s1.kind                # Expression
+    debug s1.expression.kind     # ObjCons
+    debug s1.expression.typname  # Vec2
+    debug s1.expression.members  # @[(x, 0), (y, 1)]
+
+    debug s2.kind                # LetSection
+    let iddef = s2.iddefSection.iddefs[0]
+    debug iddef                  # v = Vec2(x: 0, y: 1)
+    debug iddef.default          # some(Vec2(x: 0, y: 1))
+
+    debug s3.kind                # letSection
+    let default = s3.iddefSection.iddefs[0].default.get
+    debug default                # Pair(first: Pair(first: 1, second: 2), second: 3)
+    debug default.typname        # Pair
+    debug default.members        # @[(first, Pair(first: 1, second: 2)), (second, 3)]
