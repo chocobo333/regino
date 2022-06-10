@@ -68,7 +68,10 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Record:
         Value.Record(self.members.mapIt((it[0], it[1].infer(env, global))).toTable)
     of ExpressionKind.ObjCons:
-        Value.Unit
+        let obj = Expression.Id(self.typname).eval(env, global)
+        for (id, exp) in self.members:
+            env.coerce(obj.base.members[id] <= exp.infer(env, global))
+        obj
     of ExpressionKind.If:
         let
             conds = self.elifs.mapIt(it.cond.infer(env, global))
