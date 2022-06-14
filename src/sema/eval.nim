@@ -67,6 +67,11 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         # Value.Unit
     of ExpressionKind.Record:
         Value.Record(self.members.mapIt((it[0], it[1].infer(env, global))).toTable)
+    of ExpressionKind.ObjCons:
+        let obj = Expression.Id(self.typname).eval(env, global)
+        for (id, exp) in self.members:
+            env.coerce(obj.base.members[id] <= exp.infer(env, global))
+        obj
     of ExpressionKind.If:
         let
             conds = self.elifs.mapIt(it.cond.infer(env, global))
@@ -621,6 +626,8 @@ proc check(self: Expression, env: TypeEnv) =
             e.check(env)
     of ExpressionKind.Record:
         discard
+    of ExpressionKind.ObjCons:
+        discard
     of ExpressionKind.If:
         for e in self.elifs:
             let
@@ -834,6 +841,8 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Array(self.exprs.mapIt(it.eval(env)))
     of ExpressionKind.Record:
         Value.Record(self.members.mapIt((it[0], it[1].eval(env, global))).toTable)
+    of ExpressionKind.ObjCons:
+        Value.Unit
     of ExpressionKind.If:
         var ret = Value.Bottom
         for `elif` in self.elifs & self.elseb.map(it => @[newElif(Expression.literal(true), it)]).get(@[]):
