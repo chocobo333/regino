@@ -8,9 +8,10 @@ import sema/[
     scopes,
     eval,
 ]
+import projects/projects
 
 
-proc sema*(self: Program): seq[TypeError] =
+proc sema*(self: Program, project: Project): seq[TypeError] =
     let
         mainScope = self.setScope()
         env = newTypeEnv(mainScope)
@@ -23,14 +24,14 @@ proc sema*(self: Program): seq[TypeError] =
     env.errs
 
 
-when isMainModule:
-    import parsers
-    import options
-    let
-        f = open("test/test.rgn")
-        s = f.readAll
-        program = Program(Source.from(s)).get
-    let
-        errs = program.sema
-    f.close
+# when isMainModule:
+#     import parsers
+#     import options
+#     let
+#         f = open("test/test.rgn")
+#         s = f.readAll
+#         program = Program(Source.from(s)).get
+#     let
+#         errs = program.sema
+#     f.close
     # debug program

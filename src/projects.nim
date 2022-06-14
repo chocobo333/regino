@@ -6,16 +6,9 @@ import il
 import parsers
 import sema
 import errors
-# import codegen
+import projects/projects
 
-
-type
-    Buffer[T] = Table[string, T]
-    Project* = ref object
-        main*: string
-        src*: Buffer[ref Source]
-        program*: Buffer[il.Program]
-        terrs: Buffer[seq[TypeError]]
+export Project
 
 proc newBuffer[T](): Buffer[T] =
     initTable[string, T]()
@@ -35,7 +28,7 @@ proc parse*(self: Project): Program =
         src = Source.from(text, uri)
         program = Program(src).get
     close f
-    self.terrs[uri] = program.sema
+    self.Terrs[uri] = program.sema(self)
     self.src[uri] = src
     self.program[uri] = program
     program
@@ -43,7 +36,7 @@ proc update*(self: Project, uri: string, text: string) =
     let
         src = Source.from(text, uri)
         program = Program(src).get
-    self.terrs[uri] = program.sema
+    self.Terrs[uri] = program.sema(self)
     self.src[uri] = src
     self.program[uri] = program
 
@@ -58,6 +51,6 @@ proc program*(self: Project): Program =
 proc perrs*(self: Project): seq[ParseError] =
     self.perrs(self.main)
 proc terrs*(self: Project): seq[TypeError] =
-    self.terrs[self.main]
+    self.Terrs[self.main]
 proc terrs*(self: Project, uri: string): seq[TypeError] =
-    self.terrs[uri]
+    self.Terrs[uri]
