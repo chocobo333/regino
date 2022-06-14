@@ -577,7 +577,9 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
         result.inserted = true
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
-    assert e.typ <= v
+    if not (e.typ <= v):
+        self.errs.add TypeError.NoCoercion(e.typ, v, e.loc)
+        return e
     result = e
     if v <= e.typ:
         return
@@ -602,8 +604,17 @@ proc check(self: Suite, env: TypeEnv) =
         self.stmts[^1].check(env)
 proc check(self: Function, env: TypeEnv) =
     # TODO: check params
-    if self.suite.isSome:
-        self.suite.get.check(env)
+    env.enter self.param.scope:
+        for iddef in self.param.params:
+            # TODO: implement check(Pattern)
+            # iddef.pat.check(env)
+            # TODO: Shoud I check TypeExpression?
+            # typ should be infered, checked and `eval`ed.
+            if iddef.typ.isSome:
+                iddef.typ.get.check(env)
+            assert iddef.default.isNone
+        if self.suite.isSome:
+            self.suite.get.check(env)
 proc check(self: Expression, env: TypeEnv) =
     setTypeEnv(env)
     self.typ.resolveLink
@@ -768,7 +779,7 @@ proc check(self: Statement, env: TypeEnv) =
             # TODO:
             discard
     of StatementKind.Funcdef:
-        discard
+        self.fn.check(env)
     of StatementKind.Meta:
         discard
     of StatementKind.Discard:
