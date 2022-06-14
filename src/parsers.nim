@@ -173,7 +173,9 @@ let
 
     Id0 = alt(
         p"[_\p{L}\p{Nl}ー][_\p{L}\p{N}ー]*",
-        p"[_\p{L}\p{Sm}\p{Nl}ー\p{Sm}*/\\?!%&$^@-][_\p{L}\p{Sm}\p{N}ー\p{Sm}*/\\?!%&$^@-]*" ^ s"`"
+        p"[_\p{L}\p{Sm}\p{Nl}ー\p{Sm}*/\\?!%&$^@-][_\p{L}\p{Sm}\p{N}ー\p{Sm}*/\\?!%&$^@-]*" ^ s"`",
+        s"`[]`",
+        s"`[]=`",
     )
     Int0 = p"0|[1-9][0-9]*"
     IntSuffix = preceded(s"'i", Int0)
@@ -776,7 +778,7 @@ let p = Pair(first: Pair(first: 1, second: 2), second: 3)
     let testProgram = Program(testSrc).get
     import utils
     debug testProgram
-    let 
+    let
         s1 = testProgram.stmts[0]
         s2 = testProgram.stmts[1]
         s3 = testProgram.stmts[2]
