@@ -52,10 +52,10 @@ type
         x: float
         y: float
 
-# Shape = variant
-#     Empty
-#     Point(Vector2)
-#     Rectangle(p: Vector2, w: int, h: int)
+    Shape = variant
+        Empty
+        Point(Vector2)
+        Rectangle(p: Vector2, w: int, h: int)
 # Nat = ref variant
 #     Zero
 #     Succ(Nat)
@@ -120,8 +120,7 @@ func fib(n: int) -> int:
     else:
         fib(n-1) + fib(n-2)
 func newVector2(x: float, y: float) -> Vector2:
-    let a: (x: float, y: float) = (x: x, y: y)
-    a
+    Vector2(x: x, y: y)
 func `$`(self: Vector2) -> string ![subtype]:
     "vector2"
 let a = newVector2(3, 5)
@@ -130,8 +129,10 @@ let
     (x, y) = (a.x, a.y)
 echo $x
 echo y
-# func `$`(self: Shape) -> string:
-#     "shape"
-# let s = Empty
-# echo $s
+func `$`(self: Shape) -> string:
+    "shape"
+let s = Empty
+let a = Point(a)
+echo $s
+echo $a
 0

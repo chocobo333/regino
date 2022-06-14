@@ -481,6 +481,8 @@ proc infer(self: Expression, env: RegionEnv, suite: Region) =
             e.infer(env, suite)
     of ExpressionKind.Record:
         discard
+    of ExpressionKind.ObjCons:
+        discard
     of ExpressionKind.If:
         for e in self.elifs:
             let

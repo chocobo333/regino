@@ -250,6 +250,8 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
             discard module.curBuilder.store(val.codegen(module, global), p)
             inc i
         module.curBuilder.load(typ, alloca)
+    of ExpressionKind.ObjCons:
+        nil
     of ExpressionKind.If:
         let
             thenbs = self.elifs.mapIt(module.curFun.appendBasicBlock("then"))

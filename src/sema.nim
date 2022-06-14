@@ -27,7 +27,7 @@ when isMainModule:
     import parsers
     import options
     let
-        f = open("test/unit.rgn")
+        f = open("test/test.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get
     let
