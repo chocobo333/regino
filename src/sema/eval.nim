@@ -605,6 +605,8 @@ proc check(self: Suite, env: TypeEnv) =
 proc check(self: Function, env: TypeEnv) =
     # TODO: check params
     env.enter self.param.scope:
+        if self.param.rety.isSome:
+            self.param.rety.get.check(env)
         for iddef in self.param.params:
             # TODO: implement check(Pattern)
             # iddef.pat.check(env)

@@ -535,6 +535,8 @@ proc codegen(self: IdentDefSection, module: Module, global: bool = false) =
         codegen(pat, module, default.typ, default.codegen(module, global))
 proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     case self.kind
+    of StatementKind.Import:
+        nil
     of StatementKind.For:
         nil
     of StatementKind.While:
