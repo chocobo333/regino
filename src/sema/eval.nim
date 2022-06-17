@@ -125,7 +125,7 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             args = @[self.lhs.infer(env, global)] & self.dotArgs.mapIt(it.infer(env, global))
             callee = self.rhs.infer(env, global)
         env.coerce(callee <= Value.Arrow(args, tv))
-        env.coerce(Value.Arrow(@[Value.Unit], tv) <= callee) # i dont know whether this is correct.
+        env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Bracket:
         Value.Unit
