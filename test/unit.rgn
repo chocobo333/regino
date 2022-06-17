@@ -5,36 +5,15 @@
 ![link: "string.ll"]
 
 type
-  # hogehugo
-  # hogehugo
-  int = typeof(0) # hoge
-  # hoge
+  int = typeof(0)
   float = typeof(0.0)
   string = typeof("")
-  Vec2 = object
-    x: int
-    y: int
 
-func `tos@string/i32`(a: int) -> string ![importll]
-func `tos@string/float`(a: float) -> string ![importll]
-func `$`(a: int) -> string ![subtype]:
-    `tos@string/i32`(a)
-func `$`(a: float) -> string ![subtype]:
-    `tos@string/float`(a)
+func f(a: int, b: int) -> int:
+  1
 
-func `to@float/i32`(a: int) -> float ![importll]
-func toFloat(a: int) -> float ![subtype]:
-    `to@float/i32`(a)
+let
+  a: int = 0
+  b: int = 1
 
-func echo(a: string) ![importll]
-
-let a = Vec2(x: 1, y: 2)
-let a = case 1:
-of 0:
-    0
-of 1:
-    1.0
-default:
-    2
-
-# echo a
+a.f(b)

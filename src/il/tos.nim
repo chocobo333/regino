@@ -139,7 +139,8 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
         let
             lhs = `$`(self.lhs, typed, regioned, comment)
             rhs = `$`(self.rhs, typed, regioned, comment)
-        fmt"{lhs}.{rhs}"
+            args = if self.dotArgs.len != 0: "(" & self.dotArgs.mapIt(`$`(it, typed, regioned, comment)).join(", ") & ")" else: ""
+        fmt"{self.lhs}.{self.rhs}{args}"
     of ExpressionKind.Binary:
         let
             op = `$$`(self.op, typed, regioned, comment)
