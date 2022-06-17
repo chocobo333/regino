@@ -16,3 +16,10 @@ type
     y: int
 
 let a = Vec2(x: 1, y: 2)
+let a = case 1:
+of 0:
+    0
+of 1:
+    1.0
+default:
+    2
