@@ -202,6 +202,13 @@ let
                 (patop, exp) = it
                 (pat, op) = patop
             Statement.Asign(pat, op, exp, loc)
+    IndexAssign = %(Id + delimited(lbra, Expr, rbra) + preceded(asop ^ sp0, Expr)) @
+        proc(it: (((Ident, Expression), Expression), Location)): Statement =
+            let
+                (it, loc) = it
+                (idindex, val) = it
+                (id, index) = idindex
+            Statement.IndexAssign(id, index, val, loc)
 
     Int = alt(
         Int0 + IntSuffix    @ (it => Literal.integer(it[0].parseInt, it[1].parseInt.uint)),
@@ -621,6 +628,7 @@ proc Stmt(self: ref Source): Option[Statement] =
         Discard,
         %Metadata @ (it => Statement.Meta(it[0], it[1])),
         Asign,
+        IndexAssign,
         Expr @ (it => it.Statement),
         # terminated(success(Statement), oneline) @
         #     proc(it: Statement): Statement =
@@ -798,3 +806,5 @@ let p = Pair(first: Pair(first: 1, second: 2), second: 3)
     debug default                # Pair(first: Pair(first: 1, second: 2), second: 3)
     debug default.typname        # Pair
     debug default.members        # @[(first, Pair(first: 1, second: 2)), (second, 3)]
+
+    assert IndexAssign(Source.from("a[0]=3")).get.index.litval.intval == 0

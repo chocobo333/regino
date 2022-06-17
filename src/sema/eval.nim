@@ -421,6 +421,8 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
             val = self.val.infer(env, global)
         env.coerce(val <= paty)
         Value.Unit
+    of StatementKind.IndexAssign:
+        Value.Unit
     of StatementKind.Funcdef:
         env.addFunc(self.fn, global)
         self.fn.infer(env, global)
@@ -763,6 +765,8 @@ proc check(self: Statement, env: TypeEnv) =
         else:
             # TODO:
             discard
+    of StatementKind.IndexAssign:
+        discard
     of StatementKind.Funcdef:
         discard
     of StatementKind.Meta:
@@ -954,6 +958,8 @@ proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
         else:
             # TODO: like "+="
             discard
+        Value.Unit
+    of StatementKind.IndexAssign:
         Value.Unit
     of StatementKind.Funcdef:
         Value.Unit

@@ -155,10 +155,10 @@ proc setScope(self: TypeDef, parent: Scope) =
         for iddef in self.params.get:
             iddef.setScope(parent)
     self.typ.setScope(parent)
-proc setScope(self: IdentDefSection, parent: Scope) = 
+proc setScope(self: IdentDefSection, parent: Scope) =
     for iddef in self.iddefs:
         iddef.setScope(parent)
-proc setScope(self: TypeDefSection, parent: Scope) = 
+proc setScope(self: TypeDefSection, parent: Scope) =
     for typedef in self.typedefs:
         typedef.setScope(parent)
 proc setScope(self: Statement, parent: Scope) =
@@ -178,6 +178,9 @@ proc setScope(self: Statement, parent: Scope) =
     of StatementKind.Asign:
         self.pat.setScope(parent)
         self.val.setScope(parent)
+    of StatementKind.IndexAssign:
+        self.index.setScope(parent)
+        self.i_val.setScope(parent)
     of StatementKind.Funcdef:
         self.fn.setScope(parent)
     of StatementKind.Meta:
