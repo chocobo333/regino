@@ -15,6 +15,19 @@ type
     x: int
     y: int
 
+func `tos@string/i32`(a: int) -> string ![importll]
+func `tos@string/float`(a: float) -> string ![importll]
+func `$`(a: int) -> string ![subtype]:
+    `tos@string/i32`(a)
+func `$`(a: float) -> string ![subtype]:
+    `tos@string/float`(a)
+
+func `to@float/i32`(a: int) -> float ![importll]
+func toFloat(a: int) -> float ![subtype]:
+    `to@float/i32`(a)
+
+func echo(a: string) ![importll]
+
 let a = Vec2(x: 1, y: 2)
 let a = case 1:
 of 0:
@@ -23,3 +36,5 @@ of 1:
     1.0
 default:
     2
+
+# echo a
