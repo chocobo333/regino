@@ -19,6 +19,7 @@ import resolve
 
 
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
+proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = false): Value
 proc infer*(self: Suite, env: TypeEnv): Value
 proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value
 proc check(self: Expression, env: TypeEnv)
@@ -99,7 +100,17 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             env.coerce(elset.get <= tv)
         tv
     of ExpressionKind.Case:
-        Value.Unit
+        let
+            val = self.val.infer(env)
+            ofs = self.ofs.mapIt((it[0].infer(env), it[1].infer(env)))
+            default = self.default
+            tv = Value.Var(env)
+        for (pat, suite) in ofs:
+            env.coerce(pat == val)
+            env.coerce(suite <= tv)
+        if default.isSome():
+            env.coerce(default.get.infer(env) <= tv)
+        tv
     of ExpressionKind.Call, ExpressionKind.Command:
         let
             tv = Value.Var(env)
