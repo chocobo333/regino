@@ -106,7 +106,6 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             default = self.default
             tv = Value.Var(env)
         for (pat, suite) in ofs:
-            debug suite
             env.coerce(pat == val)
             env.coerce(suite <= tv)
         if default.isSome():
