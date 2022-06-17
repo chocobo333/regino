@@ -251,6 +251,16 @@ let
                     )
                 )
             Expression.Record(members, it[1])
+    ObjectCons = %(
+        Id +
+        delimited(
+            lpar,
+            (Id + (preceded(colon, Expr)))^*comma,
+            ?comma+rpar
+        )
+    ) @
+    proc(it: ((Ident, seq[(Ident, Expression)]), Location)): Expression =
+        Expression.ObjCons(it[0][0], it[0][1], it[1])
 
     Typeof = %delimited(s"typeof" + lpar, Expr, rpar) @ (it => Expression.Typeof(it[0], it[1]))
     Malloc = %delimited(s"malloc" + lpar, Expr + preceded(comma, Expr), rpar) @ (it => Expression.Malloc(it[0][0], it[0][1], it[1]))
@@ -258,6 +268,7 @@ let
     FnType = %(delimited(s"func" + lpar, Expr ^* comma, rpar) + preceded(arr, Expr)) @ (it => Expression.FnType(it[0][0], it[0][1], it[1]))
 
     Atom = %(?Operators + alt(
+        ObjectCons,
         %Literal @ (it => Expression.literal(it[0], it[1])),
         Typeof, Malloc, Ref,
         FnType,
@@ -349,11 +360,11 @@ let
     # BracketPattern: AstNode = IdPattern > delimited(lbra, separated1(Pattern, comma), rbra)    @ (it => akBracketExpr.newTreeNode(it))
 
 
-    IdentDef = Patt + 
-        ?preceded(colon, Expr) + 
-        ?preceded(eq, Expr) + 
-        preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) + 
-        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
+    IdentDef = Patt +
+        ?preceded(colon, Expr) +
+        ?preceded(eq, Expr) +
+        preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) +
+        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @
         (it => newIdentdef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
     GenTypeDef = alt(
         Id + ?preceded(tlt, Expr) @ (it => newGenTypedef(it[0], it[1]))
@@ -413,12 +424,12 @@ let
                 Metadata.SubType(args)
             else:
                 Metadata.UserDef(id.name, args)
-    FuncDocStr: proc(self: ref Source): Option[seq[Comment]] = 
+    FuncDocStr: proc(self: ref Source): Option[seq[Comment]] =
         ((preceded(s"## ", p".*") @ (it => newComment(it, true))) ^+ Nodent)
     FuncBody = alt(
         NoBody @ (it => (newSeq[il.Comment](), it)),
         preceded(
-            colon, 
+            colon,
             alt(
                 Stmt @ (it => (newSeq[il.Comment](), @[it])),
                 delimited(Indent, alt(terminated(FuncDocStr, Dedent), success(seq[il.Comment])) + StmtList, Dedent)
@@ -461,11 +472,11 @@ let
     )
     TraitType = preceded(s"trait" + sp1, Patt + preceded(colon, Expr)) + ?delimited(s"with" ^ sp0 + Indent, TraitElement ^+ Nodent, Dedent) @ (it => TypeExpression.TraitT(newTrait(it[0][0], it[0][1], it[1].get(@[]))))
 
-    TypeDef = Id + 
-        ?GenParams + 
-        preceded(eq, TypeExpr) + 
+    TypeDef = Id +
+        ?GenParams +
+        preceded(eq, TypeExpr) +
         preceded(sp0, alt(Comment @ (it => @[it]), success[seq[Comment]]())) +
-        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @ 
+        alt(preceded(Nodent, Comment ^+ Nodent), success[seq[Comment]]()) @
         (it => newTypeDef(it[0][0][0][0], it[0][0][0][1], it[0][0][1], it[0][1] & it[1]))
 
     IdentDefSection = alt(
@@ -476,11 +487,11 @@ let
         preceded(sp1, TypeDef) @ (it => (newSeq[il.Comment](), @[it])),
         delimited(Indent, alt(terminated(Comment ^+ Nodent, Nodent), success(seq[Comment])) + (TypeDef ^+ Nodent), Dedent)
     ) @ (it => newTypedefSection(it[1], it[0]))
-    # IdentDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) + 
-    #     alt(preceded(sp1, IdentDef) @ (it => @[it]), delimited(Indent, IdentDef ^+ Nodent, Dedent)) @ 
+    # IdentDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) +
+    #     alt(preceded(sp1, IdentDef) @ (it => @[it]), delimited(Indent, IdentDef ^+ Nodent, Dedent)) @
     #     (it => newIddefSection(it[1], it[0]))
-    # TypeDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) + 
-    #     alt(preceded(sp1, TypeDef) @ (it => @[it]), delimited(Indent, TypeDef ^+ Nodent, Dedent)) @ 
+    # TypeDefSection = alt(delimited(Indent, Comment ^+ Nodent, Dedent), success(seq[Comment])) +
+    #     alt(preceded(sp1, TypeDef) @ (it => @[it]), delimited(Indent, TypeDef ^+ Nodent, Dedent)) @
     #     (it => newTypedefSection(it[1], it[0]))
 
     LetSection = %preceded(s"let", IdentDefSection) @ (it => Statement.LetSection(it[0], it[1]))
@@ -666,6 +677,9 @@ proc ArgList(self: ref Source): Option[seq[Expression]] =
         @Expr,
     ) ^* comma
     parser(self)
+proc ObjArgList(self: ref Source): Option[seq[(Ident, Expression)]] =
+    let parser = (Id + preceded(colon, Expr)) ^* comma
+    parser(self)
 
 export parsers
 
@@ -754,3 +768,34 @@ func sum(l: List[int32]) -> int32:
         p = Program(src).get
     echo p
     echo src.errs
+
+    let testSrc = Source.from(
+        """
+Vec2(x:0,y:1)
+let v = Vec2(x: 0, y: 1)
+let p = Pair(first: Pair(first: 1, second: 2), second: 3)
+"""
+    )
+    let testProgram = Program(testSrc).get
+    import utils
+    debug testProgram
+    let 
+        s1 = testProgram.stmts[0]
+        s2 = testProgram.stmts[1]
+        s3 = testProgram.stmts[2]
+
+    debug s1.kind                # Expression
+    debug s1.expression.kind     # ObjCons
+    debug s1.expression.typname  # Vec2
+    debug s1.expression.members  # @[(x, 0), (y, 1)]
+
+    debug s2.kind                # LetSection
+    let iddef = s2.iddefSection.iddefs[0]
+    debug iddef                  # v = Vec2(x: 0, y: 1)
+    debug iddef.default          # some(Vec2(x: 0, y: 1))
+
+    debug s3.kind                # letSection
+    let default = s3.iddefSection.iddefs[0].default.get
+    debug default                # Pair(first: Pair(first: 1, second: 2), second: 3)
+    debug default.typname        # Pair
+    debug default.members        # @[(first, Pair(first: 1, second: 2)), (second, 3)]

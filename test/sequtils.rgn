@@ -1,0 +1,23 @@
+
+
+type
+    int = typeof(0)
+    Magma = trait (T, op): ([T], func(T, T) -> T)
+    Magma = trait (T, op): (Type, func(T, T) -> T)
+    SemiGroup = trait (T, op): (Type, func(T, T) -> T) with
+        prop associtive(x, y, z: T) -> op(x, op(y, z)) == op(op(x, y), z)
+    Monoid = trait (T, op): (Type, func(T, T) -> T) with
+        (T, op) is SemiGroup
+        func unit(_: singleton (T, op)) -> T
+        prop unitNeutral(x: T) -> (op((T, op).unit, x) == x, op(x, (T, op).unit) == x)
+
+func map[M <: Magma](a: Seq[M.T]) -> Seq[M.T]:
+    var res = @[]
+    for e in a:
+        res.add M.op(e)
+    res
+func fold[(T, op) <: Monoid](a: Seq[T]) -> T:
+    var res: T = (T, op).unit
+    for e in a:
+        res = op(res, e)
+    res
