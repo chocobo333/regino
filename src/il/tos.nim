@@ -116,10 +116,14 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
     of ExpressionKind.Case:
         let
             val = `$`(self.val, typed, regioned, comment)
-            ofs = if self.ofs.len == 0: "" else: ("\n" & self.ofs.map(`$`).join("\n"))
             default = "\n" & self.default.map(
                     it => "default:\n" & `$`(it, typed, regioned, comment)
                 ).get("")
+        var
+            ofs = ""
+        for e in self.ofs:
+            ofs.add "\n"
+            ofs.add $e
         fmt"case {val}{ofs}{default}"
     of ExpressionKind.Call:
         let
@@ -135,7 +139,8 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
         let
             lhs = `$`(self.lhs, typed, regioned, comment)
             rhs = `$`(self.rhs, typed, regioned, comment)
-        fmt"{lhs}.{rhs}"
+            args = if self.dotArgs.len != 0: "(" & self.dotArgs.mapIt(`$`(it, typed, regioned, comment)).join(", ") & ")" else: ""
+        fmt"{self.lhs}.{self.rhs}{args}"
     of ExpressionKind.Binary:
         let
             op = `$$`(self.op, typed, regioned, comment)

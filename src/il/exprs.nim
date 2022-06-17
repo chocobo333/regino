@@ -27,8 +27,8 @@ proc Call*(_: typedesc[Expression], callee: Expression, args: openArray[Expressi
     Expression(kind: ExpressionKind.Call, callee: callee, args: @args, loc: loc)
 proc Command*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Command, callee: callee, args: @args, loc: loc)
-proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, loc: Location = newLocation()): Expression =
-    Expression(kind: ExpressionKind.Dot, lhs: lhs, rhs: rhs, loc: loc)
+proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, loc: Location = newLocation(), dotArgs: seq[Expression] = @[]): Expression =
+    Expression(kind: ExpressionKind.Dot, lhs: lhs, rhs: rhs, dotArgs: dotArgs, loc: loc)
 proc Binary*(_: typedesc[Expression], op: Ident, lhs, rhs: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Binary, op: op, lhs: lhs, rhs: rhs, loc: loc)
 proc Prefix*(_: typedesc[Expression], op: Ident, expression: Expression, loc: Location = newLocation()): Expression =

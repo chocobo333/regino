@@ -19,6 +19,7 @@ import resolve
 
 
 proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
+proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = false): Value
 proc infer*(self: Suite, env: TypeEnv): Value
 proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value
 proc check(self: Expression, env: TypeEnv)
@@ -99,7 +100,17 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
             env.coerce(elset.get <= tv)
         tv
     of ExpressionKind.Case:
-        Value.Unit
+        let
+            val = self.val.infer(env)
+            ofs = self.ofs.mapIt((it[0].infer(env), it[1].infer(env)))
+            default = self.default
+            tv = Value.Var(env)
+        for (pat, suite) in ofs:
+            env.coerce(pat == val)
+            env.coerce(suite <= tv)
+        if default.isSome():
+            env.coerce(default.get.infer(env) <= tv)
+        tv
     of ExpressionKind.Call, ExpressionKind.Command:
         let
             tv = Value.Var(env)
@@ -111,15 +122,10 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Dot:
         let
             tv = Value.Var(env)
-            args = @[self.lhs.infer(env, global)]
+            args = @[self.lhs.infer(env, global)] & self.dotArgs.mapIt(it.infer(env, global))
             callee = self.rhs.infer(env, global)
-        if self.rhs.ident.name == "ptrSet":
-            env.coerce(tv == Value.Unit)
-            env.coerce(args[0] <= Value.Integer)
-            env.coerce(Value.Ptr(args[1]) <= callee)
-        else:
-            env.coerce(callee <= Value.Arrow(args, tv))
-            env.coerce(Value.Arrow(@[Value.Unit], tv) <= callee) # i dont know whether this is correct.
+        env.coerce(callee <= Value.Arrow(args, tv))
+        env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Bracket:
         Value.Unit

@@ -40,7 +40,10 @@ proc make(self: TrailerObj, exp: Expression, endpos: Position): Expression =
     let loc = newLocation(exp.loc.uri, exp.loc.range.a, endpos)
     case self.kind
     of ExpressionKind.Call:
-        Expression.Call(exp, self.args, loc)
+        if exp.kind == ExpressionKind.Dot:
+            Expression.Dot(exp.lhs, exp.rhs, loc, self.args)
+        else:
+            Expression.Call(exp, self.args, loc)
     of ExpressionKind.Command:
         Expression.Command(exp, self.args, loc)
     of ExpressionKind.Bracket:

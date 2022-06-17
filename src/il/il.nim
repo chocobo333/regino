@@ -172,6 +172,7 @@ type
             lhs*: Expression
             rhs*: Expression
             op*: Ident # for binary and unary
+            dotArgs*: seq[Expression] # for dot
             expression*: Expression # for unary
         of ExpressionKind.Block:
             label*: Option[Ident]
