@@ -1,23 +1,11 @@
 
+import parity/[
+    isEven,
+    isOdd
+]
 
-type
-    A = object
-        b: B
-    B = object
-        i: int
-    C[T] = T
-
-var
-    a = A(b: B(i: 3))
-    b = 3
-
-echo a
-
-(a.b.i, b) = (4, 5)
-echo a
-echo b
-
-let c: C[int] = when true:
-    3
-else:
-    true
+echo isOdd(329)
+echo isOdd(34, false)
+echo isOdd2(34)
+echo isOdd3(34)
+echo isEven(444)

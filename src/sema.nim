@@ -7,11 +7,12 @@ import utils
 import sema/[
     scopes,
     eval,
+    infer
 ]
 import projects/projects
 
 
-proc sema*(self: Program, project: Project): seq[TypeError] =
+proc sema*(self: Program): seq[TypeError] =
     let
         mainScope = self.setScope()
         env = newTypeEnv(mainScope)
@@ -24,14 +25,14 @@ proc sema*(self: Program, project: Project): seq[TypeError] =
     env.errs
 
 
-# when isMainModule:
-#     import parsers
-#     import options
-#     let
-#         f = open("test/test.rgn")
-#         s = f.readAll
-#         program = Program(Source.from(s)).get
-#     let
-#         errs = program.sema
-#     f.close
-    # debug program
+when isMainModule:
+    import parsers
+    import options
+    let
+        f = open("test/test.rgn")
+        s = f.readAll
+        program = Program(Source.from(s)).get
+    let
+        errs = program.sema
+    f.close
+    debug program
