@@ -595,7 +595,7 @@ proc resolve*(self: TypeEnv) =
     #     dot.save("./dots")
 
 when isMainModule:
-    import eval
+    import decls
     import scopes
     import ../parsers
 
