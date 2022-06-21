@@ -6,10 +6,8 @@ import sets
 import tables
 import algorithm
 
-import inst
 import ../il
 import ../typeenv
-import ../errors
 
 import ../utils
 import ../lineinfos
@@ -20,7 +18,6 @@ import resolve
 import decls
 
 
-proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
 proc infer*(self: Suite, env: TypeEnv): Value
 proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value
 

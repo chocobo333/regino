@@ -24,7 +24,6 @@ proc check(self: Suite, env: TypeEnv)
 proc eval*(self: Program, env: TypeEnv): Value
 proc eval*(self: Suite, env: TypeEnv): Value
 proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
-proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = false): Value
 
 
 proc check(self: Ident, env: TypeEnv) =
