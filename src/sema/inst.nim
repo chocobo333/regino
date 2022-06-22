@@ -85,7 +85,7 @@ proc inst(self: Expression): Expression =
     of ExpressionKind.Command:
         Expression.Command(self.callee.inst, self.args.map(inst))
     of ExpressionKind.Dot:
-        Expression.Dot(self.lhs.inst, self.rhs.inst)
+        Expression.Dot(self.lhs.inst, self.rhs.inst, self.dotArgs)
     of ExpressionKind.Bracket:
         Expression.Bracket(self.callee.inst, self.args.map(inst))
     of ExpressionKind.Binary:
