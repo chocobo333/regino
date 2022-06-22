@@ -8,9 +8,10 @@ import ../errors
 
 
 type
-    Buffer*[T] = Table[string, T]
+    Buffer*[T] = TableRef[string, T]
     Project* = ref object
         main*: string
         src*: Buffer[ref Source]
         program*: Buffer[il.Program]
-        Terrs*: Buffer[seq[TypeError]]
+        terrs*: Buffer[seq[TypeError]]
+
