@@ -30,21 +30,10 @@ when isMainModule:
     let
         f = open("test/unit.rgn")
         s = f.readAll
-        program = Program(Source.from(s)).get
+        program = Program(Source.from(s)).get.desugar
     
-    let target = program.stmts[4].typedefSection.typedefs[0]
-    debug target                                  # int = typeof(0)
-    debug target.typ.expression.kind              # Call
-    debug target.typ.expression.args              # @[ 0 ]
-
-    let 
-        desugaredProgram = program.desugar
-        desugaredTarget = desugaredProgram.stmts[4].typedefSection.typedefs[0]
-    debug desugaredTarget                         # int = typeof(0)
-    debug desugaredTarget.typ.expression.kind     # Typeof
-    debug desugaredTarget.typ.expression.`typeof` # 0
 
     let
-        errs = desugaredProgram.sema
+        errs = program.sema
     f.close
     debug program

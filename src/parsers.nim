@@ -270,8 +270,7 @@ let
     Atom = %(?Operators + alt(
         ObjectCons,
         %Literal @ (it => Expression.literal(it[0], it[1])),
-        # Typeof, 
-        Malloc, Ref,
+        Ref,
         FnType,
         Id @ (it => Expression(kind: ExpressionKind.Ident, ident: it, loc: it.loc)),
         delimited(lpar, Expr, rpar),
