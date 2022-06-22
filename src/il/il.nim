@@ -111,7 +111,7 @@ type
         metadata*: Option[Metadata]
         docStr*: seq[Comment]
         suite*: Option[Suite]
-    PrimitiveKeyWord* {.pure.} = enum
+    PrimitiveKeyWord* {.pure.}= enum
         PKTypeof = "typeof"
         PKMalloc = "malloc"
         PKRealloc = "realloc"

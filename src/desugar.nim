@@ -63,15 +63,15 @@ proc desugar(self: Expression): Expression =
         if callee.kind != ExpressionKind.Ident:
             return none(Expression)
         case callee.ident.name:
-        of PrimitiveKeyWord.PKTypeof:
+        of $(PKTypeof):
             some(Expression.Typeof(args[0].desugar))
-        of PrimitiveKeyWord.PKMalloc:
+        of $(PKMalloc):
             some(Expression.Malloc(args[0].desugar, args[1].desugar))
-        of PrimitiveKeyWord.PKRealloc:
+        of $(PKRealloc):
             some(Expression.Realloc(args[0].desugar, args[1].desugar))
-        of PrimitiveKeyWord.PKPtrSet:
+        of $(PKPtrSet):
             some(Expression.Ptrset(args[0].desugar, args[1].desugar, args[2].desugar))
-        of PrimitiveKeyWord.PKPtrGet:
+        of $(PKPtrGet):
             some(Expression.Ptrget(args[0].desugar, args[1].desugar))
         else:
             none(Expression)
