@@ -7,7 +7,6 @@ import ../lineinfos
 import ../orders
 from llvm import nil
 
-
 type
     Program* = ref object
         stmts*: seq[Statement]
@@ -112,6 +111,12 @@ type
         metadata*: Option[Metadata]
         docStr*: seq[Comment]
         suite*: Option[Suite]
+    PrimitiveKeyWord* {.pure.} = enum
+        PKTypeof = "typeof"
+        PKMalloc = "malloc"
+        PKRealloc = "realloc"
+        PKPtrSet = "ptrset"
+        PKPtrGet = "ptrget"
     ExpressionKind* {.pure.} = enum
         Literal
         Ident
