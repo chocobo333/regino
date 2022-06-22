@@ -67,6 +67,12 @@ proc desugar(self: Expression): Expression =
             some(Expression.Typeof(args[0].desugar))
         of "malloc":
             some(Expression.Malloc(args[0].desugar, args[1].desugar))
+        of "realloc":
+            some(Expression.Realloc(args[0].desugar, args[1].desugar))
+        of "ptrset":
+            some(Expression.Ptrset(args[0].desugar, args[1].desugar, args[2].desugar))
+        of "ptrget":
+            some(Expression.Ptrget(args[0].desugar, args[1].desugar))
         else:
             none(Expression)
     case self.kind
@@ -111,6 +117,12 @@ proc desugar(self: Expression): Expression =
         Expression.Lambda(self.param.desugar, self.body.desugar)
     of ExpressionKind.Malloc:
         Expression.Malloc(self.mtype.desugar, self.msize.desugar)
+    of ExpressionKind.Realloc:
+        Expression.Realloc(self.rptr.desugar, self.msize.desugar)
+    of ExpressionKind.Ptrset:
+        Expression.Ptrset(self.`ptr`.desugar, self.idx.desugar, self.v.desugar)
+    of ExpressionKind.Ptrget:
+        Expression.Ptrget(self.`ptr`.desugar, self.idx.desugar)
     of ExpressionKind.Typeof:
         Expression.Typeof(self.`typeof`.desugar)
     of ExpressionKind.Ref:

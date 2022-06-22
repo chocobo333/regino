@@ -132,7 +132,10 @@ type
         Block
         Lambda
         Malloc
+        Realloc
         Typeof
+        Ptrset
+        Ptrget
         Ref
         FnType
         IntCast
@@ -175,9 +178,14 @@ type
         of ExpressionKind.Lambda:
             param*: FunctionParam
             body*: Suite
-        of ExpressionKind.Malloc:
-            mtype*: Expression
+        of ExpressionKind.Malloc, ExpressionKind.Realloc:
+            mtype*: Expression    # for Malloc
+            rptr*: Expression     # for Realloc
             msize*: Expression
+        of ExpressionKind.Ptrset, ExpressionKind.Ptrget:
+            `ptr`*: Expression
+            idx*: Expression
+            v*: Expression        # for Ptrset
         of ExpressionKind.Typeof:
             `typeof`*: Expression
         of ExpressionKind.Ref:

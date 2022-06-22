@@ -45,6 +45,12 @@ proc Lambda*(_: typedesc[Expression], param: FunctionParam, body: Suite, loc: Lo
     Expression(kind: ExpressionKind.Lambda, param: param, body: body, loc: loc)
 proc Malloc*(_: typedesc[Expression], mtype: Expression, msize: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Malloc, mtype: mtype, msize: msize, loc: loc)
+proc Realloc*(_: typedesc[Expression], rptr: Expression, msize: Expression, loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Realloc, rptr: rptr, msize: msize, loc: loc)
+proc Ptrset*(_: typedesc[Expression], `ptr`: Expression, idx: Expression, v: Expression, loc: Location = newLocation()): Expression = 
+    Expression(kind: ExpressionKind.Ptrset, `ptr`: `ptr`, idx: idx, v: v, loc: loc)
+proc Ptrget*(_: typedesc[Expression], `ptr`: Expression, idx: Expression, loc: Location = newLocation()): Expression = 
+    Expression(kind: ExpressionKind.Ptrget, `ptr`: `ptr`, idx: idx, loc: loc)
 proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Typeof, `typeof`: `typeof`, loc: loc)
 proc Ref*(_: typedesc[Expression], `ref`: Expression, loc: Location = newLocation()): Expression =
