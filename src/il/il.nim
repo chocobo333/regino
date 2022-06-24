@@ -7,7 +7,6 @@ import ../lineinfos
 import ../orders
 from llvm import nil
 
-
 type
     Program* = ref object
         stmts*: seq[Statement]
@@ -117,6 +116,12 @@ type
         metadata*: Option[Metadata]
         docStr*: seq[Comment]
         suite*: Option[Suite]
+    PrimitiveKeyWord* {.pure.}= enum
+        PKTypeof = "typeof"
+        PKMalloc = "malloc"
+        PKRealloc = "realloc"
+        PKPtrSet = "ptrset"
+        PKPtrGet = "ptrget"
     ExpressionKind* {.pure.} = enum
         Literal
         Ident
@@ -137,7 +142,10 @@ type
         Block
         Lambda
         Malloc
+        Realloc
         Typeof
+        Ptrset
+        Ptrget
         Ref
         FnType
         IntCast
@@ -180,9 +188,14 @@ type
         of ExpressionKind.Lambda:
             param*: FunctionParam
             body*: Suite
-        of ExpressionKind.Malloc:
-            mtype*: Expression
+        of ExpressionKind.Malloc, ExpressionKind.Realloc:
+            mtype*: Expression    # for Malloc
+            rptr*: Expression     # for Realloc
             msize*: Expression
+        of ExpressionKind.Ptrset, ExpressionKind.Ptrget:
+            `ptr`*: Expression
+            idx*: Expression
+            v*: Expression        # for Ptrset
         of ExpressionKind.Typeof:
             `typeof`*: Expression
         of ExpressionKind.Ref:

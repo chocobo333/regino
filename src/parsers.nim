@@ -41,7 +41,7 @@ proc make(self: TrailerObj, exp: Expression, endpos: Position): Expression =
     case self.kind
     of ExpressionKind.Call:
         if exp.kind == ExpressionKind.Dot:
-            Expression.Dot(exp.lhs, exp.rhs, loc, self.args)
+            Expression.Dot(exp.lhs, exp.rhs, self.args, loc)
         else:
             Expression.Call(exp, self.args, loc)
     of ExpressionKind.Command:
@@ -49,7 +49,7 @@ proc make(self: TrailerObj, exp: Expression, endpos: Position): Expression =
     of ExpressionKind.Bracket:
         Expression.Bracket(exp, self.args, loc)
     of ExpressionKind.Dot:
-        Expression.Dot(exp, self.field, loc)
+        Expression.Dot(exp, self.field, @[], loc)
     of ExpressionKind.Postfix:
         Expression.Postfix(self.op, exp, loc)
     else:
@@ -279,7 +279,7 @@ let
     Atom = %(?Operators + alt(
         ObjectCons,
         %Literal @ (it => Expression.literal(it[0], it[1])),
-        Typeof, Malloc, Ref,
+        Ref,
         FnType,
         Id @ (it => Expression(kind: ExpressionKind.Ident, ident: it, loc: it.loc)),
         delimited(lpar, Expr, rpar),

@@ -5,7 +5,7 @@
 ![link: "string.ll"]
 
 type
-  int = typeof(0)
+  int = 0.typeof
   float = typeof(0.0)
   string = typeof("")
 
@@ -17,3 +17,5 @@ let
   b: int = 1
 
 a.f(b)
+
+# malloc(a, 1)

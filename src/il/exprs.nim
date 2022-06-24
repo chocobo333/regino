@@ -27,7 +27,7 @@ proc Call*(_: typedesc[Expression], callee: Expression, args: openArray[Expressi
     Expression(kind: ExpressionKind.Call, callee: callee, args: @args, loc: loc)
 proc Command*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Command, callee: callee, args: @args, loc: loc)
-proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, loc: Location = newLocation(), dotArgs: seq[Expression] = @[]): Expression =
+proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, dotArgs: seq[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Dot, lhs: lhs, rhs: rhs, dotArgs: dotArgs, loc: loc)
 proc Binary*(_: typedesc[Expression], op: Ident, lhs, rhs: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Binary, op: op, lhs: lhs, rhs: rhs, loc: loc)
@@ -45,6 +45,12 @@ proc Lambda*(_: typedesc[Expression], param: FunctionParam, body: Suite, loc: Lo
     Expression(kind: ExpressionKind.Lambda, param: param, body: body, loc: loc)
 proc Malloc*(_: typedesc[Expression], mtype: Expression, msize: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Malloc, mtype: mtype, msize: msize, loc: loc)
+proc Realloc*(_: typedesc[Expression], rptr: Expression, msize: Expression, loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Realloc, rptr: rptr, msize: msize, loc: loc)
+proc Ptrset*(_: typedesc[Expression], `ptr`: Expression, idx: Expression, v: Expression, loc: Location = newLocation()): Expression = 
+    Expression(kind: ExpressionKind.Ptrset, `ptr`: `ptr`, idx: idx, v: v, loc: loc)
+proc Ptrget*(_: typedesc[Expression], `ptr`: Expression, idx: Expression, loc: Location = newLocation()): Expression = 
+    Expression(kind: ExpressionKind.Ptrget, `ptr`: `ptr`, idx: idx, loc: loc)
 proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Typeof, `typeof`: `typeof`, loc: loc)
 proc Ref*(_: typedesc[Expression], `ref`: Expression, loc: Location = newLocation()): Expression =

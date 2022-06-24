@@ -153,6 +153,12 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Malloc:
         env.coerce(self.msize.infer(env, global) == Value.Integer)
         Value.Ptr(self.mtype.eval(env, global))
+    of ExpressionKind.Realloc:
+        Value.Unit
+    of ExpressionKind.Ptrset:
+        Value.Unit
+    of ExpressionKind.Ptrget:
+        Value.Unit
     of ExpressionKind.Typeof:
         Value.Singleton(self.`typeof`.infer(env, global))
     of ExpressionKind.Ref:
@@ -710,6 +716,12 @@ proc check(self: Expression, env: TypeEnv) =
         discard
     of ExpressionKind.Malloc:
         discard
+    of ExpressionKind.Realloc:
+        discard
+    of ExpressionKind.Ptrset:
+        discard
+    of ExpressionKind.Ptrget:
+        discard
     of ExpressionKind.Typeof:
         discard
     of ExpressionKind.Ref:
@@ -908,6 +920,12 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of ExpressionKind.Malloc:
         Value.Ptr(self.mtype.eval(env, global))
+    of ExpressionKind.Realloc:
+        Value.Unit
+    of ExpressionKind.Ptrset:
+        Value.Unit
+    of ExpressionKind.Ptrget:
+        Value.Unit
     of ExpressionKind.Typeof:
         self.`typeof`.typ
     of ExpressionKind.Ref:

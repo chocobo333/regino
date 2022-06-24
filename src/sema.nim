@@ -26,10 +26,13 @@ proc sema*(self: Program): seq[TypeError] =
 when isMainModule:
     import parsers
     import options
+    import desugar
     let
         f = open("test/ptr.rgn")
         s = f.readAll
-        program = Program(Source.from(s)).get
+        program = Program(Source.from(s)).get.desugar
+    
+
     let
         errs = program.sema
     f.close
