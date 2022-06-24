@@ -42,7 +42,7 @@ proc compile*(filename: seq[string]): int =
         project = newProject(filename)
     project.parse
     project.sema
-    let program = project.program
+    let program = project.mainProgram
     if project.errExists:
         project.echoErrs
         return 1

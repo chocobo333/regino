@@ -49,7 +49,7 @@ proc update*(self: Project, uri: string, text: string) =
 proc `[]=`*(self: Project, uri: string, text: string) =
     self.update(uri, text)
 
-proc program*(self: Project): Program =
+proc mainProgram*(self: Project): Program =
     self.program[self.main]
 
 proc errExists*(self: Project): bool =
