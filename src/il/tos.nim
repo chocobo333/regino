@@ -186,6 +186,22 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
             mtype = `$`(self.mtype, typed, regioned, comment)
             msize = `$`(self.msize, typed, regioned, comment)
         fmt"malloc({mtype}, {msize})"
+    of ExpressionKind.Realloc:
+        let
+            rptr = `$`(self.rptr, typed, regioned, comment)
+            msize = `$`(self.msize, typed, regioned, comment)
+        fmt"realloc({rptr}, {msize})"
+    of ExpressionKind.Ptrset:
+        let
+            `ptr` = `$`(self.`ptr`, typed, regioned, comment)
+            idx = `$`(self.idx, typed, regioned, comment)
+            v = `$`(self.v, typed, regioned, comment)
+        fmt"ptrset({`ptr`}, {idx}, {v})"
+    of ExpressionKind.Ptrget:
+        let
+            `ptr` = `$`(self.`ptr`, typed, regioned, comment)
+            idx = `$`(self.idx, typed, regioned, comment)
+        fmt"ptrget({`ptr`}, {idx})"
     of ExpressionKind.Typeof:
         let typeof = `$`(self.typeof, typed, regioned, comment)
         fmt"typeof({typeof})"
@@ -708,6 +724,12 @@ proc treeRepr*(self: Expression): string =
         fmt"func{params}:\n{suite}"
     of ExpressionKind.Malloc:
         fmt"malloc({self.mtype}, {self.msize})"
+    of ExpressionKind.Realloc:
+        fmt"malloc({self.rptr}, {self.msize})"
+    of ExpressionKind.Ptrset:
+        fmt"ptrset({self.`ptr`}, {self.idx}, {self.v})"
+    of ExpressionKind.Ptrget:
+        fmt"ptrget({self.`ptr`}, {self.idx})"
     of ExpressionKind.Typeof:
         fmt"Typeof\n  {self.`typeof`.treeRepr}"
     of ExpressionKind.Ref:
