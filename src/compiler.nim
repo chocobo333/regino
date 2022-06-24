@@ -4,6 +4,7 @@ import os
 import codegen
 import errors
 import projects
+import tables
 
 
 from llvm import `$`, link
@@ -40,16 +41,13 @@ proc compile*(filename: seq[string]): int =
         filename = filename[0]
         module = newModule()
         project = newProject(filename)
-        program = project.parse
-        perrs = project.perrs
-        terrs = project.terrs
-    if perrs.len == 0 and terrs.len == 0:
+    project.parse
+    project.sema
+    let program = project.program
+    if project.perrs.len == 0 and project.terrs.len == 0:
         program.codegen(module, true)
     else:
-        for e in perrs:
-            echo e
-        for e in terrs:
-            echo e
+        project.echoErrs
         return 1
     for e in module.linkModules:
         discard module.module.link(e)

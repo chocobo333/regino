@@ -14,4 +14,5 @@ type
         src*: Buffer[ref Source]
         program*: Buffer[il.Program]
         terrs*: Buffer[seq[TypeError]]
+        perrs*: Buffer[seq[ParseError]]
 

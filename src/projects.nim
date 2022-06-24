@@ -7,6 +7,7 @@ import parsers
 import sema
 import errors
 import projects/projects
+import utils
 
 export Project
 
@@ -20,7 +21,7 @@ proc newProject*(main: string = ""): Project =
         program: newBuffer[il.Program](),
     )
 
-proc parse*(self: Project): Program =
+proc parse*(self: Project) =
     let
         uri = self.main
         f = open(uri)
@@ -30,23 +31,31 @@ proc parse*(self: Project): Program =
     close f
     self.terrs[uri] = program.sema(self)
     self.src[uri] = src
+    self.perrs[uri] = self.src[uri].errs
     self.program[uri] = program
-    program
+proc sema*(self: Project, uri: string = self.main) =
+    let
+        program = self.program[uri]
+    self.terrs[uri] = program.sema(self)
 proc update*(self: Project, uri: string, text: string) =
     let
         src = Source.from(text, uri)
         program = Program(src).get
     self.terrs[uri] = program.sema(self)
     self.src[uri] = src
+    self.perrs[uri] = self.src[uri].errs
     self.program[uri] = program
 
 proc `[]=`*(self: Project, uri: string, text: string) =
     self.update(uri, text)
 
-proc perrs*(self: Project, uri: string): seq[ParseError] =
-    self.src[uri].errs
-
 proc program*(self: Project): Program =
     self.program[self.main]
-proc perrs*(self: Project): seq[ParseError] =
-    self.perrs(self.main)
+
+proc echoErrs*(self: Project) =
+    for (key, val) in self.perrs.pairs:
+        debug key
+        debug val
+    for (key, val) in self.terrs.pairs:
+        debug key
+        debug val
