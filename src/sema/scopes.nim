@@ -50,7 +50,7 @@ proc setScope(self: Expression, parent: Scope) =
         self.param.setScope(parent)
         self.body.setScope(parent)
     of ExpressionKind.Malloc:
-        self.rptr.setScope(parent)
+        self.mtype.setScope(parent)
         self.msize.setScope(parent)
     of ExpressionKind.Ptrset:
         self.`ptr`.setScope(parent)
@@ -60,7 +60,7 @@ proc setScope(self: Expression, parent: Scope) =
         self.`ptr`.setScope(parent)
         self.idx.setScope(parent)
     of ExpressionKind.Realloc:
-        self.mtype.setScope(parent)
+        self.rptr.setScope(parent)
         self.msize.setScope(parent)
     of ExpressionKind.Typeof:
         self.`typeof`.setScope(parent)
