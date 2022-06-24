@@ -54,7 +54,7 @@ proc desugar(self: GenTypeDef): GenTypeDef =
     )
 proc desugar(self: FunctionParam): FunctionParam =
     FunctionParam(
-        implicit: @[],
+        implicit: self.implicit.map(desugar),
         params: self.params.map(desugar),
         rety: self.rety.map(desugar)
     )
