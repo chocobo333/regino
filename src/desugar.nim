@@ -59,7 +59,7 @@ proc desugar(self: FunctionParam): FunctionParam =
         rety: self.rety.map(desugar)
     )
 proc desugar(self: Expression): Expression =
-    proc makePrimitiveProc(callee: Expression, args: seq[Expression]): Option[Expression] = 
+    proc makePrimitiveProc(callee: Expression, args: seq[Expression]): Option[Expression] =
         if callee.kind != ExpressionKind.Ident:
             return none(Expression)
         case callee.ident.name:
@@ -180,9 +180,9 @@ proc desugar(self: TypeExpression): TypeExpression =
         TypeExpression.Expr(self.expression.desugar)
 proc desugar(self: TypeDef): TypeDef =
     newTypedef(self.id.desugar, self.params.map(it => it.map(desugar)), self.typ.desugar, self.comments)
-proc desugar(self: IdentDefSection): IdentDefSection = 
+proc desugar(self: IdentDefSection): IdentDefSection =
     newIddefSection(self.iddefs.map(desugar), self.comments)
-proc desugar(self: TypeDefSection): TypeDefSection = 
+proc desugar(self: TypeDefSection): TypeDefSection =
     newTypedefSection(self.typedefs.map(desugar), self.comments)
 proc desugar(self: Statement): Statement =
     case self.kind
@@ -202,6 +202,8 @@ proc desugar(self: Statement): Statement =
         Statement.TypeSection(self.typedefSection.desugar, self.loc)
     of StatementKind.Asign:
         Statement.Asign(self.pat.desugar, self.op.desugar, self.val.desugar, self.loc)
+    of StatementKind.IndexAssign:
+        Statement.IndexAssign(self.id.desugar, self.index.desugar, self.i_val.desugar, self.loc)
     of StatementKind.Funcdef:
         Statement.Funcdef(self.fn.desugar, self.loc)
     of StatementKind.Meta:
@@ -216,5 +218,5 @@ proc desugar(self: Statement): Statement =
         Statement.Fail(self.loc)
 proc desugar(self: Suite): Suite =
     newSuite(self.stmts.map(desugar))
-proc desugar*(self: Program): Program = 
+proc desugar*(self: Program): Program =
     Program(stmts: self.stmts.map(desugar), scope: self.scope)
