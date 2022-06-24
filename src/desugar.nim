@@ -102,7 +102,7 @@ proc desugar(self: Expression): Expression =
         if desugared.isSome: desugared.get else: Expression.Command(self.callee.desugar, self.args.map(desugar))
     of ExpressionKind.Dot:
         let desugared = makePrimitiveProc(self.rhs, @[self.lhs] & self.dotArgs)
-        if desugared.isSome: desugared.get else: Expression.Dot(self.lhs.desugar, self.rhs.desugar)
+        if desugared.isSome: desugared.get else: Expression.Dot(self.lhs.desugar, self.rhs.desugar, self.dotArgs.map(desugar))
     of ExpressionKind.Bracket:
         Expression.Bracket(self.callee.desugar, self.args.map(desugar))
     of ExpressionKind.Binary:
