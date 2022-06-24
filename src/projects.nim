@@ -52,6 +52,9 @@ proc `[]=`*(self: Project, uri: string, text: string) =
 proc program*(self: Project): Program =
     self.program[self.main]
 
+proc errExists*(self: Project): bool =
+    self.perrs.len != 0 or self.terrs.len != 0
+
 proc echoErrs*(self: Project) =
     for (key, val) in self.perrs.pairs:
         debug key

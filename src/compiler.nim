@@ -4,7 +4,6 @@ import os
 import codegen
 import errors
 import projects
-import tables
 
 
 from llvm import `$`, link
@@ -44,11 +43,10 @@ proc compile*(filename: seq[string]): int =
     project.parse
     project.sema
     let program = project.program
-    if project.perrs.len == 0 and project.terrs.len == 0:
-        program.codegen(module, true)
-    else:
+    if project.errExists:
         project.echoErrs
         return 1
+    program.codegen(module, true)
     for e in module.linkModules:
         discard module.module.link(e)
     # module = module.optimize
