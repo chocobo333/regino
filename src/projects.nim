@@ -21,15 +21,13 @@ proc newProject*(main: string = ""): Project =
         program: newBuffer[il.Program](),
     )
 
-proc parse*(self: Project) =
+proc parse*(self: Project, uri: string = self.main) =
     let
-        uri = self.main
         f = open(uri)
         text = f.readAll()
         src = Source.from(text, uri)
         program = Program(src).get
     close f
-    self.terrs[uri] = program.sema(self)
     self.src[uri] = src
     self.perrs[uri] = self.src[uri].errs
     self.program[uri] = program
@@ -37,6 +35,8 @@ proc sema*(self: Project, uri: string = self.main) =
     let
         program = self.program[uri]
     self.terrs[uri] = program.sema(self)
+
+    
 proc update*(self: Project, uri: string, text: string) =
     let
         src = Source.from(text, uri)

@@ -35,6 +35,14 @@ proc optimize(self: Module): Module =
     self.module.module = module
     self
 
+proc sema*(filename: seq[string]) = 
+    var
+        filename = filename[0]
+        module = newModule()
+        project = newProject(filename)
+    project.parse
+    project.sema
+
 proc compile*(filename: seq[string]): int =
     var
         filename = filename[0]
@@ -57,4 +65,5 @@ proc compile*(filename: seq[string]): int =
     0
 
 when isMainModule:
-    discard compile(@["test/test.rgn"])
+    # discard compile(@["test/test.rgn"])
+    sema(@["test/test.rgn"])
