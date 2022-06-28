@@ -28,7 +28,11 @@ when isMainModule:
     import options
     import desugar
     let
+<<<<<<< HEAD
         f = open("test/ptr.rgn")
+=======
+        f = open("test/test.rgn")
+>>>>>>> main
         s = f.readAll
         program = Program(Source.from(s)).get.desugar
 

@@ -200,9 +200,17 @@ proc find*(self: Expression, pos: rPosition): Option[Ident] =
         self.`block`.find(pos)
     of ExpressionKind.Lambda:
         none(Ident)
+    of ExpressionKind.ObjCons:
+        none(Ident)
     of ExpressionKind.Malloc:
         none(Ident)
     of ExpressionKind.Typeof:
+        none(Ident)
+    of ExpressionKind.Realloc:
+        none(Ident)
+    of ExpressionKind.Ptrset:
+        none(Ident)
+    of ExpressionKind.Ptrget:
         none(Ident)
     of ExpressionKind.Ref:
         none(Ident)

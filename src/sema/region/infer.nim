@@ -525,6 +525,12 @@ proc infer(self: Expression, env: RegionEnv, suite: Region) =
         discard
     of ExpressionKind.Typeof:
         discard
+    of ExpressionKind.Realloc:
+        discard
+    of ExpressionKind.Ptrset:
+        discard
+    of ExpressionKind.Ptrget:
+        discard
     of ExpressionKind.Ref:
         discard
     of ExpressionKind.FnType:
