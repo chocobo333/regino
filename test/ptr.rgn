@@ -14,10 +14,10 @@ type
     string = typeof("")
     char = typeof('a')
 
-# func `[]`[T](self: ptr[T], i: int) -> T:
-#     self.ptrGet(i)
+func `[]`[T](self: ptr[T], i: int) -> T:
+    self.ptrget(i)
 func `[]=`[T](self: ptr[T], i: int, val: T) -> T:
-    self.ptrSet(i, val)
+    self.ptrset(i, val)
 
 
 func echo(a: string) ![importll]

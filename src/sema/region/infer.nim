@@ -517,6 +517,12 @@ proc infer(self: Expression, env: RegionEnv, suite: Region) =
         discard
     of ExpressionKind.Malloc:
         discard
+    of ExpressionKind.Realloc:
+        discard
+    of ExpressionKind.Ptrget:
+        discard
+    of ExpressionKind.Ptrset:
+        discard
     of ExpressionKind.Typeof:
         discard
     of ExpressionKind.Ref:
@@ -567,6 +573,9 @@ proc infer(self: Statement, env: RegionEnv, suite: Region) =
         self.pat.infer(env, suite)
         self.val.infer(env, suite)
         env.coerce(self.pat.typ <= self.val.typ)
+    of StatementKind.IndexAssign:
+        # TODO:
+        discard
     of StatementKind.Funcdef:
         self.fn.infer(env, suite)
     of StatementKind.Meta:

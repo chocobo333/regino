@@ -31,7 +31,7 @@ when isMainModule:
         f = open("test/ptr.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get.desugar
-    
+
 
     let
         errs = program.sema

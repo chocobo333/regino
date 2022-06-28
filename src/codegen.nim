@@ -381,6 +381,12 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
         nil
     of ExpressionKind.Malloc:
         nil
+    of ExpressionKind.Realloc:
+        nil
+    of ExpressionKind.Ptrset:
+        nil
+    of ExpressionKind.Ptrget:
+        nil
     of ExpressionKind.Typeof:
         nil
     of ExpressionKind.Ref:
@@ -551,6 +557,8 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     of StatementKind.TypeSection:
         nil
     of StatementKind.Asign:
+        nil
+    of StatementKind.IndexAssign:
         nil
     of StatementKind.Funcdef:
         self.fn.codegen(module, global)

@@ -156,9 +156,14 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Realloc:
         Value.Unit
     of ExpressionKind.Ptrset:
+        env.coerce(Value.Ptr(self.v.infer(env, global)) <= self.`ptr`.infer(env, global))
+        env.coerce(self.idx.infer(env, global) == Value.Integer)
         Value.Unit
     of ExpressionKind.Ptrget:
-        Value.Unit
+        let tv = Value.Var(env)
+        env.coerce(self.idx.infer(env, global) == Value.Integer)
+        env.coerce(Value.Ptr(tv) == self.`ptr`.infer(env, global))
+        tv
     of ExpressionKind.Typeof:
         Value.Singleton(self.`typeof`.infer(env, global))
     of ExpressionKind.Ref:
@@ -439,7 +444,7 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         env.coerce(val <= paty)
         Value.Unit
     of StatementKind.IndexAssign:
-        Value.Unit
+        Expression.Call(Expression.Id(newIdent("[]=")), @[Expression.Id(self.id), self.index, self.i_val]).infer(env, global)
     of StatementKind.Funcdef:
         env.addFunc(self.fn, global)
         self.fn.infer(env, global)
