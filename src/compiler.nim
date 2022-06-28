@@ -66,4 +66,4 @@ proc compile*(filename: seq[string]): int =
 
 when isMainModule:
     # discard compile(@["test/test.rgn"])
-    sema(@["test/test.rgn"])
+    sema(@["test/unit.rgn"])

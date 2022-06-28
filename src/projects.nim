@@ -19,6 +19,8 @@ proc newProject*(main: string = ""): Project =
         main: main,
         src: newBuffer[ref Source](),
         program: newBuffer[il.Program](),
+        terrs: newBuffer[seq[TypeError]](),
+        perrs: newBuffer[seq[ParseError]]()
     )
 
 proc parse*(self: Project, uri: string = self.main) =
