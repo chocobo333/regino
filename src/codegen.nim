@@ -390,9 +390,18 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
     of ExpressionKind.Realloc:
         nil
     of ExpressionKind.Ptrset:
-        nil
+        let
+            typ = self.`ptr`.typ.newLType(module).elementType
+            indices = [self.idx.codegen(module)]
+            p = module.curBuilder.gep2(typ, self.`ptr`.codegen(module), indices, "")
+            val = self.v.codegen(module)
+        module.curBuilder.store(val, p)
     of ExpressionKind.Ptrget:
-        nil
+        let
+            typ = self.`ptr`.typ.newLType(module).elementType
+            indices = [self.idx.codegen(module)]
+            p = module.curBuilder.gep2(typ, self.`ptr`.codegen(module), indices, "")
+        module.curBuilder.load(typ, p)
     of ExpressionKind.Ref:
         nil
     of ExpressionKind.FnType:
@@ -484,13 +493,13 @@ proc setParam(self: Pattern, module: Module, typ: Value, val: LValue) =
         discard
     of PatternKind.UnderScore:
         discard
-proc codegen(self: Function, module: Module, global: bool = false) =
+proc codegen(self: Function, module: Module, global: bool = false): LValue =
     if self.param.implicit.len > 0:
-        #     # TODO: for quantified function
-        #     for val in self.fn.id.typ.symbol.get.instances.keys:
-        #         assert self.fn.id.typ.symbol.get.instances[val].instance.isSome
-        #         self.fn.id.typ.symbol.get.instances[val].val = self.fn.id.typ.symbol.get.instances[val].instance.get.codegen(module)
-        #         self.fn.id.typ.symbol.get.instances[val].lty = newLType(val, module)
+        # TODO: for quantified function
+        for val in self.id.typ.symbol.get.instances.keys:
+            assert self.id.typ.symbol.get.instances[val].instance.isSome
+            self.id.typ.symbol.get.instances[val].val = self.id.typ.symbol.get.instances[val].instance.get.codegen(module)
+            self.id.typ.symbol.get.instances[val].lty = newLType(val, module)
         return
     let
         fn = self
@@ -510,6 +519,7 @@ proc codegen(self: Function, module: Module, global: bool = false) =
         fn2 = module.module.addFunction(name, fnty2)
     sym.val = fn2
     sym.lty = fnty2
+    result = fn2
     if fn.metadata.isSome:
         case fn.metadata.get.kind
         of MetadataKind.ImportLL:
@@ -536,7 +546,10 @@ proc codegen(self: Function, module: Module, global: bool = false) =
                     discard module.curBuilder.store(ret, fn2.param(fn.param.params.len))
                     discard module.curBuilder.retVoid()
                 else:
-                    discard module.curBuilder.ret(ret)
+                    if rety.kind == TypeKind.VoidTypeKind:
+                        discard module.curBuilder.retVoid()
+                    else:
+                        discard module.curBuilder.ret(ret)
 
 
 proc codegen(self: IdentDefSection, module: Module, global: bool = false) =
@@ -563,9 +576,10 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     of StatementKind.Asign:
         nil
     of StatementKind.IndexAssign:
+        discard self.set_exp.codegen(module)
         nil
     of StatementKind.Funcdef:
-        self.fn.codegen(module, global)
+        discard self.fn.codegen(module, global)
         nil
     of StatementKind.Meta:
         let metadata = self.meta
