@@ -27,3 +27,5 @@ func `$`(a: int) -> string ![subtype]:
 let a = malloc(int, 1)
 a[0] = 3
 echo a[0]
+let b = a[0]
+echo $b
