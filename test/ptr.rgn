@@ -16,7 +16,7 @@ type
 
 func `[]`[T](self: ptr[T], i: int) -> T:
     self.ptrget(i)
-func `[]=`[T](self: ptr[T], i: int, val: T) -> T:
+func `[]=`[T](self: ptr[T], i: int, val: T):
     self.ptrset(i, val)
 
 
