@@ -26,4 +26,4 @@ func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
 let a = malloc(int, 1)
 a[0] = 3
-# echo a[0]
+echo a[0]

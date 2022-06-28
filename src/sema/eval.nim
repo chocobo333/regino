@@ -128,7 +128,15 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Bracket:
-        Value.Unit
+        let
+            callee = self.callee.infer(env, global)
+            # args = self.args.mapIt(it.infer(env, global))
+        if callee.symbol.isSome and callee.symbol.get.kind in {SymbolKind.Let, SymbolKind.Var}:
+            let
+                id = Expression.Id(newIdent("[]"))
+            Expression.Call(id, @[self.callee] & self.args).infer(env, global)
+        else:
+            Value.Unit
     of ExpressionKind.Binary:
         let
             tv = Value.Var(env)
