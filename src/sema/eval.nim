@@ -444,7 +444,9 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
         env.coerce(val <= paty)
         Value.Unit
     of StatementKind.IndexAssign:
-        Expression.Call(Expression.Id(newIdent("[]=")), @[Expression.Id(self.id), self.index, self.i_val]).infer(env, global)
+        let
+            id = Expression.Id(newIdent("[]="))
+        Expression.Call(id, @[Expression.Id(self.id), self.index, self.i_val], self.loc).infer(env, global)
     of StatementKind.Funcdef:
         env.addFunc(self.fn, global)
         self.fn.infer(env, global)
