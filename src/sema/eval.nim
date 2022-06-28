@@ -611,9 +611,6 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
     result.inserted = true
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
-    debug e
-    debug e.typ
-    debug v
     assert e.typ <= v
     result = e
     if v <= e.typ:

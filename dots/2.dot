@@ -15,7 +15,7 @@ digraph order {
   "(ptr int, int, int) -> ()"
   "((), ()) -> int"
   "()"
-  "ptr int"
+  "ptr ~int"
   "((), (), ()) -> ()"
   "(()) -> string"
   "(int) -> ()"
@@ -29,5 +29,5 @@ digraph order {
   "(ptr int, int, int) -> ()" -> "((), (), ()) -> ()"
   "()" -> "string"
   "()" -> "int"
-  "()" -> "ptr int"
+  "()" -> "ptr ~int"
 }

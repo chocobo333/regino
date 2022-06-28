@@ -47,8 +47,6 @@ proc coerceRelation*(self: TypeEnv, t1, t2: Value) =
             for (id, t2) in t2.members.pairs:
                 self.coerceRelation(t1.members.getOrDefault(id, Value.Unit), t2)
         of ValueKind.Ptr:
-            debug t1.pointee
-            debug t2.pointee
             self.coerceRelation(t1.pointee, t2.pointee)
             self.coerceRelation(t2.pointee, t1.pointee)
         of ValueKind.Pi:
