@@ -455,7 +455,8 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
     of StatementKind.IndexAssign:
         let
             id = Expression.Id(newIdent("[]="))
-        Expression.Call(id, @[Expression.Id(self.id), self.index, self.i_val], self.loc).infer(env, global)
+        self.set_exp = Expression.Call(id, @[Expression.Id(self.id), self.index, self.i_val], self.loc)
+        self.set_exp.infer(env, global)
     of StatementKind.Funcdef:
         env.addFunc(self.fn, global)
         self.fn.infer(env, global)
@@ -808,7 +809,7 @@ proc check(self: Statement, env: TypeEnv) =
             # TODO:
             discard
     of StatementKind.IndexAssign:
-        discard
+        self.set_exp.check(env)
     of StatementKind.Funcdef:
         discard
     of StatementKind.Meta:

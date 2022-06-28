@@ -60,6 +60,7 @@ type
             id*: Ident
             index*: Expression
             i_val*: Expression
+            set_exp*: Expression
         of StatementKind.Funcdef:
             fn*: Function
         of StatementKind.Meta:
