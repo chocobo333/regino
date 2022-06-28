@@ -1,4 +1,5 @@
 
+import os
 import options
 import sequtils
 import sugar
@@ -385,8 +386,11 @@ proc infer*(self: Statement, env: TypeEnv, project: Project, global: bool = fals
         return self.typ
     result = case self.kind
     of StatementKind.Import:
+        let uri = os.splitPath(self.loc.uri.path).head / self.module.name & ".rgn";
+        env.addImport uri
+        project.parse(uri)
+        project.sema(uri)
         Value.Unit
-        # TODO:
     of StatementKind.For:
         Value.Unit
     of StatementKind.While:

@@ -1,5 +1,6 @@
 
 import os
+import uri
 
 import codegen
 import errors
@@ -37,7 +38,7 @@ proc optimize(self: Module): Module =
 
 proc sema*(filename: seq[string]) = 
     var
-        filename = filename[0]
+        filename = filename[0].absolutePath
         module = newModule()
         project = newProject(filename)
     project.parse
@@ -45,7 +46,7 @@ proc sema*(filename: seq[string]) =
 
 proc compile*(filename: seq[string]): int =
     var
-        filename = filename[0]
+        filename = filename[0].absolutePath
         module = newModule()
         project = newProject(filename)
     project.parse
@@ -66,4 +67,4 @@ proc compile*(filename: seq[string]): int =
 
 when isMainModule:
     # discard compile(@["test/test.rgn"])
-    sema(@["test/unit.rgn"])
+    sema(@["test/test.rgn"])

@@ -23,7 +23,7 @@ proc newProject*(main: string = ""): Project =
         perrs: newBuffer[seq[ParseError]]()
     )
 
-proc parse*(self: Project, uri: string = self.main) =
+proc parse*(self: Project, uri: string = self.main) {.exportc: "parse"} =
     let
         f = open(uri)
         text = f.readAll()
@@ -33,7 +33,7 @@ proc parse*(self: Project, uri: string = self.main) =
     self.src[uri] = src
     self.perrs[uri] = self.src[uri].errs
     self.program[uri] = program
-proc sema*(self: Project, uri: string = self.main) =
+proc sema*(self: Project, uri: string = self.main) {.exportc: "sema"} =
     let
         program = self.program[uri]
     self.terrs[uri] = program.sema(self)

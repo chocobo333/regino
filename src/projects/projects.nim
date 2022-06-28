@@ -16,3 +16,5 @@ type
         terrs*: Buffer[seq[TypeError]]
         perrs*: Buffer[seq[ParseError]]
 
+proc parse*(self: Project, uri: string = self.main) {.importc: "parse".}
+proc sema*(self: Project, uri: string = self.main) {.importc: "sema".}

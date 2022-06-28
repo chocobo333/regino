@@ -64,6 +64,7 @@ proc lookupId*(self: Scope, name: string, pos: Position, kinds: set[SymbolKind] 
 proc newScope*(parent: Scope = nil): Scope =
     Scope(
         parent: parent,
+        imports: @[],
         syms: initTable[string, seq[Symbol]](),
         consts: initTable[string, seq[Symbol]](),
         typeOrder: if parent.isNil: newOrder[Value]() else: parent.typeOrder,
