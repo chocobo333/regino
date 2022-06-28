@@ -595,8 +595,8 @@ proc resolve*(self: TypeEnv) =
             self.bindtv(e, e.tv.lb) # TODO: ub?
         else:
             self.bindtv(e, e.tv.lb)
-    when not defined(release):
-        dot.save("./dots")
+    # when not defined(release):
+    #     dot.save("./dots")
 
 when isMainModule:
     import eval
