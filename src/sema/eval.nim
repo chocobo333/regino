@@ -128,7 +128,15 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Bracket:
-        Value.Unit
+        let
+            callee = self.callee.infer(env, global)
+            # args = self.args.mapIt(it.infer(env, global))
+        if callee.symbol.isSome and callee.symbol.get.kind in {SymbolKind.Let, SymbolKind.Var}:
+            let
+                id = Expression.Id(newIdent("[]"))
+            Expression.Call(id, @[self.callee] & self.args).infer(env, global)
+        else:
+            Value.Unit
     of ExpressionKind.Binary:
         let
             tv = Value.Var(env)
@@ -156,9 +164,14 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Realloc:
         Value.Unit
     of ExpressionKind.Ptrset:
+        env.coerce(Value.Ptr(self.v.infer(env, global)) <= self.`ptr`.infer(env, global))
+        env.coerce(self.idx.infer(env, global) == Value.Integer)
         Value.Unit
     of ExpressionKind.Ptrget:
-        Value.Unit
+        let tv = Value.Var(env)
+        env.coerce(self.idx.infer(env, global) == Value.Integer)
+        env.coerce(Value.Ptr(tv) == self.`ptr`.infer(env, global))
+        tv
     of ExpressionKind.Typeof:
         Value.Singleton(self.`typeof`.infer(env, global))
     of ExpressionKind.Ref:
@@ -438,6 +451,10 @@ proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
             val = self.val.infer(env, global)
         env.coerce(val <= paty)
         Value.Unit
+    of StatementKind.IndexAssign:
+        let
+            id = Expression.Id(newIdent("[]="))
+        Expression.Call(id, @[Expression.Id(self.id), self.index, self.i_val], self.loc).infer(env, global)
     of StatementKind.Funcdef:
         env.addFunc(self.fn, global)
         self.fn.infer(env, global)
@@ -786,6 +803,8 @@ proc check(self: Statement, env: TypeEnv) =
         else:
             # TODO:
             discard
+    of StatementKind.IndexAssign:
+        discard
     of StatementKind.Funcdef:
         discard
     of StatementKind.Meta:
@@ -983,6 +1002,8 @@ proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
         else:
             # TODO: like "+="
             discard
+        Value.Unit
+    of StatementKind.IndexAssign:
         Value.Unit
     of StatementKind.Funcdef:
         Value.Unit

@@ -1,0 +1,31 @@
+
+![link: "arith.ll"]
+![link: "io.ll"]
+![link: "int.ll"]
+![link: "float.ll"]
+![link: "string.ll"]
+
+type
+    ptr[T] = typeof(malloc(T, 1))
+    bool = typeof(false)
+    int = typeof(0)
+    int32 = typeof(0'i32)
+    float = typeof(0.0)
+    string = typeof("")
+    char = typeof('a')
+
+func `[]`[T](self: ptr[T], i: int) -> T:
+    self.ptrget(i)
+func `[]=`[T](self: ptr[T], i: int, val: T):
+    self.ptrset(i, val)
+
+
+func echo(a: string) ![importll]
+func `tos@string/i32`(a: int) -> string ![importll]
+func `$`(a: int) -> string ![subtype]:
+    `tos@string/i32`(a)
+let a = malloc(int, 1)
+a[0] = 3
+echo a[0]
+let b = a[0]
+echo $b

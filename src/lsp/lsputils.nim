@@ -125,6 +125,13 @@ proc find*(self: Statement, pos: rPosition): Option[Ident] =
             self.op.find(pos)
         else:
             self.pat.find(pos)
+    of StatementKind.IndexAssign:
+        if pos in self.id:
+            self.id.find(pos)
+        elif pos in self.index:
+            self.index.find(pos)
+        else:
+            self.i_val.find(pos)
     of StatementKind.Funcdef:
         self.fn.find(pos)
     of StatementKind.Meta:
@@ -290,6 +297,8 @@ proc scope(self: Statement, pos: rPosition): seq[Scope] =
     of StatementKind.TypeSection:
         @[]
     of StatementKind.Asign:
+        @[]
+    of StatementKind.IndexAssign:
         @[]
     of StatementKind.Funcdef:
         # TODO: for param

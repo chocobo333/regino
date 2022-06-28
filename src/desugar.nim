@@ -203,6 +203,8 @@ proc desugar(self: Statement): Statement =
         Statement.TypeSection(self.typedefSection.desugar, self.loc)
     of StatementKind.Asign:
         Statement.Asign(self.pat.desugar, self.op.desugar, self.val.desugar, self.loc)
+    of StatementKind.IndexAssign:
+        Statement.IndexAssign(self.id.desugar, self.index.desugar, self.i_val.desugar, self.loc)
     of StatementKind.Funcdef:
         Statement.Funcdef(self.fn.desugar, self.loc)
     of StatementKind.Meta:

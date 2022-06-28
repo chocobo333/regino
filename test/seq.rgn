@@ -1,0 +1,64 @@
+
+![link: "arith.ll"]
+![link: "io.ll"]
+![link: "int.ll"]
+![link: "float.ll"]
+![link: "string.ll"]
+
+type
+    ptr[T] = typeof(malloc(T, 1))
+    bool = typeof(false)
+    int = typeof(0)
+    int32 = typeof(0'i32)
+    float = typeof(0.0)
+    string = typeof("")
+    char = typeof('a')
+    seq[T] = object
+        p: ptr[T]
+        len: int
+        size: int
+
+func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
+func `+`(a: int, b: int) -> int:
+    `add@int32/int32int32`(a, b)
+func `-`(a: int, b: int) -> int:
+    `sub@int32/int32int32`(a, b)
+func `==`(a: int, b: int) -> bool:
+    `eq@bool/int32int32`(a, b)
+
+func `tos@string/i32`(a: int) -> string ![importll]
+func `tos@string/float`(a: float) -> string ![importll]
+func `to@float/i32`(a: int) -> float ![importll]
+func `$`(a: int) -> string ![subtype]:
+    `tos@string/i32`(a)
+func `$`(a: float) -> string ![subtype]:
+    `tos@string/float`(a)
+
+func toInt(a: bool) -> int ![subtype]:
+    if a:
+        1
+    else:
+        0
+func toFloat(a: int) -> float ![subtype]:
+    `to@float/i32`(a)
+func `$`(a: bool) -> string ![subtype]:
+    if a:
+        "true"
+    else:
+        "false"
+func echo(a: string) ![importll]
+func len(a: string) -> int ![importll]
+
+func newSeq[T]() -> seq[T]:
+    seq[T](p: malloc(T, 4), len: 0, size: 4)
+func add[T](self: seq[T], val: T):
+    self.p[self.len] = val
+    if self.len  == self.size:
+        self.size *= 2
+        self.p.realloc(T, self.size)
+func `[]`[T](self: seq[T], i: int) -> T:
+    self.p[i]
+func `[]=`[T](self: seq[T], i: int, val: T):
+    self.p[i] = val

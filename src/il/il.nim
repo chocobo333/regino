@@ -20,6 +20,7 @@ type
         ConstSection    ## declaration of const values
         TypeSection     ## declaration of types
         Asign           ## assign statement
+        IndexAssign     ## like a[3] = 3
         Funcdef         ## function definition
         Meta            ## metadata
         Discard         ## discard statement
@@ -55,6 +56,10 @@ type
             val*: Expression
             op*: Ident
             suite*: Suite # for `for`
+        of StatementKind.IndexAssign:
+            id*: Ident
+            index*: Expression
+            i_val*: Expression
         of StatementKind.Funcdef:
             fn*: Function
         of StatementKind.Meta:

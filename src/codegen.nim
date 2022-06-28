@@ -558,6 +558,8 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
         nil
     of StatementKind.Asign:
         nil
+    of StatementKind.IndexAssign:
+        nil
     of StatementKind.Funcdef:
         self.fn.codegen(module, global)
         nil

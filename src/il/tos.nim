@@ -361,6 +361,8 @@ proc `$`*(self: Statement, typed: bool = false, regioned: bool = false, comment:
             pat = `$`(self.pat, typed, regioned, comment)
             val = `$`(self.val, typed, regioned, comment)
         fmt"{pat} = {val}"
+    of StatementKind.IndexAssign:
+        fmt"{self.id}[{self.index}] = {self.i_val}"
     of StatementKind.Funcdef:
         `$`(self.fn, typed, regioned, comment)
     of StatementKind.Meta:

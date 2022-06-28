@@ -11,13 +11,35 @@ type
         func unit(_: singleton (T, op)) -> T
         prop unitNeutral(x: T) -> (op((T, op).unit, x) == x, op(x, (T, op).unit) == x)
 
-func map[M <: Magma](a: Seq[M.T]) -> Seq[M.T]:
+func map[T](a: seq[T], op: func(T, T)  -> T) -> seq[T]:
     var res = @[]
     for e in a:
         res.add M.op(e)
     res
-func fold[(T, op) <: Monoid](a: Seq[T]) -> T:
+
+func fold[T](a: seq[T], op: func(T, T) -> T, init: T) -> T:
+    where
+        (T, op) is Magma
+    var res = init
+    for e in a:
+        res = op(res, e)
+    res
+func fold[T](a: seq[T], op: func(T, T) -> T) -> T:
+    where
+        (T, op) is Monoid
     var res: T = (T, op).unit
     for e in a:
         res = op(res, e)
     res
+func sum[T](a: seq[T], op: func(T, T) -> T) -> T:
+    where
+        (T, `+`) is Monoid
+    var res: T = (T, op).unit
+    for e in a:
+        res = res + e
+    res
+
+let
+    a = @[-3, 3]
+    b = a.map(`-`)
+a.fold(`+`)

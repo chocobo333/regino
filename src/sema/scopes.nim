@@ -188,6 +188,9 @@ proc setScope(self: Statement, parent: Scope) =
     of StatementKind.Asign:
         self.pat.setScope(parent)
         self.val.setScope(parent)
+    of StatementKind.IndexAssign:
+        self.index.setScope(parent)
+        self.i_val.setScope(parent)
     of StatementKind.Funcdef:
         self.fn.setScope(parent)
     of StatementKind.Meta:
