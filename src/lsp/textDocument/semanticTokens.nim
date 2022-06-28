@@ -128,14 +128,6 @@ proc coloring(self: Expression, tokenTypes: seq[string], data: var seq[Color]) =
         discard
     of ExpressionKind.FnType:
         discard
-    of ExpressionKind.ObjCons:
-        discard
-    of ExpressionKind.Realloc:
-        discard
-    of ExpressionKind.Ptrset:
-        discard
-    of ExpressionKind.Ptrget:
-        discard
     of ExpressionKind.IntCast:
         discard
     of ExpressionKind.Fail:
