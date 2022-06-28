@@ -24,9 +24,15 @@ func echo(a: string) ![importll]
 func `tos@string/i32`(a: int) -> string ![importll]
 func `$`(a: int) -> string ![subtype]:
     `tos@string/i32`(a)
-let a = malloc(int, 1)
+let a = malloc(int, 2)
 a[0] = 3
+a[1] = 4
 echo a[0]
-let b = a[0]
-echo b
+echo a[1]
+echo a[2]
+# let b = a[0]
+# echo b
+func id[T](a: T) -> T:
+    a
+echo id 3
 0
