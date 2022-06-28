@@ -134,7 +134,8 @@ proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
         if callee.symbol.isSome and callee.symbol.get.kind in {SymbolKind.Let, SymbolKind.Var}:
             let
                 id = Expression.Id(newIdent("[]"))
-            Expression.Call(id, @[self.callee] & self.args).infer(env, global)
+            self.get_exp = some Expression.Call(id, @[self.callee] & self.args)
+            self.get_exp.get.infer(env, global)
         else:
             Value.Unit
     of ExpressionKind.Binary:
@@ -597,6 +598,8 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
                 )
                 suite.scope = scope
                 Expression.Block(suite)
+            of ValueKind.Ptr:
+                e
             else:
                 debug v1
                 debug v2
@@ -608,6 +611,9 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
     result.inserted = true
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
+    debug e
+    debug e.typ
+    debug v
     assert e.typ <= v
     result = e
     if v <= e.typ:
@@ -720,7 +726,8 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
-        discard
+        if self.get_exp.isSome:
+            self.get_exp.get.check(env)
     of ExpressionKind.Binary:
         discard
     of ExpressionKind.Prefix, ExpressionKind.Postfix:

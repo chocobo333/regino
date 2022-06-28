@@ -176,6 +176,7 @@ type
             callee*: Expression
             args*: seq[Expression]
             rety*: Expression
+            get_exp*: Option[Expression]
         of ExpressionKind.Dot, ExpressionKind.Binary, ExpressionKind.Prefix, ExpressionKind.Postfix:
             lhs*: Expression
             rhs*: Expression

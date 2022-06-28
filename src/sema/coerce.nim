@@ -16,9 +16,17 @@ import ../orders
 
 import macros
 
+import ../utils
+
 
 proc coerceRelation*(self: TypeEnv, t1, t2: Value) =
     # coerce the relation for t1 <= t2
+    if t1.kind == ValueKind.Link:
+        self.coerceRelation(t1.to, t2)
+        return
+    if t2.kind == ValueKind.Link:
+        self.coerceRelation(t1, t2.to)
+        return
     if t1.kind == t2.kind and t1.kind in {ValueKind.Bottom..ValueKind.Bool, ValueKind.Char, ValueKind.String}:
         discard
     elif t1.kind == t2.kind and t1.kind in {ValueKind.Integer, ValueKind.Float} and t1.bits == t2.bits:
@@ -39,7 +47,10 @@ proc coerceRelation*(self: TypeEnv, t1, t2: Value) =
             for (id, t2) in t2.members.pairs:
                 self.coerceRelation(t1.members.getOrDefault(id, Value.Unit), t2)
         of ValueKind.Ptr:
+            debug t1.pointee
+            debug t2.pointee
             self.coerceRelation(t1.pointee, t2.pointee)
+            self.coerceRelation(t2.pointee, t1.pointee)
         of ValueKind.Pi:
             self.coerceRelation(t1.rety, t2.rety)
             for (t1, t2) in t1.params.zip(t2.params):

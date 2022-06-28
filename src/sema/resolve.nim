@@ -61,7 +61,7 @@ proc `<=@`*(self: TypeEnv, t1, t2: Value): bool =
                     break
             res
         of ValueKind.Ptr:
-            t1.pointee <= t2.pointee
+            t1.pointee <= t2.pointee and t2.pointee <= t1.pointee
         of ValueKind.Pi:
             if t1.implicit.len == 0 and t2.implicit.len == 0:
                 t1.rety <= t2.rety and
@@ -541,15 +541,19 @@ proc resolve*(self: TypeEnv) =
         for n in sorted:
             if self.resolve(n, primal=true):
                 isChanged = true
+        cont
         for n in sorted.reversed:
             if self.resolve(n, primal=false):
                 isChanged = true
+        cont
         for n in sorted:
             if self.resolve(n, primal=true):
                 isChanged = true
+        cont
         for n in sorted.reversed:
             if self.resolve(n, primal=false):
                 isChanged = true
+        cont
         for e in self.selects:
             if e.types.len == 1:
                 self.bindtv(e, e.types.pop)
@@ -591,8 +595,8 @@ proc resolve*(self: TypeEnv) =
             self.bindtv(e, e.tv.lb) # TODO: ub?
         else:
             self.bindtv(e, e.tv.lb)
-    # when not defined(release):
-    #     dot.save("./dots")
+    when not defined(release):
+        dot.save("./dots")
 
 when isMainModule:
     import eval

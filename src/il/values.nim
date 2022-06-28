@@ -204,8 +204,8 @@ proc compilable*(self: Value): bool =
     of ValueKind.Singleton:
         false
     of ValueKind.Gen:
-        assert false
-        false
+        # assert false
+        self.gt.ub.compilable
 
 proc typ*(self: Literal): Value =
     case self.kind
