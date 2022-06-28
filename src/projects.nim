@@ -5,6 +5,7 @@ import options
 import il
 import parsers
 import sema
+import desugar
 import errors
 # import codegen
 
@@ -33,7 +34,7 @@ proc parse*(self: Project): Program =
         f = open(uri)
         text = f.readAll()
         src = Source.from(text, uri)
-        program = Program(src).get
+        program = Program(src).get.desugar
     close f
     self.terrs[uri] = program.sema
     self.src[uri] = src
@@ -42,7 +43,7 @@ proc parse*(self: Project): Program =
 proc update*(self: Project, uri: string, text: string) =
     let
         src = Source.from(text, uri)
-        program = Program(src).get
+        program = Program(src).get.desugar
     self.terrs[uri] = program.sema
     self.src[uri] = src
     self.program[uri] = program

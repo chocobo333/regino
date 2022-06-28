@@ -75,7 +75,7 @@ proc desugar(self: Expression): Expression =
             some(Expression.Ptrget(args[0].desugar, args[1].desugar))
         else:
             none(Expression)
-    case self.kind
+    result = case self.kind
     of ExpressionKind.Literal:
         Expression.literal(self.litval.desugar)
     of ExpressionKind.Ident:
@@ -133,6 +133,7 @@ proc desugar(self: Expression): Expression =
         Expression.IntCast(self.int_exp, self.from, self.to)
     of ExpressionKind.Fail:
         Expression.Fail()
+    result.loc = self.loc
 proc desugar(self: Metadata): Metadata =
     case self.kind
     of MetadataKind.Link..MetadataKind.Subtype:
@@ -185,7 +186,7 @@ proc desugar(self: IdentDefSection): IdentDefSection =
 proc desugar(self: TypeDefSection): TypeDefSection =
     newTypedefSection(self.typedefs.map(desugar), self.comments)
 proc desugar(self: Statement): Statement =
-    case self.kind
+    result = case self.kind
     of StatementKind.For:
         Statement.For(self.pat.desugar, self.val.desugar, self.suite.desugar, self.loc)
     of StatementKind.While:
@@ -214,6 +215,7 @@ proc desugar(self: Statement): Statement =
         Statement.Expr(self.expression.desugar)
     of StatementKind.Fail:
         Statement.Fail(self.loc)
+    result.loc = self.loc
 proc desugar(self: Suite): Suite =
     newSuite(self.stmts.map(desugar))
 proc desugar*(self: Program): Program =
