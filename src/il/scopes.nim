@@ -13,6 +13,8 @@ iterator items*(self: Scope): Scope =
     var scope = self
     while not scope.isNil:
         yield scope
+        for prog in scope.imports:
+            yield prog.scope
         scope = scope.parent
 
 iterator reversed*(self: Scope): Scope =

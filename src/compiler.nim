@@ -1,6 +1,5 @@
 
 import os
-import uri
 
 import codegen
 import errors

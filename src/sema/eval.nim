@@ -402,6 +402,9 @@ proc eval*(self: Expression, env: TypeEnv, project: Project, global: bool = fals
             return self.typ.symbol.get.val.inst(env)
         let
             syms = env.lookupId(self.ident.name)
+        if self.ident.name == "int":
+            debug syms.len
+            echo env.scope.parent.imports.len
         case syms.len
         of 0:
             Value.Var(env)

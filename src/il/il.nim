@@ -79,7 +79,7 @@ type
     OfBranch* = tuple[pat: Pattern, suite: Suite]
     Scope* = ref object
         parent*: Scope
-        imports*: seq[string]
+        imports*: seq[Program]
         syms*: Table[string, seq[Symbol]]
         consts*: Table[string, seq[Symbol]] # deprecated
         typeOrder*: Order[Value]  # cumulative

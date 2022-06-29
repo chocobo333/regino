@@ -387,9 +387,7 @@ proc infer*(self: Statement, env: TypeEnv, project: Project, global: bool = fals
     result = case self.kind
     of StatementKind.Import:
         let uri = os.splitPath(self.loc.uri.path).head / self.module.name & ".rgn";
-        env.addImport uri
-        project.parse(uri)
-        project.sema(uri)
+        env.addImport project.getProgram(uri)
         Value.Unit
     of StatementKind.For:
         Value.Unit
