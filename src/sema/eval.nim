@@ -690,7 +690,10 @@ proc check(self: Expression, env: TypeEnv) =
         for i in 0..<self.args.len:
             self.args[i].check(env)
             self.callee.typ.params[i].resolveLink
-            self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i])
+            if self.args[i].typ <= self.callee.typ.params[i]:
+                self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i])
+            else:
+                env.errs.add TypeError.NotMatch(self.args[i].typ, self.callee.typ.params[i], self.args[i].loc)
         if self.callee.typ.symbol.get.kind == SymbolKind.Func:
             let
                 calleety = self.callee.typ

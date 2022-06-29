@@ -16,12 +16,13 @@ type
         Letasign
         SomethingWrong
         Internal
+        NotMatch
     TypeError* = object of CatchableError
         loc*: Location
         case kind: TypeErrorKind
         of TypeErrorKind.Discard:
             s*: Statement
-        of TypeErrorKind.Subtype, TypeErrorKind.CircularSubtype:
+        of TypeErrorKind.Subtype, TypeErrorKind.CircularSubtype, NotMatch:
             t1, t2: Value
         of TypeErrorKind.Undeciable:
             nil
@@ -58,6 +59,8 @@ proc `$`*(self: TypeError): string =
         &"something is wrong\n{self.stacktrace}"
     of TypeErrorKind.Internal:
         &"{self.i_msg}\n{self.stacktrace}"
+    of TypeErrorKind.NotMatch:
+        fmt"Expected {self.t2}, but got {self.t1}"
 
 proc new*(self: TypeError): ref TypeError =
     newException(TypeError, $self)
@@ -82,3 +85,5 @@ proc SomethingWrong*(_: typedesc[TypeError], loc: Location = newLocation(), stac
     TypeError(kind: TypeErrorKind.SomethingWrong, loc: loc, stacktrace: stacktrace)
 proc Internal*(_: typedesc[TypeError], msg: string, loc: Location = newLocation(), stacktrace: string = getStackTrace()): TypeError =
     TypeError(kind: TypeErrorKind.Internal, loc: loc, i_msg: msg, stacktrace: stacktrace)
+proc NotMatch*(_: typedesc[TypeError], t1, t2: Value, loc: Location = newLocation()): TypeError =
+    TypeError(kind: TypeErrorKind.NotMatch, t1: t1, t2: t2, loc: loc)
