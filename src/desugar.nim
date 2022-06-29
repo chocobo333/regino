@@ -146,6 +146,7 @@ proc desugar(fn: Function): Function =
         id: fn.id.desugar,
         param: fn.param.desugar,
         metadata: fn.metadata.map(desugar),
+        docStr: fn.docStr,
         suite: fn.suite.map(desugar)
     )
 proc desugar(self: SumConstructor): SumConstructor =

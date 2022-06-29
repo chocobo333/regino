@@ -610,6 +610,7 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
             debug v2
             nil
     result.inserted = true
+    result.loc = e.loc
 proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     setTypeEnv(self)
     assert e.typ <= v

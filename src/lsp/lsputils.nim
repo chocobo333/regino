@@ -33,7 +33,7 @@ proc to*(self: lineinfos.Location): Location =
 
 proc `in`*(self: rPosition, term: Statement|Expression|Ident|Pattern): bool =
     let r = term.loc.`range`
-    self in r
+    self in r and self != r.b
 proc `in`*(self: rPosition, term: Suite): bool =
     term.stmts.anyIt(self in it)
 

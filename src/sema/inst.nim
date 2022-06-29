@@ -128,6 +128,7 @@ proc inst(fn: Function): Function =
         id: fn.id.inst,
         param: fn.param.inst,
         metadata: fn.metadata.map(inst),
+        docStr: fn.docStr,
         suite: fn.suite.map(inst)
     )
 proc inst(self: SumConstructor): SumConstructor =
@@ -209,6 +210,7 @@ proc implInst*(fn: Function): Function =
         id: fn.id.inst,
         param: fn.param.inst,
         metadata: fn.metadata.map(inst),
+        docStr: fn.docStr,
         suite: fn.suite.map(inst)
     )
     result.setScope(scope)

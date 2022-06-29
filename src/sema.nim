@@ -28,7 +28,7 @@ when isMainModule:
     import options
     import desugar
     let
-        f = open("test/ptr.rgn")
+        f = open("test/test05.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get.desugar
 
@@ -36,4 +36,4 @@ when isMainModule:
     let
         errs = program.sema
     f.close
-    debug program
+    # debug program
