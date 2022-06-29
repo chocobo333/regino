@@ -61,4 +61,4 @@ proc compile*(filename: seq[string]): int =
     0
 
 when isMainModule:
-    discard compile(@["test/test.rgn"])
+    discard compile(@["test/ptr.rgn"])

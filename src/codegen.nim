@@ -35,14 +35,14 @@ proc newModule*(name: string = "main"): Module =
         module = llvm.newModule(name, cxt)
         pty = pointerType(cxt.intType(8))
         fnty = functionType(pty, @[cast[LType](cxt.intType(32))])
-        fn = module.addFunction("malloc", fnty)
+        fn_malloc = module.addFunction("malloc", fnty)
     result = Module(
         module: module,
         cxt: cxt,
         curBuilder: newBuilder(cxt),
         type2llvmType: initTable[ref Value, LType](),
         # scopes: newScope()
-        malloc: fn,
+        malloc: fn_malloc,
         targetdata: module.targetData
     )
 
@@ -334,7 +334,10 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
             module.curBuilder.call(callee2, args2)
         res
     of ExpressionKind.Bracket:
-        nil
+        if self.get_exp.isSome:
+            self.get_exp.get.codegen(module)
+        else:
+            nil
     of ExpressionKind.Binary:
         let
             op = self.op
@@ -380,15 +383,25 @@ proc codegen(self: Expression, module: Module, global: bool = false, lval: bool 
     of ExpressionKind.Lambda:
         nil
     of ExpressionKind.Malloc:
-        nil
+        let p = module.curBuilder.call(module.malloc, @[newLType(Value.Integer(32), module).constInt(0)])
+        module.curBuilder.bitcast(p, self.typ.newLType(module))
     of ExpressionKind.Typeof:
         nil
     of ExpressionKind.Realloc:
         nil
     of ExpressionKind.Ptrset:
-        nil
+        let
+            typ = self.`ptr`.typ.newLType(module).elementType
+            indices = [self.idx.codegen(module)]
+            p = module.curBuilder.gep2(typ, self.`ptr`.codegen(module), indices, "")
+            val = self.v.codegen(module)
+        module.curBuilder.store(val, p)
     of ExpressionKind.Ptrget:
-        nil
+        let
+            typ = self.`ptr`.typ.newLType(module).elementType
+            indices = [self.idx.codegen(module)]
+            p = module.curBuilder.gep2(typ, self.`ptr`.codegen(module), indices, "")
+        module.curBuilder.load(typ, p)
     of ExpressionKind.Ref:
         nil
     of ExpressionKind.FnType:
@@ -480,13 +493,13 @@ proc setParam(self: Pattern, module: Module, typ: Value, val: LValue) =
         discard
     of PatternKind.UnderScore:
         discard
-proc codegen(self: Function, module: Module, global: bool = false) =
+proc codegen(self: Function, module: Module, global: bool = false): LValue =
     if self.param.implicit.len > 0:
-        #     # TODO: for quantified function
-        #     for val in self.fn.id.typ.symbol.get.instances.keys:
-        #         assert self.fn.id.typ.symbol.get.instances[val].instance.isSome
-        #         self.fn.id.typ.symbol.get.instances[val].val = self.fn.id.typ.symbol.get.instances[val].instance.get.codegen(module)
-        #         self.fn.id.typ.symbol.get.instances[val].lty = newLType(val, module)
+        # TODO: for quantified function
+        for val in self.id.typ.symbol.get.instances.keys:
+            assert self.id.typ.symbol.get.instances[val].instance.isSome
+            self.id.typ.symbol.get.instances[val].val = self.id.typ.symbol.get.instances[val].instance.get.codegen(module)
+            self.id.typ.symbol.get.instances[val].lty = newLType(val, module)
         return
     let
         fn = self
@@ -506,6 +519,7 @@ proc codegen(self: Function, module: Module, global: bool = false) =
         fn2 = module.module.addFunction(name, fnty2)
     sym.val = fn2
     sym.lty = fnty2
+    result = fn2
     if fn.metadata.isSome:
         case fn.metadata.get.kind
         of MetadataKind.ImportLL:
@@ -532,7 +546,10 @@ proc codegen(self: Function, module: Module, global: bool = false) =
                     discard module.curBuilder.store(ret, fn2.param(fn.param.params.len))
                     discard module.curBuilder.retVoid()
                 else:
-                    discard module.curBuilder.ret(ret)
+                    if rety.kind == TypeKind.VoidTypeKind:
+                        discard module.curBuilder.retVoid()
+                    else:
+                        discard module.curBuilder.ret(ret)
 
 
 proc codegen(self: IdentDefSection, module: Module, global: bool = false) =
@@ -559,9 +576,10 @@ proc codegen(self: Statement, module: Module, global: bool = false): LValue =
     of StatementKind.Asign:
         nil
     of StatementKind.IndexAssign:
+        discard self.set_exp.codegen(module)
         nil
     of StatementKind.Funcdef:
-        self.fn.codegen(module, global)
+        discard self.fn.codegen(module, global)
         nil
     of StatementKind.Meta:
         let metadata = self.meta
