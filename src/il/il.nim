@@ -60,6 +60,7 @@ type
             id*: Ident
             index*: Expression
             i_val*: Expression
+            set_exp*: Expression
         of StatementKind.Funcdef:
             fn*: Function
         of StatementKind.Meta:
@@ -176,6 +177,7 @@ type
             callee*: Expression
             args*: seq[Expression]
             rety*: Expression
+            get_exp*: Option[Expression]
         of ExpressionKind.Dot, ExpressionKind.Binary, ExpressionKind.Prefix, ExpressionKind.Postfix:
             lhs*: Expression
             rhs*: Expression
