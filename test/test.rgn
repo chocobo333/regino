@@ -40,13 +40,6 @@ import types
 # seq[T] = (p: ptr T, len: int, size: int)
 
 type
-    ptr[T] = typeof(malloc(T, 1))
-    bool = typeof(false)
-    # int = typeof(0)
-    int32 = typeof(0'i32)
-    float = typeof(0.0)
-    string = typeof("")
-    char = typeof('a')
     pairWithInt[T] = (int, T)
     pair[T, U] = (T, U)
 
@@ -54,10 +47,10 @@ type
         x: float
         y: float
 
-# Shape = variant
-#     Empty
-#     Point(Vector2)
-#     Rectangle(p: Vector2, w: int, h: int)
+    Shape = variant
+        Empty
+        Point(Vector2)
+        Rectangle(p: Vector2, w: int, h: int)
 # Nat = ref variant
 #     Zero
 #     Succ(Nat)
@@ -78,15 +71,6 @@ func id[T](a: T) -> T:
 func swap[T, U]((a, b): (T, U)) -> (U, T):
     (b, a)
 
-func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
-func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
-func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
-func `+`(a: int, b: int) -> int:
-    `add@int32/int32int32`(a, b)
-func `-`(a: int, b: int) -> int:
-    `sub@int32/int32int32`(a, b)
-func `==`(a: int, b: int) -> bool:
-    `eq@bool/int32int32`(a, b)
 
 func `tos@string/i32`(a: int) -> string ![importll]
 func `tos@string/float`(a: float) -> string ![importll]
@@ -122,8 +106,7 @@ func fib(n: int) -> int:
     else:
         fib(n-1) + fib(n-2)
 func newVector2(x: float, y: float) -> Vector2:
-    let a: (x: float, y: float) = (x: x, y: y)
-    a
+    Vector2(x: x, y: y)
 func `$`(self: Vector2) -> string ![subtype]:
     "vector2"
 let a = newVector2(3, 5)
@@ -132,8 +115,10 @@ let
     (x, y) = (a.x, a.y)
 echo $x
 echo y
-# func `$`(self: Shape) -> string:
-#     "shape"
-# let s = Empty
-# echo $s
+func `$`(self: Shape) -> string:
+    "shape"
+let s = Empty
+let a = Point(a)
+echo $s
+echo $a
 0

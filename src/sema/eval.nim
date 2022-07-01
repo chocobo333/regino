@@ -124,6 +124,8 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
                 )
                 suite.scope = scope
                 Expression.Block(suite)
+            of ValueKind.Ptr:
+                e
             else:
                 debug v1
                 debug v2
@@ -205,6 +207,8 @@ proc check*(self: Expression, env: TypeEnv, project: Project) {.exportc: "check_
             e.check(env, project)
     of ExpressionKind.Record:
         discard
+    of ExpressionKind.ObjCons:
+        discard
     of ExpressionKind.If:
         for e in self.elifs:
             let
@@ -228,8 +232,11 @@ proc check*(self: Expression, env: TypeEnv, project: Project) {.exportc: "check_
         for i in 0..<self.args.len:
             self.args[i].check(env, project)
             self.callee.typ.params[i].resolveLink
-            self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i], project)
-        if self.callee.typ.symbol.isSome and self.callee.typ.symbol.get.kind == SymbolKind.Func:
+            if self.args[i].typ <= self.callee.typ.params[i]:
+                self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i], project)
+            else:
+                env.errs.add TypeError.NotMatch(self.args[i].typ, self.callee.typ.params[i], self.args[i].loc)
+        if self.callee.typ.symbol.get.kind == SymbolKind.Func:
             let
                 calleety = self.callee.typ
                 args = self.args.mapIt(it.typ)
@@ -263,7 +270,8 @@ proc check*(self: Expression, env: TypeEnv, project: Project) {.exportc: "check_
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
-        discard
+        if self.get_exp.isSome:
+            self.get_exp.get.check(env, project)
     of ExpressionKind.Binary:
         discard
     of ExpressionKind.Prefix, ExpressionKind.Postfix:
@@ -273,6 +281,12 @@ proc check*(self: Expression, env: TypeEnv, project: Project) {.exportc: "check_
     of ExpressionKind.Lambda:
         discard
     of ExpressionKind.Malloc:
+        discard
+    of ExpressionKind.Realloc:
+        discard
+    of ExpressionKind.Ptrset:
+        discard
+    of ExpressionKind.Ptrget:
         discard
     of ExpressionKind.Typeof:
         discard
@@ -343,6 +357,8 @@ proc check(self: Statement, env: TypeEnv, project: Project) =
         else:
             # TODO:
             discard
+    of StatementKind.IndexAssign:
+        self.set_exp.check(env, project)
     of StatementKind.Funcdef:
         self.fn.check(env, project)
     of StatementKind.Meta:
@@ -424,6 +440,8 @@ proc eval*(self: Expression, env: TypeEnv, project: Project, global: bool = fals
         Value.Array(self.exprs.mapIt(it.eval(env, project)))
     of ExpressionKind.Record:
         Value.Record(self.members.mapIt((it[0], it[1].eval(env, project, global))).toTable)
+    of ExpressionKind.ObjCons:
+        Value.Unit
     of ExpressionKind.If:
         var ret = Value.Bottom
         for `elif` in self.elifs & self.elseb.map(it => @[newElif(Expression.literal(true), it)]).get(@[]):
@@ -474,6 +492,12 @@ proc eval*(self: Expression, env: TypeEnv, project: Project, global: bool = fals
         Value.Unit
     of ExpressionKind.Malloc:
         Value.Ptr(self.mtype.eval(env, project, global))
+    of ExpressionKind.Realloc:
+        Value.Unit
+    of ExpressionKind.Ptrset:
+        Value.Unit
+    of ExpressionKind.Ptrget:
+        Value.Unit
     of ExpressionKind.Typeof:
         self.`typeof`.typ
     of ExpressionKind.Ref:
@@ -538,6 +562,8 @@ proc eval*(self: Statement, env: TypeEnv, project: Project, global: bool = false
         else:
             # TODO: like "+="
             discard
+        Value.Unit
+    of StatementKind.IndexAssign:
         Value.Unit
     of StatementKind.Funcdef:
         Value.Unit

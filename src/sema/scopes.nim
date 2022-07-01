@@ -21,6 +21,9 @@ proc setScope(self: Expression, parent: Scope) =
     of ExpressionKind.Record:
         for (_, e) in self.members:
             e.setScope(parent)
+    of ExpressionKind.ObjCons:
+        for (_, e) in self.members:
+            e.setScope(parent)
     of ExpressionKind.If, ExpressionKind.When:
         for eli in self.elifs:
             eli.setScope(parent)
@@ -48,6 +51,16 @@ proc setScope(self: Expression, parent: Scope) =
         self.body.setScope(parent)
     of ExpressionKind.Malloc:
         self.mtype.setScope(parent)
+        self.msize.setScope(parent)
+    of ExpressionKind.Ptrset:
+        self.`ptr`.setScope(parent)
+        self.idx.setScope(parent)
+        self.v.setScope(parent)
+    of ExpressionKind.Ptrget:
+        self.`ptr`.setScope(parent)
+        self.idx.setScope(parent)
+    of ExpressionKind.Realloc:
+        self.rptr.setScope(parent)
         self.msize.setScope(parent)
     of ExpressionKind.Typeof:
         self.`typeof`.setScope(parent)
@@ -177,6 +190,9 @@ proc setScope(self: Statement, parent: Scope) =
     of StatementKind.Asign:
         self.pat.setScope(parent)
         self.val.setScope(parent)
+    of StatementKind.IndexAssign:
+        self.index.setScope(parent)
+        self.i_val.setScope(parent)
     of StatementKind.Funcdef:
         self.fn.setScope(parent)
     of StatementKind.Meta:

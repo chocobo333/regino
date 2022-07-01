@@ -33,7 +33,7 @@ proc to*(self: lineinfos.Location): Location =
 
 proc `in`*(self: rPosition, term: Statement|Expression|Ident|Pattern): bool =
     let r = term.loc.`range`
-    self in r
+    self in r and self != r.b
 proc `in`*(self: rPosition, term: Suite): bool =
     term.stmts.anyIt(self in it)
 
@@ -130,6 +130,13 @@ proc find*(self: Statement, pos: rPosition): Option[Ident] =
             self.op.find(pos)
         else:
             self.pat.find(pos)
+    of StatementKind.IndexAssign:
+        if pos in self.id:
+            self.id.find(pos)
+        elif pos in self.index:
+            self.index.find(pos)
+        else:
+            self.i_val.find(pos)
     of StatementKind.Funcdef:
         self.fn.find(pos)
     of StatementKind.Meta:
@@ -198,9 +205,17 @@ proc find*(self: Expression, pos: rPosition): Option[Ident] =
         self.`block`.find(pos)
     of ExpressionKind.Lambda:
         none(Ident)
+    of ExpressionKind.ObjCons:
+        none(Ident)
     of ExpressionKind.Malloc:
         none(Ident)
     of ExpressionKind.Typeof:
+        none(Ident)
+    of ExpressionKind.Realloc:
+        none(Ident)
+    of ExpressionKind.Ptrset:
+        none(Ident)
+    of ExpressionKind.Ptrget:
         none(Ident)
     of ExpressionKind.Ref:
         none(Ident)
@@ -289,6 +304,8 @@ proc scope(self: Statement, pos: rPosition): seq[Scope] =
     of StatementKind.TypeSection:
         @[]
     of StatementKind.Asign:
+        @[]
+    of StatementKind.IndexAssign:
         @[]
     of StatementKind.Funcdef:
         # TODO: for param

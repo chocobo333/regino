@@ -17,12 +17,13 @@ type
         SomethingWrong
         NoCoercion
         Internal
+        NotMatch
     TypeError* = object of CatchableError
         loc*: Location
         case kind: TypeErrorKind
         of TypeErrorKind.Discard:
             s*: Statement
-        of TypeErrorKind.Subtype, TypeErrorKind.CircularSubtype, TypeErrorKind.NoCoercion:
+        of TypeErrorKind.Subtype, TypeErrorKind.CircularSubtype, TypeErrorKind.NoCoercion, NotMatch:
             t1, t2: Value
         of TypeErrorKind.Undeciable:
             nil
@@ -61,6 +62,8 @@ proc `$`*(self: TypeError): string =
         fmt"there does not exist coercion from `{self.t1}` to `{self.t2}`"
     of TypeErrorKind.Internal:
         &"{self.i_msg}\n{self.stacktrace}"
+    of TypeErrorKind.NotMatch:
+        fmt"Expected {self.t2}, but got {self.t1}"
 
 proc new*(self: TypeError): ref TypeError =
     newException(TypeError, $self)
@@ -87,3 +90,5 @@ proc NoCoercion*(_: typedesc[TypeError], t1, t2: Value, loc: Location = newLocat
     TypeError(kind: TypeErrorKind.NoCoercion, t1: t1, t2: t2, loc: loc)
 proc Internal*(_: typedesc[TypeError], msg: string, loc: Location = newLocation(), stacktrace: string = getStackTrace()): TypeError =
     TypeError(kind: TypeErrorKind.Internal, loc: loc, i_msg: msg, stacktrace: stacktrace)
+proc NotMatch*(_: typedesc[TypeError], t1, t2: Value, loc: Location = newLocation()): TypeError =
+    TypeError(kind: TypeErrorKind.NotMatch, t1: t1, t2: t2, loc: loc)

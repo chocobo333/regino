@@ -40,13 +40,16 @@ proc make(self: TrailerObj, exp: Expression, endpos: Position): Expression =
     let loc = newLocation(exp.loc.uri, exp.loc.range.a, endpos)
     case self.kind
     of ExpressionKind.Call:
-        Expression.Call(exp, self.args, loc)
+        if exp.kind == ExpressionKind.Dot:
+            Expression.Dot(exp.lhs, exp.rhs, self.args, loc)
+        else:
+            Expression.Call(exp, self.args, loc)
     of ExpressionKind.Command:
         Expression.Command(exp, self.args, loc)
     of ExpressionKind.Bracket:
         Expression.Bracket(exp, self.args, loc)
     of ExpressionKind.Dot:
-        Expression.Dot(exp, self.field, loc)
+        Expression.Dot(exp, self.field, @[], loc)
     of ExpressionKind.Postfix:
         Expression.Postfix(self.op, exp, loc)
     else:
@@ -173,7 +176,9 @@ let
 
     Id0 = alt(
         p"[_\p{L}\p{Nl}ー][_\p{L}\p{N}ー]*",
-        p"[_\p{L}\p{Sm}\p{Nl}ー\p{Sm}*/\\?!%&$^@-][_\p{L}\p{Sm}\p{N}ー\p{Sm}*/\\?!%&$^@-]*" ^ s"`"
+        p"[_\p{L}\p{Sm}\p{Nl}ー\p{Sm}*/\\?!%&$^@-][_\p{L}\p{Sm}\p{N}ー\p{Sm}*/\\?!%&$^@-]*" ^ s"`",
+        s"`[]`" @ (it => "[]"),
+        s"`[]=`" @ (it => "[]="),
     )
     Int0 = p"0|[1-9][0-9]*"
     IntSuffix = preceded(s"'i", Int0)
@@ -202,6 +207,13 @@ let
                 (patop, exp) = it
                 (pat, op) = patop
             Statement.Asign(pat, op, exp, loc)
+    IndexAssign = %(Id + delimited(lbra, Expr, rbra) + preceded(asop ^ sp0, Expr)) @
+        proc(it: (((Ident, Expression), Expression), Location)): Statement =
+            let
+                (it, loc) = it
+                (idindex, val) = it
+                (id, index) = idindex
+            Statement.IndexAssign(id, index, val, loc)
 
     Int = alt(
         Int0 + IntSuffix    @ (it => Literal.integer(it[0].parseInt, it[1].parseInt.uint)),
@@ -250,6 +262,16 @@ let
                     )
                 )
             Expression.Record(members, it[1])
+    ObjectCons = %(
+        Id +
+        delimited(
+            lpar,
+            (Id + (preceded(colon, Expr)))^*comma,
+            ?comma+rpar
+        )
+    ) @
+    proc(it: ((Ident, seq[(Ident, Expression)]), Location)): Expression =
+        Expression.ObjCons(it[0][0], it[0][1], it[1])
 
     Typeof = %delimited(s"typeof" + lpar, Expr, rpar) @ (it => Expression.Typeof(it[0], it[1]))
     Malloc = %delimited(s"malloc" + lpar, Expr + preceded(comma, Expr), rpar) @ (it => Expression.Malloc(it[0][0], it[0][1], it[1]))
@@ -257,8 +279,9 @@ let
     FnType = %(delimited(s"func" + lpar, Expr ^* comma, rpar) + preceded(arr, Expr)) @ (it => Expression.FnType(it[0][0], it[0][1], it[1]))
 
     Atom = %(?Operators + alt(
+        ObjectCons,
         %Literal @ (it => Expression.literal(it[0], it[1])),
-        Typeof, Malloc, Ref,
+        Ref,
         FnType,
         Id @ (it => Expression(kind: ExpressionKind.Ident, ident: it, loc: it.loc)),
         delimited(lpar, Expr, rpar),
@@ -611,6 +634,7 @@ proc Stmt(self: ref Source): Option[Statement] =
         Discard,
         %Metadata @ (it => Statement.Meta(it[0], it[1])),
         Asign,
+        IndexAssign,
         Expr @ (it => it.Statement),
         # terminated(success(Statement), oneline) @
         #     proc(it: Statement): Statement =
@@ -665,6 +689,9 @@ proc ArgList(self: ref Source): Option[seq[Expression]] =
                 Expression.Command(it[0][0], @[it[0][1]], it[1]),
         @Expr,
     ) ^* comma
+    parser(self)
+proc ObjArgList(self: ref Source): Option[seq[(Ident, Expression)]] =
+    let parser = (Id + preceded(colon, Expr)) ^* comma
     parser(self)
 
 export parsers
@@ -754,3 +781,36 @@ func sum(l: List[int32]) -> int32:
         p = Program(src).get
     echo p
     echo src.errs
+
+    let testSrc = Source.from(
+        """
+Vec2(x:0,y:1)
+let v = Vec2(x: 0, y: 1)
+let p = Pair(first: Pair(first: 1, second: 2), second: 3)
+"""
+    )
+    let testProgram = Program(testSrc).get
+    import utils
+    debug testProgram
+    let
+        s1 = testProgram.stmts[0]
+        s2 = testProgram.stmts[1]
+        s3 = testProgram.stmts[2]
+
+    debug s1.kind                # Expression
+    debug s1.expression.kind     # ObjCons
+    debug s1.expression.typname  # Vec2
+    debug s1.expression.members  # @[(x, 0), (y, 1)]
+
+    debug s2.kind                # LetSection
+    let iddef = s2.iddefSection.iddefs[0]
+    debug iddef                  # v = Vec2(x: 0, y: 1)
+    debug iddef.default          # some(Vec2(x: 0, y: 1))
+
+    debug s3.kind                # letSection
+    let default = s3.iddefSection.iddefs[0].default.get
+    debug default                # Pair(first: Pair(first: 1, second: 2), second: 3)
+    debug default.typname        # Pair
+    debug default.members        # @[(first, Pair(first: 1, second: 2)), (second, 3)]
+
+    assert IndexAssign(Source.from("a[0]=3")).get.index.litval.intval == 0

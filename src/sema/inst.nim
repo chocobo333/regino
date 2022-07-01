@@ -72,6 +72,8 @@ proc inst(self: Expression): Expression =
         Expression.Array(self.exprs.map(inst))
     of ExpressionKind.Record:
         Expression.Record(self.members.mapIt((it[0].inst, it[1].inst)))
+    of ExpressionKind.ObjCons:
+        Expression.ObjCons(self.typname.inst, self.members.mapIt((it[0].inst, it[1].inst)))
     of ExpressionKind.If:
         Expression.If(self.elifs.map(inst), self.elseb.map(inst))
     of ExpressionKind.When:
@@ -83,7 +85,7 @@ proc inst(self: Expression): Expression =
     of ExpressionKind.Command:
         Expression.Command(self.callee.inst, self.args.map(inst))
     of ExpressionKind.Dot:
-        Expression.Dot(self.lhs.inst, self.rhs.inst)
+        Expression.Dot(self.lhs.inst, self.rhs.inst, self.dotArgs)
     of ExpressionKind.Bracket:
         Expression.Bracket(self.callee.inst, self.args.map(inst))
     of ExpressionKind.Binary:
@@ -98,6 +100,12 @@ proc inst(self: Expression): Expression =
         Expression.Lambda(self.param.inst, self.body.inst)
     of ExpressionKind.Malloc:
         Expression.Malloc(self.mtype.inst, self.msize.inst)
+    of ExpressionKind.Realloc:
+        Expression.Realloc(self.rptr.inst, self.msize.inst)
+    of ExpressionKind.Ptrset:
+        Expression.Ptrset(self.`ptr`.inst, self.idx.inst, self.v.inst)
+    of ExpressionKind.Ptrget:
+        Expression.Ptrget(self.`ptr`.inst, self.idx.inst)
     of ExpressionKind.Typeof:
         Expression.Typeof(self.`typeof`.inst)
     of ExpressionKind.Ref:
@@ -120,6 +128,7 @@ proc inst(fn: Function): Function =
         id: fn.id.inst,
         param: fn.param.inst,
         metadata: fn.metadata.map(inst),
+        docStr: fn.docStr,
         suite: fn.suite.map(inst)
     )
 proc inst(self: SumConstructor): SumConstructor =
@@ -179,6 +188,8 @@ proc inst(self: Statement): Statement =
         Statement.TypeSection(self.typedefSection.inst, self.loc)
     of StatementKind.Asign:
         Statement.Asign(self.pat.inst, self.op.inst, self.val.inst, self.loc)
+    of StatementKind.IndexAssign:
+        Statement.IndexAssign(self.id.inst, self.index.inst, self.i_val.inst, self.loc)
     of StatementKind.Funcdef:
         Statement.Funcdef(self.fn.inst, self.loc)
     of StatementKind.Meta:
@@ -201,6 +212,7 @@ proc implInst*(fn: Function): Function =
         id: fn.id.inst,
         param: fn.param.inst,
         metadata: fn.metadata.map(inst),
+        docStr: fn.docStr,
         suite: fn.suite.map(inst)
     )
     result.setScope(scope)

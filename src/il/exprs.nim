@@ -15,6 +15,8 @@ proc Array*(_: typedesc[Expression], exprs: seq[Expression], loc: Location = new
     Expression(kind: ExpressionKind.Array, exprs: exprs, loc: loc)
 proc Record*(_: typedesc[Expression], members: seq[(Ident, Expression)], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Record, members: members, loc: loc)
+proc ObjCons*(_: typedesc[Expression], typname: Ident, members: seq[(Ident, Expression)], loc: Location = newLocation()): Expression = 
+    Expression(kind: ExpressionKind.ObjCons, typname: typname, members: members, loc: loc)
 proc If*(_: typedesc[Expression], elifs: openArray[ElifBranch], elseb: Option[ElseBranch], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.If, elifs: @elifs, elseb: elseb, loc: loc)
 proc When*(_: typedesc[Expression], elifs: openArray[ElifBranch], elseb: Option[ElseBranch], loc: Location = newLocation()): Expression =
@@ -25,8 +27,8 @@ proc Call*(_: typedesc[Expression], callee: Expression, args: openArray[Expressi
     Expression(kind: ExpressionKind.Call, callee: callee, args: @args, loc: loc)
 proc Command*(_: typedesc[Expression], callee: Expression, args: openArray[Expression], loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Command, callee: callee, args: @args, loc: loc)
-proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, loc: Location = newLocation()): Expression =
-    Expression(kind: ExpressionKind.Dot, lhs: lhs, rhs: rhs, loc: loc)
+proc Dot*(_: typedesc[Expression], lhs, rhs: Expression, dotArgs: seq[Expression], loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Dot, lhs: lhs, rhs: rhs, dotArgs: dotArgs, loc: loc)
 proc Binary*(_: typedesc[Expression], op: Ident, lhs, rhs: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Binary, op: op, lhs: lhs, rhs: rhs, loc: loc)
 proc Prefix*(_: typedesc[Expression], op: Ident, expression: Expression, loc: Location = newLocation()): Expression =
@@ -43,6 +45,12 @@ proc Lambda*(_: typedesc[Expression], param: FunctionParam, body: Suite, loc: Lo
     Expression(kind: ExpressionKind.Lambda, param: param, body: body, loc: loc)
 proc Malloc*(_: typedesc[Expression], mtype: Expression, msize: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Malloc, mtype: mtype, msize: msize, loc: loc)
+proc Realloc*(_: typedesc[Expression], rptr: Expression, msize: Expression, loc: Location = newLocation()): Expression =
+    Expression(kind: ExpressionKind.Realloc, rptr: rptr, msize: msize, loc: loc)
+proc Ptrset*(_: typedesc[Expression], `ptr`: Expression, idx: Expression, v: Expression, loc: Location = newLocation()): Expression = 
+    Expression(kind: ExpressionKind.Ptrset, `ptr`: `ptr`, idx: idx, v: v, loc: loc)
+proc Ptrget*(_: typedesc[Expression], `ptr`: Expression, idx: Expression, loc: Location = newLocation()): Expression = 
+    Expression(kind: ExpressionKind.Ptrget, `ptr`: `ptr`, idx: idx, loc: loc)
 proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location = newLocation()): Expression =
     Expression(kind: ExpressionKind.Typeof, `typeof`: `typeof`, loc: loc)
 proc Ref*(_: typedesc[Expression], `ref`: Expression, loc: Location = newLocation()): Expression =

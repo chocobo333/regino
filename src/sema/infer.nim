@@ -61,6 +61,11 @@ proc infer*(self: Expression, env: TypeEnv, project: Project, global: bool = fal
         # Value.Unit
     of ExpressionKind.Record:
         Value.Record(self.members.mapIt((it[0], it[1].infer(env, project, global))).toTable)
+    of ExpressionKind.ObjCons:
+        let obj = Expression.Id(self.typname).eval(env, project, global)
+        for (id, exp) in self.members:
+            env.coerce(obj.base.members[id] <= exp.infer(env, project, global))
+        obj
     of ExpressionKind.If:
         let
             conds = self.elifs.mapIt(it.cond.infer(env, project, global))
@@ -131,6 +136,17 @@ proc infer*(self: Expression, env: TypeEnv, project: Project, global: bool = fal
     of ExpressionKind.Malloc:
         env.coerce(self.msize.infer(env, project, global) == Value.Integer)
         Value.Ptr(self.mtype.eval(env, project, global))
+    of ExpressionKind.Realloc:
+        Value.Unit
+    of ExpressionKind.Ptrset:
+        env.coerce(Value.Ptr(self.v.infer(env, project, global)) <= self.`ptr`.infer(env, project, global))
+        env.coerce(self.idx.infer(env, project, global) == Value.Integer)
+        Value.Unit
+    of ExpressionKind.Ptrget:
+        let tv = Value.Var(env)
+        env.coerce(self.idx.infer(env, project, global) == Value.Integer)
+        env.coerce(Value.Ptr(tv) == self.`ptr`.infer(env, project, global))
+        tv
     of ExpressionKind.Typeof:
         Value.Singleton(self.`typeof`.infer(env, project, global))
     of ExpressionKind.Ref:
@@ -414,6 +430,11 @@ proc infer*(self: Statement, env: TypeEnv, project: Project, global: bool = fals
             val = self.val.infer(env, project, global)
         env.coerce(val <= paty)
         Value.Unit
+    of StatementKind.IndexAssign:
+        let
+            id = Expression.Id(newIdent("[]="))
+        self.set_exp = Expression.Call(id, @[Expression.Id(self.id), self.index, self.i_val], self.loc)
+        self.set_exp.infer(env, project, global)
     of StatementKind.Funcdef:
         env.addFunc(project, self.fn, global)
         self.fn.infer(env, project, global)

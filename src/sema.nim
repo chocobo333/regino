@@ -28,10 +28,11 @@ proc sema*(self: Program, project: Project): seq[TypeError] =
 when isMainModule:
     import parsers
     import options
+    import desugar
     let
-        f = open("test/test.rgn")
+        f = open("test/test05.rgn")
         s = f.readAll
-        program = Program(Source.from(s)).get
+        program = Program(Source.from(s)).get.desugar
     # let
     #     errs = program.sema
     f.close

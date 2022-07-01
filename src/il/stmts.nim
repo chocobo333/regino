@@ -23,6 +23,8 @@ proc TypeSection*(_: typedesc[Statement], typedefSection: TypeDefSection, loc: L
     Statement(kind: StatementKind.TypeSection, typedefSection: typedefSection, loc: loc)
 proc Asign*(_: typedesc[Statement], pat: Pattern, op: Ident, val: Expression, loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Asign, pat: pat, op: op, val: val, loc: loc)
+proc IndexAssign*(_: typedesc[Statement], id: Ident, index: Expression, i_val: Expression, loc: Location = newLocation()): Statement =
+    Statement(kind: StatementKind.IndexAssign, id: id, index: index, i_val: i_val, loc: loc)
 proc Funcdef*(_: typedesc[Statement], fn: Function, loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Funcdef, fn: fn, loc: loc)
 proc Meta*(_: typedesc[Statement], meta: Metadata, loc: Location = newLocation()): Statement =

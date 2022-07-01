@@ -5,6 +5,7 @@ import options
 import il
 import parsers
 import sema
+import desugar
 import errors
 import projects/projects
 import utils
@@ -52,7 +53,7 @@ proc parse*(self: Project, uri: string = self.main) {.exportc: "parse".} =
         f = open(uri)
         text = f.readAll()
         src = Source.from(text, uri)
-        program = Program(src).get
+        program = Program(src).get.desugar
     close f
     self.src[uri] = src
     self.perrs[uri] = self.src[uri].errs
@@ -66,7 +67,7 @@ proc sema*(self: Project, uri: string = self.main) {.exportc: "sema".} =
 proc update*(self: Project, uri: string, text: string) =
     let
         src = Source.from(text, uri)
-        program = Program(src).get
+        program = Program(src).get.desugar
     self.terrs[uri] = program.sema(self)
     self.src[uri] = src
     self.perrs[uri] = self.src[uri].errs

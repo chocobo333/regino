@@ -112,9 +112,17 @@ proc coloring(self: Expression, tokenTypes: seq[string], data: var seq[Color]) =
         discard
     of ExpressionKind.Lambda:
         discard
+    of ExpressionKind.ObjCons:
+        discard
     of ExpressionKind.Malloc:
         discard
     of ExpressionKind.Typeof:
+        discard
+    of ExpressionKind.Realloc:
+        discard
+    of ExpressionKind.Ptrset:
+        discard
+    of ExpressionKind.Ptrget:
         discard
     of ExpressionKind.Ref:
         discard
@@ -183,6 +191,10 @@ proc coloring(self: Statement, tokenTypes: seq[string], data: var seq[Color]) =
     of StatementKind.Asign:
         self.pat.coloring(tokenTypes, data)
         self.val.coloring(tokenTypes, data)
+    of StatementKind.IndexAssign:
+        self.id.coloring(tokenTypes, data)
+        self.index.coloring(tokenTypes, data)
+        self.i_val.coloring(tokenTypes, data)
     of StatementKind.Funcdef:
         self.fn.coloring(tokenTypes, data)
     of StatementKind.Meta:

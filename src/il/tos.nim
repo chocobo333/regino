@@ -87,6 +87,14 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
             fmt"{`$`(it[1], typed, regioned, comment)}"
         ).join(", ")
         fmt"({members})"
+    of ExpressionKind.ObjCons:
+        let
+            typname = `$`(self.typname, typed, regioned, comment)
+            members = self.members.mapIt(
+                fmt"{`$`(it[0], typed, regioned, comment)}: " &
+                fmt"{`$`(it[1], typed, regioned, comment)}"
+            ).join(", ")
+        fmt"{typname}({members})"
     of ExpressionKind.If:
         let
             elifs = self.elifs.mapIt(`$`(it, typed, regioned, comment)).join("\n")[2..^1]
@@ -108,10 +116,14 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
     of ExpressionKind.Case:
         let
             val = `$`(self.val, typed, regioned, comment)
-            ofs = if self.ofs.len == 0: "" else: ("\n" & self.ofs.map(`$`).join("\n"))
             default = "\n" & self.default.map(
                     it => "default:\n" & `$`(it, typed, regioned, comment)
                 ).get("")
+        var
+            ofs = ""
+        for e in self.ofs:
+            ofs.add "\n"
+            ofs.add $e
         fmt"case {val}{ofs}{default}"
     of ExpressionKind.Call:
         let
@@ -127,7 +139,8 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
         let
             lhs = `$`(self.lhs, typed, regioned, comment)
             rhs = `$`(self.rhs, typed, regioned, comment)
-        fmt"{lhs}.{rhs}"
+            args = if self.dotArgs.len != 0: "(" & self.dotArgs.mapIt(`$`(it, typed, regioned, comment)).join(", ") & ")" else: ""
+        fmt"{self.lhs}.{self.rhs}{args}"
     of ExpressionKind.Binary:
         let
             op = `$$`(self.op, typed, regioned, comment)
@@ -173,6 +186,22 @@ proc `$`*(self: Expression, typed: bool = false, regioned: bool = false, comment
             mtype = `$`(self.mtype, typed, regioned, comment)
             msize = `$`(self.msize, typed, regioned, comment)
         fmt"malloc({mtype}, {msize})"
+    of ExpressionKind.Realloc:
+        let
+            rptr = `$`(self.rptr, typed, regioned, comment)
+            msize = `$`(self.msize, typed, regioned, comment)
+        fmt"realloc({rptr}, {msize})"
+    of ExpressionKind.Ptrset:
+        let
+            `ptr` = `$`(self.`ptr`, typed, regioned, comment)
+            idx = `$`(self.idx, typed, regioned, comment)
+            v = `$`(self.v, typed, regioned, comment)
+        fmt"ptrset({`ptr`}, {idx}, {v})"
+    of ExpressionKind.Ptrget:
+        let
+            `ptr` = `$`(self.`ptr`, typed, regioned, comment)
+            idx = `$`(self.idx, typed, regioned, comment)
+        fmt"ptrget({`ptr`}, {idx})"
     of ExpressionKind.Typeof:
         let typeof = `$`(self.typeof, typed, regioned, comment)
         fmt"typeof({typeof})"
@@ -334,6 +363,8 @@ proc `$`*(self: Statement, typed: bool = false, regioned: bool = false, comment:
             pat = `$`(self.pat, typed, regioned, comment)
             val = `$`(self.val, typed, regioned, comment)
         fmt"{pat} = {val}"
+    of StatementKind.IndexAssign:
+        fmt"{self.id}[{self.index}] = {self.i_val}"
     of StatementKind.Funcdef:
         `$`(self.fn, typed, regioned, comment)
     of StatementKind.Meta:
@@ -646,6 +677,11 @@ proc treeRepr*(self: Expression): string =
     of ExpressionKind.Record:
         let members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
         fmt"({members})"
+    of ExpressionKind.ObjCons:
+        let
+            typname = fmt"{self.typname}"
+            members = self.members.mapIt(fmt"{it[0]}: {it[1]}").join(", ")
+        fmt"{typname}({members})"
     of ExpressionKind.If:
         let
             elifs = self.elifs.map(`$`).join("\n")[2..^1]
@@ -692,6 +728,12 @@ proc treeRepr*(self: Expression): string =
         fmt"func{params}:\n{suite}"
     of ExpressionKind.Malloc:
         fmt"malloc({self.mtype}, {self.msize})"
+    of ExpressionKind.Realloc:
+        fmt"malloc({self.rptr}, {self.msize})"
+    of ExpressionKind.Ptrset:
+        fmt"ptrset({self.`ptr`}, {self.idx}, {self.v})"
+    of ExpressionKind.Ptrget:
+        fmt"ptrget({self.`ptr`}, {self.idx})"
     of ExpressionKind.Typeof:
         fmt"Typeof\n  {self.`typeof`.treeRepr}"
     of ExpressionKind.Ref:

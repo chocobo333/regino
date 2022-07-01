@@ -481,6 +481,8 @@ proc infer(self: Expression, env: RegionEnv, suite: Region) =
             e.infer(env, suite)
     of ExpressionKind.Record:
         discard
+    of ExpressionKind.ObjCons:
+        discard
     of ExpressionKind.If:
         for e in self.elifs:
             let
@@ -516,6 +518,12 @@ proc infer(self: Expression, env: RegionEnv, suite: Region) =
     of ExpressionKind.Malloc:
         discard
     of ExpressionKind.Typeof:
+        discard
+    of ExpressionKind.Realloc:
+        discard
+    of ExpressionKind.Ptrset:
+        discard
+    of ExpressionKind.Ptrget:
         discard
     of ExpressionKind.Ref:
         discard
@@ -567,6 +575,9 @@ proc infer(self: Statement, env: RegionEnv, suite: Region) =
         self.pat.infer(env, suite)
         self.val.infer(env, suite)
         env.coerce(self.pat.typ <= self.val.typ)
+    of StatementKind.IndexAssign:
+        # TODO:
+        discard
     of StatementKind.Funcdef:
         self.fn.infer(env, suite)
     of StatementKind.Meta:
