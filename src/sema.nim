@@ -30,7 +30,7 @@ when isMainModule:
     import options
     import desugar
     let
-        f = open("test/test05.rgn")
+        f = open("test/test.rgn")
         s = f.readAll
         program = Program(Source.from(s)).get.desugar
     # let
