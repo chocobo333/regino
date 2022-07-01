@@ -1,0 +1,27 @@
+
+
+![link: "arith.ll"]
+![link: "io.ll"]
+![link: "int.ll"]
+![link: "float.ll"]
+![link: "string.ll"]
+
+
+type
+    ptr[T] = typeof(malloc(T, 1))
+    int = typeof(0)
+    bool = typeof(false)
+    int32 = typeof(0'i32)
+    float = typeof(0.0)
+    string = typeof("")
+    char = typeof('a')
+
+func `add@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `sub@int32/int32int32`(a: int, b: int) -> int ![importll]
+func `eq@bool/int32int32`(a: int, b: int) -> bool ![importll]
+func `+`(a: int, b: int) -> int:
+    `add@int32/int32int32`(a, b)
+func `-`(a: int, b: int) -> int:
+    `sub@int32/int32int32`(a, b)
+func `==`(a: int, b: int) -> bool:
+    `eq@bool/int32int32`(a, b)

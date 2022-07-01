@@ -197,6 +197,8 @@ let
     # DocStr = preceded(s"#", p".*") @ (it => newComment(it, true))
     Comments = %(Comment ^+ Nodent) @ (it => Statement.Comments(it[0], it[1]))
 
+    Import = %preceded(s"import" + sp(1), Id) @ (it => Statement.Import(it[0], it[1]))
+
     asop = %p"[\p{Sm}*/\\?!%&$^@-]*=" @ (it => newIdent(it[0], it[1]))
     Asign = %(Patt + asop ^ sp0 + Expr) @
         proc(it: (((Pattern, Ident), Expression), Location)): Statement =
@@ -622,6 +624,7 @@ proc StmtList(self: ref Source): Option[seq[Statement]] =
 proc Stmt(self: ref Source): Option[Statement] =
     alt(
         Comments,
+        Import,
         LetSection,
         VarSection,
         ConstSection,

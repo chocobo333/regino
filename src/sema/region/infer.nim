@@ -557,6 +557,8 @@ proc infer(self: IdentDefSection, env: RegionEnv, suite: Region) =
 proc infer(self: Statement, env: RegionEnv, suite: Region) =
     self.typ.infer(env, suite)
     case self.kind
+    of StatementKind.Import:
+        discard
     of StatementKind.For:
         discard
     of StatementKind.While:

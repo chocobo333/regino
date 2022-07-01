@@ -35,22 +35,26 @@ proc optimize(self: Module): Module =
     self.module.module = module
     self
 
-proc compile*(filename: seq[string]): int =
+proc sema*(filename: seq[string]) = 
     var
-        filename = filename[0]
+        filename = filename[0].absolutePath
         module = newModule()
         project = newProject(filename)
-        program = project.parse
-        perrs = project.perrs
-        terrs = project.terrs
-    if perrs.len == 0 and terrs.len == 0:
-        program.codegen(module, true)
-    else:
-        for e in perrs:
-            echo e
-        for e in terrs:
-            echo e
+    project.parse
+    project.sema
+
+proc compile*(filename: seq[string]): int =
+    var
+        filename = filename[0].absolutePath
+        module = newModule()
+        project = newProject(filename)
+    project.parse
+    project.sema
+    let program = project.mainProgram
+    if project.errExists:
+        project.echoErrs
         return 1
+    program.codegen(module, true)
     for e in module.linkModules:
         discard module.module.link(e)
     # module = module.optimize
@@ -61,4 +65,5 @@ proc compile*(filename: seq[string]): int =
     0
 
 when isMainModule:
-    discard compile(@["test/ptr.rgn"])
+    # discard compile(@["test/ptr.rgn"])
+    sema(@["test/test.rgn"])

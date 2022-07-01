@@ -170,6 +170,8 @@ proc inst(self: TypeDefSection): TypeDefSection =
     newTypedefSection(self.typedefs.map(inst), self.comments)
 proc inst(self: Statement): Statement =
     case self.kind
+    of StatementKind.Import:
+        Statement.Import(self.module.inst)
     of StatementKind.For:
         Statement.For(self.pat.inst, self.val.inst, self.suite.inst, self.loc)
     of StatementKind.While:

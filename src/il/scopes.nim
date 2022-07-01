@@ -13,6 +13,8 @@ iterator items*(self: Scope): Scope =
     var scope = self
     while not scope.isNil:
         yield scope
+        for prog in scope.imports:
+            yield prog.scope
         scope = scope.parent
 
 iterator reversed*(self: Scope): Scope =
@@ -64,6 +66,7 @@ proc lookupId*(self: Scope, name: string, pos: Position, kinds: set[SymbolKind] 
 proc newScope*(parent: Scope = nil): Scope =
     Scope(
         parent: parent,
+        imports: @[],
         syms: initTable[string, seq[Symbol]](),
         consts: initTable[string, seq[Symbol]](),
         typeOrder: if parent.isNil: newOrder[Value]() else: parent.typeOrder,

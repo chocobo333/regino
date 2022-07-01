@@ -5,6 +5,8 @@ import il
 import ../lineinfos
 
 
+proc Import*(_: typedesc[Statement], module: Ident, loc: Location = newLocation()): Statement =
+    Statement(kind: StatementKind.Import, module: module, loc: loc)
 proc For*(_: typedesc[Statement], pat: Pattern, val: Expression, suite: Suite, loc: Location = newLocation()): Statement =
     Statement(kind: StatementKind.Asign, pat: pat, val: val, suite: suite, loc: loc)
 proc While*(_: typedesc[Statement], branch: ElifBranch, loc: Location = newLocation()): Statement =

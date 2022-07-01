@@ -17,492 +17,17 @@ import ../lineinfos
 import coerce
 import resolve
 
+import decls
 
-proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value
-proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = false): Value
-proc infer*(self: Suite, env: TypeEnv): Value
-proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value
-proc check(self: Expression, env: TypeEnv)
-proc check(self: Suite, env: TypeEnv)
-proc eval*(self: Program, env: TypeEnv): Value
-proc eval*(self: Suite, env: TypeEnv): Value
-proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value
-proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value
-proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = false): Value
+import ../projects/projects
+
+proc check(self: Suite, env: TypeEnv, project: Project)
+proc eval*(self: Program, env: TypeEnv, project: Project): Value
+proc eval*(self: Suite, env: TypeEnv, project: Project): Value
+proc eval*(self: Statement, env: TypeEnv, project: Project, global: bool = false): Value
 
 
-proc infer*(self: Literal): Value =
-    ## that retrurns literal's type merely
-    self.typ
-proc infer*(self: Ident, env: TypeEnv, global: bool = false): Value =
-    if not self.typ.isNil:
-        return self.typ
-    let
-        syms = env.lookupId(self.name)
-    result = case syms.len
-    of 0:
-        Value.Var(env)
-    of 1:
-        syms[0].typ.inst(env)
-    else:
-        Value.Select(syms.mapIt(it.typ.inst(env)), env)
-        # Value.Intersection(syms.mapIt(it.typ.inst(env)))
-    self.typ = result
-proc infer*(self: Expression, env: TypeEnv, global: bool = false): Value =
-    if not self.typ.isNil:
-        return self.typ
-    result = case self.kind
-    of ExpressionKind.Literal:
-        self.litval.infer
-    of ExpressionKind.Ident:
-        self.ident.infer(env, global)
-    of ExpressionKind.Tuple:
-        self.exprs.mapIt(it.infer(env, global)).foldl(Value.Pair(a, b))
-    of ExpressionKind.Array:
-        let
-            tv = Value.Var(env)
-            elements = self.exprs.mapIt(it.infer(env, global))
-        for t in elements:
-            env.coerce(t <= tv)
-        Value.Array(tv)
-        # Value.Unit
-    of ExpressionKind.Record:
-        Value.Record(self.members.mapIt((it[0], it[1].infer(env, global))).toTable)
-    of ExpressionKind.ObjCons:
-        let obj = Expression.Id(self.typname).eval(env, global)
-        for (id, exp) in self.members:
-            env.coerce(obj.base.members[id] <= exp.infer(env, global))
-        obj
-    of ExpressionKind.If:
-        let
-            conds = self.elifs.mapIt(it.cond.infer(env, global))
-            thens = self.elifs.mapIt(it.suite.infer(env))
-            elset = self.elseb.map(it => it.infer(env))
-            tv = Value.Var(env)
-        for cond in conds:
-            env.coerce(cond == Value.Bool)
-        for t in thens:
-            env.coerce(t <= tv)
-        if elset.isSome:
-            env.coerce(elset.get <= tv)
-        tv
-    of ExpressionKind.When:
-        let
-            conds = self.elifs.mapIt(it.cond.infer(env, global))
-            thens = self.elifs.mapIt(it.suite.infer(env))
-            elset = self.elseb.map(it => it.infer(env))
-            tv = Value.Var(env)
-        for cond in conds:
-            env.coerce(cond == Value.Bool)
-        for t in thens:
-            env.coerce(t <= tv)
-        if elset.isSome:
-            env.coerce(elset.get <= tv)
-        tv
-    of ExpressionKind.Case:
-        let
-            val = self.val.infer(env)
-            ofs = self.ofs.mapIt((it[0].infer(env), it[1].infer(env)))
-            default = self.default
-            tv = Value.Var(env)
-        for (pat, suite) in ofs:
-            env.coerce(pat == val)
-            env.coerce(suite <= tv)
-        if default.isSome():
-            env.coerce(default.get.infer(env) <= tv)
-        tv
-    of ExpressionKind.Call, ExpressionKind.Command:
-        let
-            tv = Value.Var(env)
-            args = self.args.mapIt(it.infer(env, global))
-            callee = self.callee.infer(env, global)
-        env.coerce(callee <= Value.Arrow(args, tv))
-        env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
-        tv
-    of ExpressionKind.Dot:
-        let
-            tv = Value.Var(env)
-            args = @[self.lhs.infer(env, global)] & self.dotArgs.mapIt(it.infer(env, global))
-            callee = self.rhs.infer(env, global)
-        env.coerce(callee <= Value.Arrow(args, tv))
-        env.coerce(Value.Arrow(args.mapIt(Value.Unit), tv) <= callee) # i dont know whether this is correct.
-        tv
-    of ExpressionKind.Bracket:
-        let
-            callee = self.callee.infer(env, global)
-            # args = self.args.mapIt(it.infer(env, global))
-        if callee.symbol.isSome and callee.symbol.get.kind in {SymbolKind.Let, SymbolKind.Var}:
-            let
-                id = Expression.Id(newIdent("[]"))
-            self.get_exp = some Expression.Call(id, @[self.callee] & self.args)
-            self.get_exp.get.infer(env, global)
-        else:
-            Value.Unit
-    of ExpressionKind.Binary:
-        let
-            tv = Value.Var(env)
-            lhs = self.lhs.infer(env, global)
-            rhs = self.rhs.infer(env, global)
-            op = self.op.infer(env, global)
-        env.coerce(op <= Value.Arrow(@[lhs, rhs], tv))
-        env.coerce(Value.Arrow(@[Value.Unit, Value.Unit], tv) <= op) # i dont know whether this is correct.
-        tv
-    of ExpressionKind.Prefix, ExpressionKind.Postfix:
-        let
-            tv = Value.Var(env)
-            exp = self.expression.infer(env, global)
-            op = self.op.infer(env, global)
-        env.coerce(op <= Value.Arrow(@[exp], tv))
-        env.coerce(Value.Arrow(@[Value.Unit], tv) <= op)
-        tv
-    of ExpressionKind.Block:
-        self.`block`.infer(env)
-    of ExpressionKind.Lambda:
-        Value.Unit
-    of ExpressionKind.Malloc:
-        env.coerce(self.msize.infer(env, global) == Value.Integer)
-        Value.Ptr(self.mtype.eval(env, global))
-    of ExpressionKind.Realloc:
-        Value.Unit
-    of ExpressionKind.Ptrset:
-        env.coerce(Value.Ptr(self.v.infer(env, global)) <= self.`ptr`.infer(env, global))
-        env.coerce(self.idx.infer(env, global) == Value.Integer)
-        Value.Unit
-    of ExpressionKind.Ptrget:
-        let tv = Value.Var(env)
-        env.coerce(self.idx.infer(env, global) == Value.Integer)
-        env.coerce(Value.Ptr(tv) == self.`ptr`.infer(env, global))
-        tv
-    of ExpressionKind.Typeof:
-        Value.Singleton(self.`typeof`.infer(env, global))
-    of ExpressionKind.Ref:
-        Value.Unit
-    of ExpressionKind.FnType:
-        Value.Unit
-    of ExpressionKind.IntCast:
-        Value.Integer(self.to)
-    of ExpressionKind.Fail:
-        Value.Bottom
-    self.typ = result
-proc infer*(self: Metadata, env: TypeEnv, global: bool = false): Value =
-    for param in self.params:
-        discard param.infer(env)
-    Value.Unit
-proc infer*(self: Pattern, env: TypeEnv, global: bool = false, asign: bool = false): Value =
-    if not self.typ.isNil:
-        return self.typ
-    result = case self.kind
-    of PatternKind.Literal:
-        self.litval.infer
-    of PatternKind.Ident:
-        # TODO: index
-        if asign:
-            let res = self.ident.infer(env, global)
-            if res.kind == ValueKind.Select:
-                toSeq(res.types.filter(it => it.symbol.get.kind != SymbolKind.Func))[0]
-            else:
-                res
-        else:
-            let res = Value.Var(env)
-            self.ident.typ = res
-            res
-    of PatternKind.Tuple:
-        self.patterns.mapIt(it.infer(env, global, asign)).foldl(Value.Pair(a, b))
-    of PatternKind.Record:
-        Value.Record(self.members.mapIt((it[0], it[1].infer(env, global, asign))).toTable)
-    of PatternKind.UnderScore:
-        Value.Var(env)
-    self.typ = result
-proc infer(self: TypeExpression, env: TypeEnv, ident: Ident): Value =
-    case self.kind
-    of TypeExpressionKind.Object:
-        # TODO: ituka jissousuru
-        let rec = Value.Record(self.members.mapIt((it[0], it[1].infer(env, it[0]))).toTable)
-        Value.Distinct(ident, rec)
-    of TypeExpressionKind.Sum:
-        # TODO: Add constructor
-        let cons = self.sum.constructors.mapIt((
-            it.id,
-            case it.kind
-            of SumConstructorKind.NoField:
-                Value.Unit
-            of SumConstructorKind.UnnamedField:
-                Expression.Tuple(it.types).infer(env)
-            of SumConstructorKind.NamedField:
-                Expression.Record(it.fields).infer(env)
-        ))
-        Value.Sum(cons.toTable)
-    of TypeExpressionKind.Distinct:
-        Value.Distinct(ident, self.base.infer(env, ident))
-    of TypeExpressionKind.Trait:
-        assert false, "notimplimented"
-        Value.Unit
-    of TypeExpressionKind.Expression:
-        self.expression.infer(env)
-proc addPatL(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool = false) =
-    ## register identifier on typeenv
-    case pat.kind
-    of PatternKind.Literal:
-        discard
-    of PatternKind.Ident:
-        let sym = Symbol.Let(pat.ident, pat.typ, impl, global)
-        env.addIdent(sym)
-    of PatternKind.Tuple:
-        for pat in pat.patterns:
-            env.addPatL(impl, pat, global)
-    of PatternKind.Record:
-        for (id, pat) in pat.members:
-            env.addPatL(impl, pat, global)
-    of PatternKind.UnderScore:
-        discard
-proc addPatV(env: TypeEnv, impl: IdentDef, pat: Pattern = impl.pat, global: bool = false) =
-    ## register identifier on typeenv
-    case pat.kind
-    of PatternKind.Literal:
-        discard
-    of PatternKind.Ident:
-        # TODO: index
-        let sym = Symbol.Var(pat.ident, pat.typ, impl, global)
-        env.addIdent(sym)
-    of PatternKind.Tuple:
-        for pat in pat.patterns:
-            env.addPatV(impl, pat, global)
-    of PatternKind.Record:
-        discard
-    of PatternKind.UnderScore:
-        discard
-proc PairToSeq(pair: Value): seq[Value] =
-    if pair.kind == ValueKind.Pair:
-        @[pair.first] & pair.second.PairToSeq
-    else:
-        @[pair]
-proc infer(self: GenTypeDef, env: TypeEnv, global: bool = false): GenericType =
-    # infer and add symbol
-    let
-        id = self.id
-        ub = self.ub.map(it => it.eval(env, global)).get(Value.Unit)
-        genty = newGenericType(id, ub, ub.typ)
-        typ = Value.Gen(genty)
-        sym = Symbol.GenParam(id, typ, self)
-    env.addIdent(sym)
-    genty
-proc addParam(env: TypeEnv, impl: IdentDef, typ: Value, pat: Pattern = impl.pat, global: bool = false) =
-        ## register identifier on typeenv
-        case pat.kind
-        of PatternKind.Literal:
-            discard
-        of PatternKind.Ident:
-            # TODO: index
-            let sym = Symbol.Param(pat.ident, typ, impl, global)
-            env.addIdent(sym)
-        of PatternKind.Tuple:
-            assert typ.kind == ValueKind.Pair
-            for (p, typ) in pat.patterns.zip(typ.PairToSeq):
-                env.addParam(impl, typ, p, global)
-        of PatternKind.Record:
-            discard
-        of PatternKind.UnderScore:
-            discard
-        pat.typ = typ
-proc addFunc(env: TypeEnv, fn: Function, global: bool = false) =
-    var
-        sym: Symbol
-        rety: Value
-        fnty: Value
-    env.enter(fn.param.scope):
-        let
-            implicit = fn.param.implicit.mapIt(it.infer(env, global))
-            paramty = fn.param.params.mapIt(block:
-                # TODO: pattern like a, b: int
-                assert it.typ.isSome
-                let paramty = it.typ.get.eval(env, global)
-                env.addParam(it, paramty)
-                paramty
-            )
-        rety = fn.param.rety.map(it => it.eval(env, global)).get(Value.Unit)
-        fnty = Value.Pi(implicit, paramty, rety)
-        sym = Symbol.Func(fn.id, fnty, fn, global)
-    env.addIdent(sym)
-    fn.id.typ = fnty
-    if fn.metadata.isSome:
-        if fn.metadata.get.kind == MetadataKind.Subtype:
-            assert fn.param.params.len == 1, "converter must take only one argument."
-            env.addTypeRelation(sym.typ.params[0], rety, fn.id)
-proc infer(fn: Function, env: TypeEnv, global: bool = false) =
-    let
-        sym = fn.id.typ.symbol.get
-        rety = fn.id.typ.rety
-    env.enter(fn.param.scope):
-        if fn.suite.isSome:
-            let infered = fn.suite.get.infer(env)
-            env.coerce(infered <= rety)
-
-proc addTypeExpr(self: TypeEnv, typ: Value, typeExpr: TypeExpression, global: bool = false) =
-    case typeExpr.kind
-    of TypeExpressionKind.Object:
-        var i = 0
-        for (id, t) in typeExpr.members.sortedByIt(it[0].name):
-            let
-                field = Value.Arrow(@[typ], typ.base.members[id])
-                sym = Symbol.Field(id, field, i, (id, t), global)
-            self.addIdent(sym)
-            inc i
-    of TypeExpressionKind.Sum:
-        for cons in typeExpr.sum.constructors:
-            case cons.kind
-            of SumConstructorKind.NoField:
-                let
-                    id = cons.id
-                    sym = Symbol.Enum(id, Value.Link(typ), cons, global)
-                self.addIdent(sym)
-            of SumConstructorKind.UnnamedField:
-                let
-                    id = cons.id
-                    typ =
-                        case typ.base.constructors[id].tupleLen
-                        of 0:
-                            Value.Arrow(@[], typ)
-                        of 1:
-                            Value.Arrow(@[typ.base.constructors[id].first], typ)
-                        else:
-                            Value.Arrow(typ.base.constructors[id].PairToSeq, typ)
-                    sym = Symbol.Enum(id, typ, cons, global)
-                self.addIdent(sym)
-            of SumConstructorKind.NamedField:
-                let
-                    id = cons.id
-                debug typ.base.constructors[id]
-                # TODO: object construction
-    of TypeExpressionKind.Distinct:
-        discard
-    of TypeExpressionKind.Trait:
-        discard
-    of TypeExpressionKind.Expression:
-        discard
-
-proc infer*(self: IdentDefSection, env: TypeEnv, global: bool = false) =
-    for iddef in self.iddefs:
-        let
-            pat = iddef.pat
-            typ = iddef.typ
-            default = iddef.default
-            paty = pat.infer(env, global)
-        if default.isSome:
-            let t = default.get.infer(env, global)
-            env.coerce(t <= paty)
-        if typ.isSome:
-            let
-                typ = typ.get
-                tv = typ.infer(env, global)
-            typ.check(env)
-            let t = typ.eval(env, global)
-            env.coerce(t == paty)
-        env.addPatL(iddef, global=global)
-proc infer*(self: TypeDefSection, env: TypeEnv, global: bool = false) =
-    for typedef in self.typedefs:
-        let
-            id = typedef.id
-            params = typedef.params
-            typ = typedef.typ
-            tv = Value.Var(env)
-            sym = Symbol.Typ(id, tv, typedef, global)
-        env.addIdent(sym)
-        if params.isNone:
-            # TODO: infer and check
-            let _ = typ.infer(env, id)
-            # typ.check(env)
-            let
-                typ = typ.eval(env, id, global)
-            env.bindtv(tv, typ)
-        else:
-            let scope = newScope(env.scope)
-            env.enter scope:
-                let implicit = params.get.mapIt(it.infer(env, global))
-                let
-                    _ = typ.infer(env, id)
-                    typ = typ.eval(env, id, global)
-                env.bindtv(tv, Value.Family(implicit, typ))
-        env.addTypeExpr(tv, typ, global)
-proc infer*(self: Statement, env: TypeEnv, global: bool = false): Value =
-    if not self.typ.isNil:
-        return self.typ
-    result = case self.kind
-    of StatementKind.For:
-        Value.Unit
-    of StatementKind.While:
-        let branch = self.branch.infer(env)
-        env.coerce(branch == Value.Unit)
-        Value.Unit
-    of StatementKind.Loop:
-        Value.Unit
-    of StatementKind.LetSection:
-        self.iddefSection.infer(env, global)
-        Value.Unit
-    of StatementKind.VarSection:
-        self.iddefSection.infer(env, global)
-        Value.Unit
-    of StatementKind.ConstSection:
-        Value.Unit
-    of StatementKind.TypeSection:
-        self.typedefSection.infer(env, global)
-        Value.Unit
-    of StatementKind.Asign:
-        let
-            paty = self.pat.infer(env, global, true)
-            val = self.val.infer(env, global)
-        env.coerce(val <= paty)
-        Value.Unit
-    of StatementKind.IndexAssign:
-        let
-            id = Expression.Id(newIdent("[]="))
-        self.set_exp = Expression.Call(id, @[Expression.Id(self.id), self.index, self.i_val], self.loc)
-        self.set_exp.infer(env, global)
-    of StatementKind.Funcdef:
-        env.addFunc(self.fn, global)
-        self.fn.infer(env, global)
-        Value.Unit
-    of StatementKind.Meta:
-        discard self.meta.infer(env)
-        Value.Unit
-    of StatementKind.Discard:
-        if self.`discard`.isSome:
-            discard self.`discard`.get.infer(env, global)
-        Value.Unit
-    of StatementKind.Comments:
-        Value.Unit
-    of StatementKind.Expression:
-        self.expression.infer(env, global)
-    of StatementKind.Fail:
-        Value.Unit
-    self.typ = result
-proc infer*(self: Suite, env: TypeEnv): Value =
-    if self.stmts.len == 0:
-        return Value.Unit
-    env.enter(self.scope):
-        for s in self.stmts[0..^2]:
-            discard s.infer(env)
-            # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
-        result = self.stmts[^1].infer(env)
-    # env.resolveRelationsPartially()
-proc infer*(self: ElifBranch, env: TypeEnv, global: bool = false): Value =
-    let
-        cond = self.cond.infer(env, global)
-    env.coerce(cond == Value.Bool)
-    self.suite.infer(env)
-proc infer*(self: Program, env: TypeEnv): Value =
-    ## Entry point of type inference algorithm
-    if self.stmts.len == 0:
-        return Value.Unit
-    # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
-    # for s in self.stmts.filterIt(it.kind == StatementKind.Funcdef):
-    #     env.addFunc(s.fn, true)
-    for s in self.stmts[0..^2]:
-        discard s.infer(env)
-        # env.coerce(s.infer(env) == Value.Unit, TypeError.Discard(s))
-    result = self.stmts[^1].infer(env)
-    env.resolve()
-
-proc check(self: Ident, env: TypeEnv) =
+proc check(self: Ident, env: TypeEnv, project: Project) =
     if self.typ.symbol.isNone:
         if self.typ.kind == ValueKind.Intersection:
             env.errs.add TypeError.Undeciable(self.loc)
@@ -510,7 +35,7 @@ proc check(self: Ident, env: TypeEnv) =
             env.errs.add TypeError.Undefined(self, self.loc)
     else:
         self.typ.symbol.get.use.add self.loc
-proc check(self: Pattern, env: TypeEnv) =
+proc check(self: Pattern, env: TypeEnv, project: Project) =
     case self.kind:
     of PatternKind.Literal:
         discard
@@ -609,11 +134,17 @@ proc coercion(self: TypeEnv, v1, v2: Value, e: Expression): Expression =
             debug v1
             debug v2
             nil
-    result.inserted = true
-    result.loc = e.loc
-proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
+    if result.isNil:
+        self.errs.add TypeError.NoCoercion(v1, v2, e.loc)
+        result = e
+    else:
+        result.loc = e.loc
+        result.inserted = true
+proc coercion(self: TypeEnv, e: Expression, v: Value, project: Project): Expression =
     setTypeEnv(self)
-    assert e.typ <= v
+    if not (e.typ <= v):
+        self.errs.add TypeError.NoCoercion(e.typ, v, e.loc)
+        return e
     result = e
     if v <= e.typ:
         return
@@ -621,26 +152,37 @@ proc coercion(self: TypeEnv, e: Expression, v: Value): Expression =
     for (s, t) in self.path(e.typ, v).sort(it => it.len)[0]:
         result = self.coercion(s, t, result)
         # result.typ = t
-        discard result.infer(self)
+        discard result.infer(self, project)
         self.resolve # kore de iino ka?
         # result.check(self)
-proc check(self: Statement, env: TypeEnv)
-proc check(self: Suite, env: TypeEnv) =
+proc check(self: Statement, env: TypeEnv, project: Project)
+proc check(self: Suite, env: TypeEnv, project: Project) =
     env.enter(self.scope):
         if self.isFailed:
             # TODO: Suite have to have parameter `loc`
             env.errs.add TypeError.NoSuite(self.loc)
             return
         for s in self.stmts[0..^2]:
-            s.check(env)
+            s.check(env, project)
             if s.typ != Value.Unit:
                 env.errs.add TypeError.Discard(s)
-        self.stmts[^1].check(env)
-proc check(self: Function, env: TypeEnv) =
+        self.stmts[^1].check(env, project)
+proc check(self: Function, env: TypeEnv, project: Project) =
     # TODO: check params
-    if self.suite.isSome:
-        self.suite.get.check(env)
-proc check(self: Expression, env: TypeEnv) =
+    env.enter self.param.scope:
+        if self.param.rety.isSome:
+            self.param.rety.get.check(env, project)
+        for iddef in self.param.params:
+            # TODO: implement check(Pattern)
+            # iddef.pat.check(env, project)
+            # TODO: Shoud I check TypeExpression?
+            # typ should be infered, checked and `eval`ed.
+            if iddef.typ.isSome:
+                iddef.typ.get.check(env, project)
+            assert iddef.default.isNone
+        if self.suite.isSome:
+            self.suite.get.check(env, project)
+proc check*(self: Expression, env: TypeEnv, project: Project) {.exportc: "check_e".} =
     setTypeEnv(env)
     self.typ.resolveLink
     # TODO: invalid
@@ -656,13 +198,13 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.Literal:
         discard
     of ExpressionKind.Ident:
-        self.ident.check(env)
+        self.ident.check(env, project)
     of ExpressionKind.Tuple:
         for e in self.exprs:
-            e.check(env)
+            e.check(env, project)
     of ExpressionKind.Array:
         for e in self.exprs:
-            e.check(env)
+            e.check(env, project)
     of ExpressionKind.Record:
         discard
     of ExpressionKind.ObjCons:
@@ -672,13 +214,13 @@ proc check(self: Expression, env: TypeEnv) =
             let
                 cond = e.cond
                 suite = e.suite
-            cond.check(env)
-            suite.check(env)
+            cond.check(env, project)
+            suite.check(env, project)
             assert cond.typ == Value.Bool
             assert suite.typ <= self.typ
         if self.elseb.isSome:
             let suite = self.elseb.get
-            suite.check(env)
+            suite.check(env, project)
             assert suite.typ <= self.typ
     of ExpressionKind.When:
         discard
@@ -686,12 +228,12 @@ proc check(self: Expression, env: TypeEnv) =
         discard
     of ExpressionKind.Call, ExpressionKind.Command:
         # TODO: insert converter
-        self.callee.check(env)
+        self.callee.check(env, project)
         for i in 0..<self.args.len:
-            self.args[i].check(env)
+            self.args[i].check(env, project)
             self.callee.typ.params[i].resolveLink
             if self.args[i].typ <= self.callee.typ.params[i]:
-                self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i])
+                self.args[i] = env.coercion(self.args[i], self.callee.typ.params[i], project)
             else:
                 env.errs.add TypeError.NotMatch(self.args[i].typ, self.callee.typ.params[i], self.args[i].loc)
         if self.callee.typ.symbol.get.kind == SymbolKind.Func:
@@ -721,15 +263,15 @@ proc check(self: Expression, env: TypeEnv) =
                         env.addIdent(sym)
                     env.scope = scope
                     let fn = Statement.Funcdef(inst)
-                    discard fn.infer(env, false)
+                    discard fn.infer(env, project, false)
                     env.resolve()
-                    fn.check(env) # must be succeded
+                    fn.check(env, project) # must be succeded
                     calleety.symbol.get.instances[calleety] = Impl(instance: some(inst))
     of ExpressionKind.Dot:
         discard
     of ExpressionKind.Bracket:
         if self.get_exp.isSome:
-            self.get_exp.get.check(env)
+            self.get_exp.get.check(env, project)
     of ExpressionKind.Binary:
         discard
     of ExpressionKind.Prefix, ExpressionKind.Postfix:
@@ -753,23 +295,26 @@ proc check(self: Expression, env: TypeEnv) =
     of ExpressionKind.FnType:
         discard
     of ExpressionKind.IntCast:
-        self.int_exp.check(env)
+        self.int_exp.check(env, project)
     of ExpressionKind.Fail:
         env.errs.add TypeError.SomethingWrong(self.loc)
-proc check(self: IdentDefSection, env: TypeEnv) =
+proc check(self: IdentDefSection, env: TypeEnv, project: Project) =
     for iddef in self.iddefs:
         # TODO: implement check(Pattern)
-        # iddef.pat.check(env)
+        # iddef.pat.check(env, project)
         # TODO: Shoud I check TypeExpression?
         # typ should be infered, checked and `eval`ed.
         if iddef.typ.isSome:
-            iddef.typ.get.check(env)
+            iddef.typ.get.check(env, project)
         if iddef.default.isSome:
-            iddef.default.get.check(env)
-            iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ)
-proc check(self: Statement, env: TypeEnv) =
+            iddef.default.get.check(env, project)
+            iddef.default = some env.coercion(iddef.default.get, iddef.pat.typ, project)
+proc check(self: Statement, env: TypeEnv, project: Project) =
     setTypeEnv(env)
     case self.kind
+    of StatementKind.Import:
+        # TODO:
+        discard
     of StatementKind.For:
         discard
     of StatementKind.While:
@@ -777,7 +322,7 @@ proc check(self: Statement, env: TypeEnv) =
     of StatementKind.Loop:
         discard
     of StatementKind.LetSection:
-        self.iddefSection.check(env)
+        self.iddefSection.check(env, project)
     of StatementKind.VarSection:
         discard
     of StatementKind.ConstSection:
@@ -785,8 +330,8 @@ proc check(self: Statement, env: TypeEnv) =
     of StatementKind.TypeSection:
         discard
     of StatementKind.Asign:
-        self.pat.check(env)
-        self.val.check(env)
+        self.pat.check(env, project)
+        self.val.check(env, project)
         # case self.pat.ident
         for ident in collectIdent(self.pat):
             if ident.typ.symbol.isSome:
@@ -813,35 +358,35 @@ proc check(self: Statement, env: TypeEnv) =
             # TODO:
             discard
     of StatementKind.IndexAssign:
-        self.set_exp.check(env)
+        self.set_exp.check(env, project)
     of StatementKind.Funcdef:
-        discard
+        self.fn.check(env, project)
     of StatementKind.Meta:
         discard
     of StatementKind.Discard:
         if self.`discard`.isSome:
-            self.`discard`.get.check(env)
+            self.`discard`.get.check(env, project)
     of StatementKind.Comments:
         discard
     of StatementKind.Expression:
-        self.expression.check(env)
+        self.expression.check(env, project)
     of StatementKind.Fail:
         discard
-proc check*(self: Program, env: TypeEnv) =
+proc check*(self: Program, env: TypeEnv, project: Project) =
     if self.stmts.len == 0:
         return
     for s in self.stmts[0..^2]:
-        s.check(env)
+        s.check(env, project)
         if s.typ != Value.Unit:
             env.errs.add TypeError.Discard(s)
-    self.stmts[^1].check(env)
+    self.stmts[^1].check(env, project)
 
 proc eval*(self: Literal): Value =
     Value.literal(self)
-proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = false): Value =
+proc eval*(self: TypeExpression, env: TypeEnv, project: Project, ident: Ident, global: bool = false): Value {.exportc: "eval_te".} =
     result = case self.kind
     of TypeExpressionKind.Object:
-        let rec = Value.Record(self.members.mapIt((it[0], it[1].eval(env, it[0]))).toTable)
+        let rec = Value.Record(self.members.mapIt((it[0], it[1].eval(env, project, it[0]))).toTable)
         Value.Distinct(ident, rec)
     of TypeExpressionKind.Sum:
         let cons = self.sum.constructors.mapIt((
@@ -850,21 +395,21 @@ proc eval*(self: TypeExpression, env: TypeEnv, ident: Ident, global: bool = fals
             of SumConstructorKind.NoField:
                 Value.Unit
             of SumConstructorKind.UnnamedField:
-                Expression.Tuple(it.types).eval(env)
+                Expression.Tuple(it.types).eval(env, project)
             of SumConstructorKind.NamedField:
-                Expression.Record(it.fields).eval(env)
+                Expression.Record(it.fields).eval(env, project)
         ))
         Value.Distinct(ident, Value.Sum(cons.toTable))
     of TypeExpressionKind.Distinct:
-        Value.Distinct(ident, self.base.eval(env, ident, global))
+        Value.Distinct(ident, self.base.eval(env, project, ident, global))
     of TypeExpressionKind.Trait:
         Value.Unit
     of TypeExpressionKind.Expression:
-        self.expression.eval(env, global)
+        self.expression.eval(env, project, global)
     if self.isRef:
         result = Value.Ptr(result)
-proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
-    discard self.infer(env, global)
+proc eval*(self: Expression, env: TypeEnv, project: Project, global: bool = false): Value {.exportc: "eval_e".} =
+    discard self.infer(env, project, global)
     case self.kind
     of ExpressionKind.Literal:
         self.litval.eval
@@ -873,6 +418,9 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
             return self.typ.symbol.get.val.inst(env)
         let
             syms = env.lookupId(self.ident.name)
+        if self.ident.name == "int":
+            debug syms.len
+            echo env.scope.parent.imports.len
         case syms.len
         of 0:
             Value.Var(env)
@@ -885,13 +433,13 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         of 0:
             Value.Unit
         of 1:
-            Value.Pair(self.exprs[0].eval(env, global), Value.Unit)
+            Value.Pair(self.exprs[0].eval(env, project, global), Value.Unit)
         else:
-            self.exprs.mapIt(it.eval(env, global)).foldl(Value.Pair(a, b))
+            self.exprs.mapIt(it.eval(env, project, global)).foldl(Value.Pair(a, b))
     of ExpressionKind.Array:
-        Value.Array(self.exprs.mapIt(it.eval(env)))
+        Value.Array(self.exprs.mapIt(it.eval(env, project)))
     of ExpressionKind.Record:
-        Value.Record(self.members.mapIt((it[0], it[1].eval(env, global))).toTable)
+        Value.Record(self.members.mapIt((it[0], it[1].eval(env, project, global))).toTable)
     of ExpressionKind.ObjCons:
         Value.Unit
     of ExpressionKind.If:
@@ -900,9 +448,9 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
             let
                 cond = `elif`.cond
                 suite = `elif`.suite
-            if cond.eval(env).litval.boolval == false:
+            if cond.eval(env, project).litval.boolval == false:
                 continue
-            ret = suite.eval(env)
+            ret = suite.eval(env, project)
             break
         ret
     of ExpressionKind.When:
@@ -917,21 +465,21 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of ExpressionKind.Bracket:
         let
-            val = self.callee.eval(env, global)
+            val = self.callee.eval(env, project, global)
         case val.kind:
         of ValueKind.Pi:
             for (e, arg) in val.instances.zip(self.args):
                 if e.kind == ValueKind.Var:
-                    env.bindtv(e, arg.eval(env))
+                    env.bindtv(e, arg.eval(env, project))
             val
         of ValueKind.Family:
             for (e, arg) in val.instances.zip(self.args):
                 if e.kind == ValueKind.Var:
-                    env.bindtv(e, arg.eval(env))
+                    env.bindtv(e, arg.eval(env, project))
             val.rety
         else:
             # TODO: ituka
-            Value.Cons(val, self.args.mapIt(it.eval(env)))
+            Value.Cons(val, self.args.mapIt(it.eval(env, project)))
     of ExpressionKind.Binary:
         Value.Unit
     of ExpressionKind.Prefix:
@@ -939,11 +487,11 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Postfix:
         Value.Unit
     of ExpressionKind.Block:
-        self.`block`.eval(env)
+        self.`block`.eval(env, project)
     of ExpressionKind.Lambda:
         Value.Unit
     of ExpressionKind.Malloc:
-        Value.Ptr(self.mtype.eval(env, global))
+        Value.Ptr(self.mtype.eval(env, project, global))
     of ExpressionKind.Realloc:
         Value.Unit
     of ExpressionKind.Ptrset:
@@ -953,12 +501,12 @@ proc eval*(self: Expression, env: TypeEnv, global: bool = false): Value =
     of ExpressionKind.Typeof:
         self.`typeof`.typ
     of ExpressionKind.Ref:
-        Value.Ptr(self.`ref`.eval(env, global))
+        Value.Ptr(self.`ref`.eval(env, project, global))
     of ExpressionKind.FnType:
-        Value.Arrow(self.args.mapIt(it.eval(env, global)), self.rety.eval(env, global))
+        Value.Arrow(self.args.mapIt(it.eval(env, project, global)), self.rety.eval(env, project, global))
     of ExpressionKind.IntCast:
         # TODO:
-        self.int_exp.eval(env, global)
+        self.int_exp.eval(env, project, global)
     of ExpressionKind.Fail:
         Value.Bottom
 proc asign(self: Pattern, val: Value) =
@@ -978,11 +526,14 @@ proc asign(self: Pattern, val: Value) =
         discard
     of PatternKind.UnderScore:
         discard
-proc eval*(self: IdentDefSection, env: TypeEnv, global: bool = false) =
+proc eval*(self: IdentDefSection, env: TypeEnv, project: Project, global: bool = false) =
     for e in self.iddefs:
-        e.pat.asign(e.default.get.eval(env, global))
-proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
+        e.pat.asign(e.default.get.eval(env, project, global))
+proc eval*(self: Statement, env: TypeEnv, project: Project, global: bool = false): Value =
     case self.kind
+    of StatementKind.Import:
+        # TODO:
+        Value.Unit
     of StatementKind.For:
         Value.Unit
     of StatementKind.While:
@@ -990,15 +541,15 @@ proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
     of StatementKind.Loop:
         Value.Unit
     of StatementKind.LetSection:
-        self.iddefSection.eval(env, global)
+        self.iddefSection.eval(env, project, global)
         # for e in self.iddefs:
-        #     e.pat.asign(e.default.get.eval(env, global))
+        #     e.pat.asign(e.default.get.eval(env, project, global))
         Value.Unit
     of StatementKind.VarSection:
-        self.iddefSection.eval(env, global)
+        self.iddefSection.eval(env, project, global)
         # for e in self.iddefs:
         #     if e.default.isSome:
-        #         e.pat.asign(e.default.get.eval(env, global))
+        #         e.pat.asign(e.default.get.eval(env, project, global))
         Value.Unit
     of StatementKind.ConstSection:
         Value.Unit
@@ -1007,7 +558,7 @@ proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
     of StatementKind.Asign:
         case self.op.name
         of "=":
-            self.pat.asign(self.val.eval(env, global))
+            self.pat.asign(self.val.eval(env, project, global))
         else:
             # TODO: like "+="
             discard
@@ -1020,20 +571,20 @@ proc eval*(self: Statement, env: TypeEnv, global: bool = false): Value =
         Value.Unit
     of StatementKind.Discard:
         if self.`discard`.isSome:
-            discard self.`discard`.get.eval(env, global)
+            discard self.`discard`.get.eval(env, project, global)
         Value.Unit
     of StatementKind.Comments:
         Value.Unit
     of StatementKind.Expression:
-        self.expression.eval(env, global)
+        self.expression.eval(env, project, global)
     of StatementKind.Fail:
         Value.Unit
-proc eval*(self: Suite, env: TypeEnv): Value =
+proc eval*(self: Suite, env: TypeEnv, project: Project): Value =
     env.enter self.scope:
         for s in self.stmts:
-            result = s.eval(env)
-proc eval*(self: Program, env: TypeEnv): Value =
-    # discard self.infer(env)
-    # self.check(env)
+            result = s.eval(env, project)
+proc eval*(self: Program, env: TypeEnv, project: Project): Value =
+    # discard self.infer(env, project)
+    # self.check(env, project)
     for s in self.stmts:
-        result = s.eval(env, true)
+        result = s.eval(env, project, true)

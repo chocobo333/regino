@@ -173,6 +173,8 @@ proc setScope(self: TypeDefSection, parent: Scope) =
         typedef.setScope(parent)
 proc setScope(self: Statement, parent: Scope) =
     case self.kind
+    of StatementKind.Import:
+        discard
     of StatementKind.Loop:
         self.`block`.setScope(parent)
     of StatementKind.For:

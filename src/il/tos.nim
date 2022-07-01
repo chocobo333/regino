@@ -323,6 +323,8 @@ proc `$`*(self: TypeDefSection, typed: bool = false, regioned: bool = false, com
     fmt"{comments}{typedefs}"
 proc `$`*(self: Statement, typed: bool = false, regioned: bool = false, comment: bool = false): string =
     case self.kind
+    of StatementKind.Import:
+        fmt"import {self.module}"
     of StatementKind.For:
         let
             pat = `$`(self.pat, typed, regioned, comment)

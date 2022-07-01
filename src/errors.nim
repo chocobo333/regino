@@ -15,6 +15,7 @@ type
         Unasignable
         Letasign
         SomethingWrong
+        NoCoercion
         Internal
         NotMatch
     TypeError* = object of CatchableError
@@ -22,7 +23,7 @@ type
         case kind: TypeErrorKind
         of TypeErrorKind.Discard:
             s*: Statement
-        of TypeErrorKind.Subtype, TypeErrorKind.CircularSubtype, NotMatch:
+        of TypeErrorKind.Subtype, TypeErrorKind.CircularSubtype, TypeErrorKind.NoCoercion, NotMatch:
             t1, t2: Value
         of TypeErrorKind.Undeciable:
             nil
@@ -57,6 +58,8 @@ proc `$`*(self: TypeError): string =
         fmt"`{self.id}` cannot be re-asigned to, because `{self.id}` was defined in let section"
     of TypeErrorKind.SomethingWrong:
         &"something is wrong\n{self.stacktrace}"
+    of TypeErrorKind.NoCoercion:
+        fmt"there does not exist coercion from `{self.t1}` to `{self.t2}`"
     of TypeErrorKind.Internal:
         &"{self.i_msg}\n{self.stacktrace}"
     of TypeErrorKind.NotMatch:
@@ -83,6 +86,8 @@ proc Letasign*(_: typedesc[TypeError], id: Ident, loc: Location = newLocation())
     TypeError(kind: TypeErrorKind.Letasign, id: id, loc: loc)
 proc SomethingWrong*(_: typedesc[TypeError], loc: Location = newLocation(), stacktrace: string = getStackTrace()): TypeError =
     TypeError(kind: TypeErrorKind.SomethingWrong, loc: loc, stacktrace: stacktrace)
+proc NoCoercion*(_: typedesc[TypeError], t1, t2: Value, loc: Location = newLocation()): TypeError =
+    TypeError(kind: TypeErrorKind.NoCoercion, t1: t1, t2: t2, loc: loc)
 proc Internal*(_: typedesc[TypeError], msg: string, loc: Location = newLocation(), stacktrace: string = getStackTrace()): TypeError =
     TypeError(kind: TypeErrorKind.Internal, loc: loc, i_msg: msg, stacktrace: stacktrace)
 proc NotMatch*(_: typedesc[TypeError], t1, t2: Value, loc: Location = newLocation()): TypeError =

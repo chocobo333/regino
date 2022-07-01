@@ -188,6 +188,8 @@ proc desugar(self: TypeDefSection): TypeDefSection =
     newTypedefSection(self.typedefs.map(desugar), self.comments)
 proc desugar(self: Statement): Statement =
     result = case self.kind
+    of StatementKind.Import:
+        Statement.Import(self.module.desugar, self.loc)
     of StatementKind.For:
         Statement.For(self.pat.desugar, self.val.desugar, self.suite.desugar, self.loc)
     of StatementKind.While:

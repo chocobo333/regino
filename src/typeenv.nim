@@ -86,6 +86,8 @@ proc addIdent*(self: TypeEnv, sym: Symbol) =
     else:
         self.scope.syms[name] = @[sym]
 
+proc addImport*(self: TypeEnv, program: Program) = 
+    self.scope.imports.add program
 
 proc inst*(typ: Value, env: TypeEnv, subs: Table[GenericType, Value] = initTable[GenericType, Value]()): Value =
     let sym = typ.symbol

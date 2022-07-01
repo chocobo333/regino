@@ -174,6 +174,8 @@ proc coloring(self: IdentDefSection, tokenTypes: seq[string], data: var seq[Colo
 proc coloring(self: Statement, tokenTypes: seq[string], data: var seq[Color]) =
     # TODO:
     case self.kind
+    of StatementKind.Import:
+        self.module.coloring(tokenTypes, data)
     of StatementKind.For:
         discard
     of StatementKind.While:

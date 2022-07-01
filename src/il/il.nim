@@ -12,6 +12,7 @@ type
         stmts*: seq[Statement]
         scope*: Scope
     StatementKind* {.pure.} = enum
+        Import
         For             ## represents for statement
         While           ## while statement
         Loop            ## loop statement
@@ -42,6 +43,8 @@ type
         loc*: Location
         typ*: Value
         case kind*: StatementKind
+        of StatementKind.Import:
+            module*: Ident
         of StatementKind.Loop:
             label*: Option[Ident]
             `block`*: Suite
@@ -81,6 +84,7 @@ type
     OfBranch* = tuple[pat: Pattern, suite: Suite]
     Scope* = ref object
         parent*: Scope
+        imports*: seq[Program]
         syms*: Table[string, seq[Symbol]]
         consts*: Table[string, seq[Symbol]] # deprecated
         typeOrder*: Order[Value]  # cumulative
