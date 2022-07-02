@@ -266,7 +266,7 @@ let
         Id +
         delimited(
             lpar,
-            (Id + (preceded(colon, Expr)))^*comma,
+            (Id + (preceded(colon, Expr)))^+comma,
             ?comma+rpar
         )
     ) @
@@ -787,6 +787,7 @@ func sum(l: List[int32]) -> int32:
 Vec2(x:0,y:1)
 let v = Vec2(x: 0, y: 1)
 let p = Pair(first: Pair(first: 1, second: 2), second: 3)
+f()
 """
     )
     let testProgram = Program(testSrc).get
@@ -796,6 +797,7 @@ let p = Pair(first: Pair(first: 1, second: 2), second: 3)
         s1 = testProgram.stmts[0]
         s2 = testProgram.stmts[1]
         s3 = testProgram.stmts[2]
+        s4 = testProgram.stmts[3]
 
     debug s1.kind                # Expression
     debug s1.expression.kind     # ObjCons
@@ -812,5 +814,9 @@ let p = Pair(first: Pair(first: 1, second: 2), second: 3)
     debug default                # Pair(first: Pair(first: 1, second: 2), second: 3)
     debug default.typname        # Pair
     debug default.members        # @[(first, Pair(first: 1, second: 2)), (second, 3)]
+
+    debug s4.kind                # Expression
+    debug s4.expression          # f()
+    debug s4.expression.kind     # Call
 
     assert IndexAssign(Source.from("a[0]=3")).get.index.litval.intval == 0
