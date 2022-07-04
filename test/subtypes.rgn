@@ -1,0 +1,5 @@
+
+import types
+
+func int2float(a: int) -> float ![subtype]:
+    0.0

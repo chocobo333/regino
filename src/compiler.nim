@@ -5,6 +5,8 @@ import codegen
 import errors
 import projects
 
+import il
+
 
 from llvm import `$`, link
 
@@ -66,4 +68,4 @@ proc compile*(filename: seq[string]): int =
 
 when isMainModule:
     # discard compile(@["test/ptr.rgn"])
-    sema(@["test/test.rgn"])
+    sema(@["test/unit.rgn"])
