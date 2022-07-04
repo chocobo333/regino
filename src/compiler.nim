@@ -37,7 +37,7 @@ proc optimize(self: Module): Module =
     self.module.module = module
     self
 
-proc sema*(filename: seq[string]) = 
+proc sema*(filename: seq[string]) =
     var
         filename = filename[0].absolutePath
         module = newModule()
