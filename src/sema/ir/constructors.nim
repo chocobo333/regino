@@ -3,6 +3,21 @@ import tables
 import ir
 
 
+proc Unit*(_: typedesc[Value]): Value =
+    Value(kind: ValueKind.Unit)
+proc Univ*(_: typedesc[Value], level: uint): Value =
+    Value(kind: ValueKind.Univ, level: level)
+proc Integer*(_: typedesc[Value], intval: BiggestInt, intbits: uint): Value =
+    Value(kind: ValueKind.Integer, intval: intval, intbits: intbits)
+proc Float*(_: typedesc[Value], floatval: BiggestFloat, floatbits: uint): Value =
+    Value(kind: ValueKind.Float, floatval: floatval, floatbits: floatbits)
+proc Char*(_: typedesc[Value], charval: char): Value =
+    Value(kind: ValueKind.Char, charval: charval)
+proc CString*(_: typedesc[Value], strval: string): Value =
+    Value(kind: ValueKind.CString, strval: strval)
+proc Function*(_: typedesc[Value], fn: Function): Value =
+    Value(kind: ValueKind.Function, fn: fn)
+
 proc Bottom*(_: typedesc[Type]): Type =
     Type(kind: TypeKind.Bottom)
 proc Unit*(_: typedesc[Type]): Type =
@@ -29,6 +44,8 @@ proc Arrow*(_: typedesc[Type], params: seq[Type], rety: Type): Type =
     Type(kind: TypeKind.Arrow, params: params, rety: rety)
 proc Cons*(_: typedesc[Type], cons: PiType, args: seq[Type]): Type =
     Type(kind: TypeKind.Cons, cons: cons, args: args)
+proc Recursive*(_: typedesc[Type], self: VarId, body: Type): Type =
+    Type(kind: TypeKind.Recursive, self: self, body: body)
 proc Trait*(_: typedesc[Type], paty: (Pattern, Type), iss: seq[(Pattern, Value)], fns: seq[Function], fnss: seq[FunctionSignature]): Type =
     Type(kind: TypeKind.Trait, paty: paty, iss: iss, fns: fns, fnss: fnss)
 # proc Var*(_: typedesc[Type]): Type =
