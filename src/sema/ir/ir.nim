@@ -36,6 +36,7 @@ type
     ValueKind* {.pure.} = enum
         Unit
         Univ
+        Bool
         Integer
         Float
         Char
@@ -48,6 +49,8 @@ type
             nil
         of ValueKind.Univ:
             level*: uint
+        of ValueKind.Bool:
+            boolval: bool
         of ValueKind.Integer:
             intval*: BiggestInt
             intbits*: uint
@@ -67,6 +70,7 @@ type
         Unit
         Univ
         Value
+        Bool
         Integer
         Float
         Char
@@ -78,6 +82,7 @@ type
         Arrow
         Cons
         Distinct
+        Singleton
         Recursive
         Trait
         Var
@@ -93,6 +98,8 @@ type
             level*: uint
         of TypeKind.Value:
             val*: Value
+        of TypeKind.Bool:
+            nil
         of TypeKind.Integer, TypeKind.Float:
             nbits*: uint
         of TypeKind.Char, TypeKind.CString:
@@ -102,7 +109,7 @@ type
             second*: Type
         of TypeKind.Record, TypeKind.Object:
             members*: Table[string, Type]
-        of TypeKind.Array, TypeKind.Distinct:
+        of TypeKind.Array, TypeKind.Distinct, Singleton:
             length*: uint # for Array
             base*: Type
         of TypeKind.Arrow:
@@ -248,6 +255,7 @@ type
     PremitiveExpressionKind = range[ExpressionKind.Typeof..ExpressionKind.PtrGet]
     LiteralKind* {.pure.} = enum
         Unit
+        Bool
         Integer
         Float
         Char
@@ -256,6 +264,8 @@ type
         case kind*: LiteralKind
         of LiteralKind.Unit:
             nil
+        of LiteralKind.Bool:
+            boolval: bool
         of LiteralKind.Integer:
             intval*: BiggestInt
             intbits*: uint
