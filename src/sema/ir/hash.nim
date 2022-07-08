@@ -38,6 +38,8 @@ proc hash*(self: Type): Hash =
         self.nbits.hash
     of TypeKind.Pair:
         self.first.hash !& self.second.hash
+    of TypeKind.Array:
+        self.base.hash !& self.length.hash
     of TypeKind.Record:
         var val = 0
         for (k, v) in self.members.pairs:
@@ -52,6 +54,8 @@ proc hash*(self: Type): Hash =
         self.params.hash !& self.rety.hash
     of TypeKind.Cons:
         self.cons.hash !& self.args.hash
+    of TypeKind.Distinct:
+        self.base.hash
     of TypeKind.Recursive:
         self.self.hash !& self.body.hash
     of TypeKind.Trait:
