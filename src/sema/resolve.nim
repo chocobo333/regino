@@ -132,7 +132,7 @@ proc path*(self: TypeEnv, t1, t2: Value): seq[seq[(Value, Value)]] =
     var
         converters1: seq[(Value, Value)]
         converters2: seq[(Value, Value)]
-    for it in self.scope.converters.keys:
+    for it in self.scope.getConverters().keys:
         if it[1] == t2:
             converters1.add it
         elif self.`<=@`(it[1], t2):
@@ -156,7 +156,7 @@ proc `<=`*(self: TypeEnv, t1, t2: Value): bool =
     if t1 <=@ t2:
         true
     else:
-        let converters = toSeq(self.scope.converters.keys).filterIt(it[1] <=@ t2)
+        let converters = toSeq(self.scope.getConverters().keys).filterIt(it[1] <=@ t2)
         converters.anyIt(t1 <= it[0])
 
 proc `<=?`*(env: TypeEnv, t1, t2: Value): Option[seq[Constraint]] =

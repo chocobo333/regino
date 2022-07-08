@@ -3,6 +3,7 @@ import tables
 import sequtils
 
 import il
+import values
 import ../orders
 import ../lineinfos
 import ../utils
@@ -63,6 +64,12 @@ proc lookupId*(self: Scope, name: string, pos: Position, kinds: set[SymbolKind] 
                 tmp.incl typesKind
             result.add funcs
 
+proc getConverters*(self: Scope): Table[(Value, Value), Ident] = 
+    for scope in self:
+        for (k, v) in scope.converters.pairs:
+            if not result.contains(k):
+                result[k] = v
+
 proc newScope*(parent: Scope = nil): Scope =
     Scope(
         parent: parent,
@@ -70,5 +77,5 @@ proc newScope*(parent: Scope = nil): Scope =
         syms: initTable[string, seq[Symbol]](),
         consts: initTable[string, seq[Symbol]](),
         typeOrder: if parent.isNil: newOrder[Value]() else: parent.typeOrder,
-        converters: if parent.isNil: initTable[(Value, Value), Ident]() else: parent.converters
+        converters: initTable[(Value, Value), Ident]()
     )
