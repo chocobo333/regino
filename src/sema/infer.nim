@@ -30,6 +30,8 @@ proc infer(self: Literal): Type =
     case self.kind
     of LiteralKind.Unit:
         Type.Unit
+    of LiteralKind.Bool:
+        Type.Bool
     of LiteralKind.Integer:
         Type.Integer(self.intbits)
     of LiteralKind.Float:
