@@ -4,18 +4,22 @@ import options
 import ir
 import projects
 
+proc eval(self: Literal, project: Project): Type =
+    case self.kind
+    of LiteralKind.Unit:
+        Type.Value(ir.Value.Unit)
+    of LiteralKind.Integer:
+        Type.Value(ir.Value.Integer(self.intval, self.intbits))
+    of LiteralKind.Float:
+        Type.Value(ir.Value.Float(self.floatval, self.floatbits))
+    of LiteralKind.Char:
+        Type.Value(ir.Value.Char(self.charval))
+    of LiteralKind.CString:
+        Type.Value(ir.Value.CString(self.strval))
 proc eval(self: Expression, project: Project): Type =
     case self.kind
-    of ExpressionKind.Unit:
-        Type.Value(ir.Value.Unit)
-    of ExpressionKind.Integer:
-        Type.Value(ir.Value.Integer(self.intval, self.intbits))
-    of ExpressionKind.Float:
-        Type.Value(ir.Value.Float(self.floatval, self.floatbits))
-    of ExpressionKind.Char:
-        Type.Value(ir.Value.Char(self.charval))
-    of ExpressionKind.CString:
-        Type.Value(ir.Value.CString(self.strval))
+    of ExpressionKind.Literal:
+        self.litval.eval(project)
     of ExpressionKind.Ident:
         self.typ.symbol.get.val
     of ExpressionKind.Call:
