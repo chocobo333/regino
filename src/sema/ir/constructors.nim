@@ -9,6 +9,8 @@ proc Unit*(_: typedesc[Value]): Value =
     Value(kind: ValueKind.Unit)
 proc Univ*(_: typedesc[Value], level: uint): Value =
     Value(kind: ValueKind.Univ, level: level)
+proc Bool*(_: typedesc[Value], boolval: uint): Value =
+    Value(kind: ValueKind.Bool, boolval: boolval)
 proc Integer*(_: typedesc[Value], intval: BiggestInt, intbits: uint): Value =
     Value(kind: ValueKind.Integer, intval: intval, intbits: intbits)
 proc Float*(_: typedesc[Value], floatval: BiggestFloat, floatbits: uint): Value =
@@ -30,6 +32,8 @@ proc Univ*(_: typedesc[Type], level: uint): Type =
     Type(kind: TypeKind.Univ, level: level)
 proc Value*(_: typedesc[Type], val: Value): Type =
     Type(kind: TypeKind.Value, val: val)
+proc Bool*(_: typedesc[Type]): Type =
+    Type(kind: TypeKind.Bool)
 proc Integer*(_: typedesc[Type], nbits: uint): Type =
     Type(kind: TypeKind.Integer, nbits: nbits)
 proc Float*(_: typedesc[Type], nbits: uint): Type =
@@ -43,7 +47,11 @@ proc Pair*(_: typedesc[Type], first, second: Type): Type =
 proc Array*(_: typedesc[Type], length: uint, base: Type): Type = 
     Type(kind: TypeKind.Array, length: length, base: base)
 proc Distinct*(_: typedesc[Type], base: Type): Type = 
-    Type(kind: TypeKind.Array, base: base)
+    Type(kind: TypeKind.Distinct, base: base)
+proc Singleton*(_: typedesc[Type], base: Type): Type = 
+    Type(kind: TypeKind.Singleton, base: base)
+proc Ptr*(_: typedesc[Type], pointee: Type): Type = 
+    Type(kind: TypeKind.Ptr, pointee: pointee)
 proc Record*(_: typedesc[Type], members: Table[string, Type]): Type =
     Type(kind: TypeKind.Record, members: members)
 proc Object*(_: typedesc[Type], members: Table[string, Type]): Type =
@@ -174,6 +182,8 @@ proc PtrGet*(_: typedesc[Expression], `ptr`, index: Expression, loc: Location): 
 
 proc Unit*(_: typedesc[Literal]): Literal = 
     Literal(kind: LiteralKind.Unit)
+proc Bool*(_: typedesc[Literal], boolval: bool): Literal = 
+    Literal(kind: LiteralKind.Bool, boolval: bool)
 proc Integer*(_: typedesc[Literal], intval: BiggestInt, intbits: uint): Literal = 
     Literal(kind: LiteralKind.Integer, intval: intval, intbits: intbits)
 proc Float*(_: typedesc[Literal], floatval: BiggestFloat, floatbits: uint): Literal = 
