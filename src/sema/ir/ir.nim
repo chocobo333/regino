@@ -233,7 +233,7 @@ type
         Apply
         If
         Case
-        Tuple
+        Pair
         Array
         Record
         ObjCons
@@ -297,7 +297,10 @@ type
             els*: Expression
         of ExpressionKind.Case:
             ofs*: (Pattern, Expression)
-        of ExpressionKind.Tuple, ExpressionKind.Array:
+        of ExpressionKind.Pair:
+            first*: Expression
+            second*: Expression
+        of ExpressionKind.Array:
             elements*: Expression
         of ExpressionKind.Record, ExpressionKind.ObjCons:
             obj*: Expression
