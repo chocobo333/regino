@@ -6,6 +6,7 @@ import ir
 import projects
 import errors
 
+
 proc check*(self: Expression, project: Project, global: bool = false): bool =
     template assume(ty: typed): untyped =
         if self.typ != ty:
@@ -14,16 +15,18 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         else:
             false
     case self.kind
-    of ExpressionKind.Unit:
-        assume(Type.Unit)
-    of ExpressionKind.Integer:
-        assume(Type.Integer(self.intbits))
-    of ExpressionKind.Float:
-        assume(Type.Integer(self.floatbits))
-    of ExpressionKind.Char:
-        assume(Type.Char)
-    of ExpressionKind.CString:
-        assume(Type.CString)
+    of ExpressionKind.Literal:
+        case self.litval.kind
+        of LiteralKind.Unit:
+            assume(Type.Unit)
+        of LiteralKind.Integer:
+            assume(Type.Integer(self.litval.intbits))
+        of LiteralKind.Float:
+            assume(Type.Integer(self.litval.floatbits))
+        of LiteralKind.Char:
+            assume(Type.Char)
+        of LiteralKind.CString:
+            assume(Type.CString)
     of ExpressionKind.Ident:
         if not self.typ.symbol.isSome:
             project.errs.add Error.NotDeclared
