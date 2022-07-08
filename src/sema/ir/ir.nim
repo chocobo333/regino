@@ -12,6 +12,7 @@ type
         rety: Type
 
     SymbolKind* {.pure.} = enum
+        Notdeclared
         Let
         Var
         Const
@@ -23,7 +24,7 @@ type
         ident*: Ident
         val*: Type
         case kind*: SymbolKind
-        of SymbolKind.Let, SymbolKind.Var, SymbolKind.Const:
+        of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const:
             typ*: Type
         of SymbolKind.Type, SymbolKind.Func, SymbolKind.Field:
             pty*: PiType
@@ -45,16 +46,17 @@ type
         of ValueKind.Univ:
             level*: uint
         of ValueKind.Integer:
-            intval: BiggestInt
+            intval*: BiggestInt
+            intbits*: uint
         of ValueKind.Float:
-            floatval: BiggestFloat
-            floatbits: uint
+            floatval*: BiggestFloat
+            floatbits*: uint
         of ValueKind.Char:
             charval*: char
         of ValueKind.CString:
             strval*: string
         of ValueKind.Function:
-            fn: Function
+            fn*: Function
     TypeKind* {.pure.} = enum
         Bottom
         Unit
@@ -69,6 +71,7 @@ type
         Object
         Arrow
         Cons
+        Recursive
         Trait
         Var
         Gen
@@ -98,6 +101,9 @@ type
         of TypeKind.Cons:
             cons*: PiType
             args*: seq[Type]
+        of TypeKind.Recursive:
+            self*: VarId
+            body*: Type
         of TypeKind.Trait:
             paty*: (Pattern, Type)
             iss*: seq[(Pattern, Value)]
@@ -112,6 +118,7 @@ type
     TypeVarKind* {.pure.} = enum
         Var
         Select
+        Recursive
     TypeVar* = object
         id*: VarId
         case kind*: TypeVarKind
@@ -120,11 +127,18 @@ type
             lb*: Type
         of TypeVarKind.Select:
             choices*: seq[Type]
+        of TypeVarKind.Recursive:
+            nil
     GenericType* = object
         ub*: Type
         typ*: Type
     VarId* = int
 
+    Scope* = ref object
+        parent*: Scope
+        vars*: Table[string, Symbol]
+        types*: Table[string, Symbol]
+        funcs*: Table[string, seq[Symbol]]
     Ident* = object
         loc*: Location
         name*: string
@@ -192,11 +206,7 @@ type
             members*: Table[Ident, Expression]
 
     ExpressionKind* {.pure.} = enum
-        Unit
-        Integer
-        Float
-        Char
-        CString
+        Literal
         Ident
         Call
         Apply
@@ -223,23 +233,33 @@ type
         PtrSet
         PtrGet
     PremitiveExpressionKind = range[ExpressionKind.Typeof..ExpressionKind.PtrGet]
+    LiteralKind* {.pure.} = enum
+        Unit
+        Integer
+        Float
+        Char
+        CString
+    Literal* = object
+        case kind: LiteralKind
+        of LiteralKind.Unit:
+            nil
+        of LiteralKind.Integer:
+            intval*: BiggestInt
+            intbits*: uint
+        of LiteralKind.Float:
+            floatval*: BiggestFloat
+            floatbits*: uint
+        of LiteralKind.Char:
+            charval*: char
+        of LiteralKind.CString:
+            strval*: string
     Expression* = ref ExpressionObject
     ExpressionObject = object
         loc*: Location
         typ*: Type
         case kind*: ExpressionKind
-        of ExpressionKind.Unit:
-            nil
-        of ExpressionKind.Integer:
-            intval*: BiggestInt
-            intbits*: uint
-        of ExpressionKind.Float:
-            floatval*: BiggestInt
-            floatbits*: uint
-        of ExpressionKind.Char:
-            charval*: char
-        of ExpressionKind.CString:
-            strval*: string
+        of ExpressionKind.Literal:
+            litval: Literal
         of ExpressionKind.Ident:
             ident*: Ident
         of ExpressionKind.Call, ExpressionKind.Apply:
@@ -279,6 +299,7 @@ type
             `block`*: Expression
         of ExpressionKind.Seq:
             expressions*: seq[Expression]
+            scope*: Scope
         of ExpressionKind.Typeof:
             `typeof`*: Expression
         of ExpressionKind.Malloc, ExpressionKind.Realloc:
@@ -292,18 +313,20 @@ type
 
 
     PatternKind* {.pure.} = enum
+        Literal
         Ident
         Tuple
         Record
     Pattern* = ref object
-        ident*: Ident
         case kind*: PatternKind
+        of PatternKind.Literal:
+            litval: Literal
         of PatternKind.Ident:
-            nil
-        of PatternKind.Tuple:
-            patterns*: seq[Pattern]
-        of PatternKind.Record:
-            members*: seq[(Ident, Pattern)]
+            ident*: Ident
+        of PatternKind.Tuple, PatternKind.Record:
+            tag*: Option[Ident]
+            patterns*: seq[Pattern]         # for Tuple
+            members*: seq[(Ident, Pattern)] # for Record
 
 
 
