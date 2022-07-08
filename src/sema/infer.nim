@@ -5,6 +5,7 @@ import sequtils
 import ir
 import projects
 import typeenvs
+import coerce
 
 
 proc infer(self: Ident, project: Project, global: bool = false): Type =
@@ -51,20 +52,42 @@ proc infer(self: Expression, project: Project, global: bool = false): Type =
             tv = Type.Var(project.env)
             callee = self.callee.infer(project, global)
             args = self.args.mapIt(it.infer(project, global))
-        Type.Unit
+        project.env.coerce(callee <= Type.Arrow(args, tv))
+        project.env.coerce(Type.Arrow(args.mapIt(Type.Unit), tv) <= callee) # i dont know whether this is correct.
+        tv
     of ExpressionKind.Apply:
+        # TODO:
         Type.Unit
     of ExpressionKind.If:
-        Type.Unit
+        let
+            tv = Type.Var(project.env)
+            cond = self.cond.infer(project, global)
+            then = self.then.infer(project, global)
+            els = self.els.infer(project, global)
+        project.env.coerce(cond <= Type.Bool)
+        project.env.coerce(then <= tv)
+        project.env.coerce(els <= tv)
+        tv
     of ExpressionKind.Case:
+        # TODO:
         Type.Unit
-    of ExpressionKind.Tuple:
-        Type.Unit
+    of ExpressionKind.Pair:
+        let
+            first = self.first.infer(project, global)
+            second = self.second.infer(project, global)
+        Type.Pair(first, second)
     of ExpressionKind.Array:
-        Type.Unit
+        let
+            tv = Type.Var(project.env)
+            elements = self.elements.mapIt(it.infer(project, global))
+        for e in elements:
+            project.env.coerce(e <= tv)
+        tv
     of ExpressionKind.Record:
+        # TODO:
         Type.Unit
     of ExpressionKind.ObjCons:
+        # TODO:
         Type.Unit
     of ExpressionKind.Ref:
         Type.Unit
