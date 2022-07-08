@@ -28,7 +28,7 @@ proc hash*(self: Type): Hash =
     result = 0
     result = result !& self.kind.int
     result = result !& (case self.kind
-    of TypeKind.Bottom, TypeKind.Unit, TypeKind.Char, TypeKind.CString:
+    of TypeKind.Bottom, TypeKind.Unit, TypeKind.Bool, TypeKind.Char, TypeKind.CString:
         0
     of TypeKind.Univ:
         self.level.hash
@@ -56,6 +56,10 @@ proc hash*(self: Type): Hash =
         self.cons.hash !& self.args.hash
     of TypeKind.Distinct:
         self.base.hash
+    of TypeKind.Singleton:
+        self.base.hash
+    of TypeKind.Ptr:
+        self.pointee.hash
     of TypeKind.Recursive:
         self.self.hash !& self.body.hash
     of TypeKind.Trait:
