@@ -52,6 +52,12 @@ proc infer(self: Expression, project: Project, global: bool = false): Type =
         Type.Unit
     of ExpressionKind.Case:
         Type.Unit
+    of ExpressionKind.Tuple:
+        Type.Unit
+    of ExpressionKind.Array:
+        Type.Unit
+    of ExpressionKind.Record:
+        Type.Unit
     of ExpressionKind.ObjCons:
         Type.Unit
     of ExpressionKind.Ref:
