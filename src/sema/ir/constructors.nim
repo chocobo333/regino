@@ -1,5 +1,7 @@
 
 import tables
+import options
+
 import ir
 
 
@@ -48,9 +50,44 @@ proc Recursive*(_: typedesc[Type], self: VarId, body: Type): Type =
     Type(kind: TypeKind.Recursive, self: self, body: body)
 proc Trait*(_: typedesc[Type], paty: (Pattern, Type), iss: seq[(Pattern, Value)], fns: seq[Function], fnss: seq[FunctionSignature]): Type =
     Type(kind: TypeKind.Trait, paty: paty, iss: iss, fns: fns, fnss: fnss)
-# proc Var*(_: typedesc[Type]): Type =
-#     Type(kind: TypeKind.Var)
+proc Var*(_: typedesc[Type], tv: TypeVar): Type =
+    Type(kind: TypeKind.Var, tv: tv)
 proc Gen*(_: typedesc[Type], gt: GenericType): Type =
     Type(kind: TypeKind.Gen, gt: gt)
 proc Link*(_: typedesc[Type], to: Type): Type =
     Type(kind: TypeKind.Link, to: to)
+
+proc Undeclared*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Undeclared, id: id, typ: typ, global: global)
+    typ.symbol = some result
+proc Var*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Var, id: id, typ: typ, global: global)
+    typ.symbol = some result
+proc Let*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Let, id: id, typ: typ, global: global)
+    typ.symbol = some result
+proc Const*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Const, id: id, typ: typ, global: global)
+    typ.symbol = some result
+proc Param*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Param, id: id, typ: typ, global: global)
+    id.typ = typ
+    typ.symbol = some result
+proc Typ*(_: typedesc[Symbol], id: Ident, val: Value, global: bool): Symbol =
+    let typ = val.typ
+    id.typ = typ
+    result = Symbol(kind: SymbolKind.Typ, id: id, val: val, typ: typ, global: global)
+    typ.symbol = some result
+proc GenParam*(_: typedesc[Symbol], id: Ident, val: Value): Symbol =
+    let typ = val.typ
+    result = Symbol(kind: SymbolKind.GenParam, id: id, val: val, typ: typ, global: false)
+    typ.symbol = some result
+proc Func*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Func, id: id, typ: typ, global: global)
+    typ.symbol = some result
+proc Field*(_: typedesc[Symbol], id: Ident, typ: Value, index: int,  global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Field, id: id, typ: typ, index: index, global: global)
+    typ.symbol = some result
+# proc Enum*(_: typedesc[Symbol], id: Ident, typ: Value, decl: SumConstructor, global: bool): Symbol =
+#     result = Symbol(kind: SymbolKind.Enum, id: id, typ: typ, enumdef: decl, global: global)
+#     typ.symbol = some result
