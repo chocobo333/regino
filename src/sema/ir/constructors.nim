@@ -17,6 +17,8 @@ proc Char*(_: typedesc[Value], charval: char): Value =
     Value(kind: ValueKind.Char, charval: charval)
 proc CString*(_: typedesc[Value], strval: string): Value =
     Value(kind: ValueKind.CString, strval: strval)
+proc Array*(_: typedesc[Value], vals: seq[Type]): Value =
+    Value(kind: ValueKind.Array, vals: vals)
 proc Function*(_: typedesc[Value], fn: Function): Value =
     Value(kind: ValueKind.Function, fn: fn)
 
@@ -38,6 +40,10 @@ proc CString*(_: typedesc[Type]): Type =
     Type(kind: TypeKind.CString)
 proc Pair*(_: typedesc[Type], first, second: Type): Type =
     Type(kind: TypeKind.Pair, first: first, second: second)
+proc Array*(_: typedesc[Type], length: uint, base: Type): Type = 
+    Type(kind: TypeKind.Array, length: length, base: base)
+proc Distinct*(_: typedesc[Type], base: Type): Type = 
+    Type(kind: TypeKind.Array, base: base)
 proc Record*(_: typedesc[Type], members: Table[string, Type]): Type =
     Type(kind: TypeKind.Record, members: members)
 proc Object*(_: typedesc[Type], members: Table[string, Type]): Type =
@@ -125,8 +131,8 @@ proc If*(_: typedesc[Expression], cond: Expression, then: Expression, els: Expre
     Expression(kind: ExpressionKind.If, cond: cond, them: then, els: els, loc: loc)
 proc Case*(_: typedesc[Expression], ofs: (Pattern, Expression), loc: Location): Expression = 
     Expression(kind: ExpressionKind.Case, ofs: ofs, loc: loc)
-proc Typle*(_: typedesc[Expression], elements: Expression, loc: Location): Expression = 
-    Expression(kind: ExpressionKind.Typle, elements: elements, loc: loc)
+proc Tuple*(_: typedesc[Expression], elements: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Tuple, elements: elements, loc: loc)
 proc Array*(_: typedesc[Expression], elements: Expression, loc: Location): Expression = 
     Expression(kind: ExpressionKind.Array, elements: elements, loc: loc)
 proc Record*(_: typedesc[Expression], obj: Expression, implicits: seq[Expression], members: Table[Ident, Expression], loc: Location): Expression = 
@@ -157,14 +163,14 @@ proc Seq*(_: typedesc[Expression], expressions: seq[Expression], scope: Scope, l
     Expression(kind: ExpressionKind.Seq, expressions: expressions, scope: scope, loc: loc)
 proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location): Expression = 
     Expression(kind: ExpressionKind.Typeof, `typeof`: `typeof`, loc: loc)
-proc Malloc*(_: typedesc[Expression], mtype, rptr, msize: Expression, loc: Location): Expression = 
-    Expression(kind: ExpressionKind.Malloc, mtype: mtype, rptr: rptr, msize: msize, loc: loc)
-proc Realloc*(_: typedesc[Expression], mtype, rptr, msize: Expression, loc: Location): Expression = 
-    Expression(kind: ExpressionKind.Realloc, mtype: mtype, rptr: rptr, msize: msize, loc: loc)
+proc Malloc*(_: typedesc[Expression], mtype, msize: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Malloc, mtype: mtype, msize: msize, loc: loc)
+proc Realloc*(_: typedesc[Expression], rptr, msize: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Realloc, rptr: rptr, msize: msize, loc: loc)
 proc PtrSet*(_: typedesc[Expression], `ptr`, index, val: Expression, loc: Location): Expression = 
     Expression(kind: ExpressionKind.PtrSet, `ptr`: `ptr`, index: index, val: val, loc: loc)
-proc PtrGet*(_: typedesc[Expression], `ptr`, index, val: Expression, loc: Location): Expression = 
-    Expression(kind: ExpressionKind.PtrGet, `ptr`: `ptr`, index: index, val: val, loc: loc)
+proc PtrGet*(_: typedesc[Expression], `ptr`, index: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.PtrGet, `ptr`: `ptr`, index: index, loc: loc)
 
 proc Unit*(_: typedesc[Literal]): Literal = 
     Literal(kind: LiteralKind.Unit)
