@@ -1,9 +1,9 @@
 
 import tables
 import options
+import ../../lineinfos
 
 import ir
-
 
 proc Unit*(_: typedesc[Value]): Value =
     Value(kind: ValueKind.Unit)
@@ -91,3 +91,97 @@ proc Field*(_: typedesc[Symbol], ident: Ident, typ: Type, index: int,  global: b
 # proc Enum*(_: typedesc[Symbol], ident: Ident, typ: Value, decl: SumConstructor, global: bool): Symbol =
 #     result = Symbol(kind: SymbolKind.Enum, ident: ident, typ: typ, enumdef: decl, global: global)
 #     typ.symbol = some result
+
+proc SubType*(_: typedesc[Metadata]): Metadata =
+    Metadata(kind: MetadataKind.SubType)
+
+proc Ref*(_: typedesc[TypeExpression], to: TypeExpression): TypeExpression = 
+    TypeExpression(kind: TypeExpressionKind.Ref, to: to)
+proc Object*(_: typedesc[TypeExpression], ident: Ident, members: Table[Ident, Expression]): TypeExpression = 
+    TypeExpression(kind: TypeExpressionKind.Object, ident: ident, members: members)
+proc Variant*(_: typedesc[TypeExpression], elements: seq[VariantElement]): TypeExpression = 
+    TypeExpression(kind: TypeExpressionKind.Variant, elements: elements)
+proc Trait*(_: typedesc[TypeExpression], paty: (Pattern, Expression), iss: seq[(Pattern, Expression)], fns: seq[Function], fnss: seq[FunctionSignature]): TypeExpression = 
+    TypeExpression(kind: TypeExpressionKind.Trait, paty: paty, iss: iss, fns: fns, funss: fnss)
+proc Expression*(_: typedesc[TypeExpression], expression: Expression): TypeExpression = 
+    TypeExpression(kind: TypeExpressionKind.Expression, expression: expression)
+
+proc NoField*(_: typedesc[VariantElement]): VariantElement = 
+    VariantElement(kind: VariantElementKind.NoField)
+proc Tuple*(_: typedesc[VariantElement], fields: seq[Expression]): VariantElement = 
+    VariantElement(kind: VariantElementKind.Tuple, fields: fields)
+proc Object*(_: typedesc[VariantElement], members: Table[Ident, Expression]): VariantElement =
+    VariantElement(kind: VariantElementKind.Object, members: members)
+
+proc Literal*(_: typedesc[Expression], litval: Literal, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Literal, litval: litval, loc: loc)
+proc Ident*(_: typedesc[Expression], ident: Ident, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Ident, ident: ident, loc: loc)
+proc Call*(_: typedesc[Expression], callee: Expression, args: seq[Expression], loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Call, callee: callee, args: args, loc: loc)
+proc Apply*(_: typedesc[Expression], callee: Expression, args: seq[Expression], loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Apply, callee: callee, args: args, loc: loc)
+proc If*(_: typedesc[Expression], cond: Expression, then: Expression, els: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.If, cond: cond, them: then, els: els, loc: loc)
+proc Case*(_: typedesc[Expression], ofs: (Pattern, Expression), loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Case, ofs: ofs, loc: loc)
+proc Typle*(_: typedesc[Expression], elements: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Typle, elements: elements, loc: loc)
+proc Array*(_: typedesc[Expression], elements: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Array, elements: elements, loc: loc)
+proc Record*(_: typedesc[Expression], obj: Expression, implicits: seq[Expression], members: Table[Ident, Expression], loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Record, obj: obj, implicits: implicits, members: members, loc: loc)
+proc ObjCons*(_: typedesc[Expression], obj: Expression, implicits: seq[Expression], members: Table[Ident, Expression], loc: Location): Expression = 
+    Expression(kind: ExpressionKind.ObjCons, obj: obj, implicits: implicits, members: members, loc: loc)
+proc Ref*(_: typedesc[Expression], to: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Ref, to: to, loc: loc)
+proc Import*(_: typedesc[Expression], module: Ident, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Import, module: module, loc: loc)
+proc LetSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression = 
+    Expression(kind: ExpressionKind.LetSection, iddefs: iddefs, loc: loc)
+proc VarSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression = 
+    Expression(kind: ExpressionKind.VarSection, iddefs: iddefs, loc: loc)
+proc TypeSection*(_: typedesc[Expression], typedefs: seq[TypeDef], loc: Location): Expression = 
+    Expression(kind: ExpressionKind.TypeSection, typedefs: typedefs, loc: loc)
+proc Assign*(_: typedesc[Expression], assign_lval: Pattern, assign_val: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Assign, assign_lval: assign_lval, assign_val: assign_val, loc: loc)
+proc Funcdef*(_: typedesc[Expression], fn: Function, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Funcdef, fn: fn, loc: loc)
+proc ImportLL*(_: typedesc[Expression], signature: FunctionSignature, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.ImportLL, signature: signature, loc: loc)
+proc Loop*(_: typedesc[Expression], label: Ident, `block`: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Loop, label: label, `block`: `block`, loc: loc)
+proc Discard*(_: typedesc[Expression], label: Ident, `block`: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Discard, label: label, `block`: `block`, loc: loc)
+proc Seq*(_: typedesc[Expression], expressions: seq[Expression], scope: Scope, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Seq, expressions: expressions, scope: scope, loc: loc)
+proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Typeof, `typeof`: `typeof`, loc: loc)
+proc Malloc*(_: typedesc[Expression], mtype, rptr, msize: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Malloc, mtype: mtype, rptr: rptr, msize: msize, loc: loc)
+proc Realloc*(_: typedesc[Expression], mtype, rptr, msize: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Realloc, mtype: mtype, rptr: rptr, msize: msize, loc: loc)
+proc PtrSet*(_: typedesc[Expression], `ptr`, index, val: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.PtrSet, `ptr`: `ptr`, index: index, val: val, loc: loc)
+proc PtrGet*(_: typedesc[Expression], `ptr`, index, val: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.PtrGet, `ptr`: `ptr`, index: index, val: val, loc: loc)
+
+proc Unit*(_: typedesc[Literal]): Literal = 
+    Literal(kind: LiteralKind.Unit)
+proc Integer*(_: typedesc[Literal], intval: BiggestInt, intbits: uint): Literal = 
+    Literal(kind: LiteralKind.Integer, intval: intval, intbits: intbits)
+proc Float*(_: typedesc[Literal], floatval: BiggestFloat, floatbits: uint): Literal = 
+    Literal(kind: LiteralKind.Float, floatval: floatval, floatbits: floatbits)
+proc Char*(_: typedesc[Literal], charval: string): Literal = 
+    Literal(kind: LiteralKind.Char, charval: charval)
+proc CString*(_: typedesc[Literal], strval: string): Literal = 
+    Literal(kind: LiteralKind.CString, strval: strval)
+
+proc Literal*(_: typedesc[Pattern], litval: Literal): Pattern = 
+    Pattern(kind: PatternKind.Literal, litval: litval)
+proc Ident*(_: typedesc[Pattern], ident: Ident): Pattern = 
+    Pattern(kind: PatternKind.Ident, ident: ident)
+proc Tuple*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern], members: seq[(Ident, Pattern)]): Pattern = 
+    Pattern(kind: PatternKind.Tuple, tag: tag, patterns: patterns, members: members)
+proc Record*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern], members: seq[(Ident, Pattern)]): Pattern = 
+    Pattern(kind: PatternKind.Record, tag: tag, patterns: patterns, members: members)
