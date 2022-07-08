@@ -301,7 +301,7 @@ type
             first*: Expression
             second*: Expression
         of ExpressionKind.Array:
-            elements*: Expression
+            elements*: seq[Expression]
         of ExpressionKind.Record, ExpressionKind.ObjCons:
             obj*: Expression
             implicits*: seq[Expression]
