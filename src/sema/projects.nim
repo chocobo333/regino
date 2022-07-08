@@ -1,5 +1,6 @@
 
 import tables
+import options
 
 import ir
 import typeenvs
@@ -20,3 +21,7 @@ proc newBuffer*[T](p: Project): Buffer[T] =
 proc newProject*(main: string): Project =
     result = Project(main: main)
     result.programs = newBuffer[Expression](result)
+
+proc addErr*(self: Project, err: Option[Error]) =
+    if err.isSome:
+        self.errs.add err.get

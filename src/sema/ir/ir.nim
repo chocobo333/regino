@@ -1,5 +1,6 @@
 
 import tables
+import sets
 import hashes
 import options
 
@@ -23,6 +24,7 @@ type
         loc*: Location
         ident*: Ident
         val*: Type
+        global*: bool
         case kind*: SymbolKind
         of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const:
             typ*: Type
@@ -126,10 +128,11 @@ type
             ub*: Type
             lb*: Type
         of TypeVarKind.Select:
-            choices*: seq[Type]
+            choices*: HashSet[Type]
         of TypeVarKind.Recursive:
             nil
     GenericType* = object
+        id*: VarId
         ub*: Type
         typ*: Type
     VarId* = int
@@ -148,9 +151,9 @@ type
         default*: Option[Expression]
     TypeDef* = object
         ident*: Ident
-        params*: seq[GenIdentDef]
+        params*: seq[GenTypeDef]
         typ*: TypeExpression
-    GenIdentDef* = object
+    GenTypeDef* = object
         ident*: Ident
         typ*: Option[Expression]
         ub*: Option[Expression]
@@ -162,7 +165,7 @@ type
             nil
     FunctionSignature* = object
         ident*: Ident
-        implicits*: seq[GenIdentDef]
+        implicits*: seq[GenTypeDef]
         params*: seq[IdentDef]
         rety*: Expression
     Function* = object
@@ -240,7 +243,7 @@ type
         Char
         CString
     Literal* = object
-        case kind: LiteralKind
+        case kind*: LiteralKind
         of LiteralKind.Unit:
             nil
         of LiteralKind.Integer:
@@ -259,7 +262,7 @@ type
         typ*: Type
         case kind*: ExpressionKind
         of ExpressionKind.Literal:
-            litval: Literal
+            litval*: Literal
         of ExpressionKind.Ident:
             ident*: Ident
         of ExpressionKind.Call, ExpressionKind.Apply:
