@@ -10,16 +10,15 @@ proc copy*[A, B](self: (A, B)): (A, B) =
     let (a, b) = self
     (a.copy, b.copy)
 proc copy*(self: Pattern): Pattern =
-    # TODO:
     case self.kind
     of PatternKind.Literal:
-        Pattern.Literal
+        Pattern.Literal(self.litval)
     of PatternKind.Ident:
-        Pattern.Ident
+        Pattern.Ident(self.ident)
     of PatternKind.Tuple:
-        Pattern.Tuple
+        Pattern.Tuple(self.tag, self.patterns)
     of PatternKind.Record:
-        Pattern.Record
+        Pattern.Record(self.tag, self.members)
 proc copy*(self: Type): Type =
     case self.kind
     of TypeKind.Bottom:
@@ -29,7 +28,7 @@ proc copy*(self: Type): Type =
     of TypeKind.Univ:
         Type.Univ(self.level)
     of TypeKind.Value:
-        Type.Value(self.val)
+        Type.value(self.val)
     of TypeKind.Integer:
         Type.Integer(self.nbits)
     of TypeKind.Float:
