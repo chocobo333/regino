@@ -223,7 +223,6 @@ type
         VarSection
         TypeSection
         Assign
-        IndexAssign
         Funcdef
         ImportLL
         Loop
@@ -289,10 +288,6 @@ type
         of ExpressionKind.Assign:
             assign_lval*: Pattern
             assign_val*: Expression
-        of ExpressionKind.IndexAssign:
-            iassign_lval*: Expression
-            iassign_index*: seq[Expression]
-            iassign_val*: Expression
         of ExpressionKind.Funcdef:
             fn*: Function
         of ExpressionKind.ImportLL:

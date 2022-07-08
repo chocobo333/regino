@@ -40,8 +40,6 @@ proc eval(self: Expression, project: Project): Type =
         Type.Unit
     of ExpressionKind.Assign:
         Type.Unit
-    of ExpressionKind.IndexAssign:
-        Type.Unit
     of ExpressionKind.Funcdef:
         Type.Unit
     of ExpressionKind.ImportLL:

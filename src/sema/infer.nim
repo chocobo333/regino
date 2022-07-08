@@ -66,8 +66,6 @@ proc infer(self: Expression, project: Project, global: bool = false): Type =
         Type.Unit
     of ExpressionKind.Assign:
         Type.Unit
-    of ExpressionKind.IndexAssign:
-        Type.Unit
     of ExpressionKind.Funcdef:
         Type.Unit
     of ExpressionKind.ImportLL:

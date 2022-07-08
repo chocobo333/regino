@@ -52,8 +52,6 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         false
     of ExpressionKind.Assign:
         false
-    of ExpressionKind.IndexAssign:
-        false
     of ExpressionKind.Funcdef:
         false
     of ExpressionKind.ImportLL:
