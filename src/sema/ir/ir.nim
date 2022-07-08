@@ -50,7 +50,7 @@ type
         of ValueKind.Univ:
             level*: uint
         of ValueKind.Bool:
-            boolval: bool
+            boolval*: bool
         of ValueKind.Integer:
             intval*: BiggestInt
             intbits*: uint
@@ -268,7 +268,7 @@ type
         of LiteralKind.Unit:
             nil
         of LiteralKind.Bool:
-            boolval: bool
+            boolval*: bool
         of LiteralKind.Integer:
             intval*: BiggestInt
             intbits*: uint
@@ -358,8 +358,6 @@ type
 
 
 
-proc hash*(self: TypeVar): Hash =
-    self.id.hash
 proc `==`*(self, other: TypeVar): bool =
     self.id == other.id
 
