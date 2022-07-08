@@ -56,7 +56,8 @@ proc infer(self: Expression, project: Project, global: bool = false): Type =
         project.env.coerce(Type.Arrow(args.mapIt(Type.Unit), tv) <= callee) # i dont know whether this is correct.
         tv
     of ExpressionKind.Apply:
-        # TODO:
+        let
+            callee = self.callee.infer(project, global)
         Type.Unit
     of ExpressionKind.If:
         let
@@ -90,8 +91,9 @@ proc infer(self: Expression, project: Project, global: bool = false): Type =
         # TODO:
         Type.Unit
     of ExpressionKind.Ref:
-        Type.Unit
+        Type.Ptr(self.to.infer(project, global))
     of ExpressionKind.Import:
+        # TODO:
         Type.Unit
     of ExpressionKind.LetSection:
         Type.Unit
