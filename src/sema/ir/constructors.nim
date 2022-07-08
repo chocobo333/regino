@@ -57,8 +57,8 @@ proc Gen*(_: typedesc[Type], gt: GenericType): Type =
 proc Link*(_: typedesc[Type], to: Type): Type =
     Type(kind: TypeKind.Link, to: to)
 
-proc Undeclared*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Undeclared, id: id, typ: typ, global: global)
+proc NotDeclared*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.NotDeclared, id: id, typ: typ, global: global)
     typ.symbol = some result
 proc Var*(_: typedesc[Symbol], id: Ident, typ: Value, global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Var, id: id, typ: typ, global: global)
