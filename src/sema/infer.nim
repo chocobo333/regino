@@ -30,6 +30,8 @@ proc infer(self: Literal): Type =
     case self.kind
     of LiteralKind.Unit:
         Type.Unit
+    of LiteralKind.Bool:
+        Type.Bool
     of LiteralKind.Integer:
         Type.Integer(self.intbits)
     of LiteralKind.Float:
@@ -45,6 +47,10 @@ proc infer(self: Expression, project: Project, global: bool = false): Type =
     of ExpressionKind.Ident:
         self.ident.infer(project)
     of ExpressionKind.Call:
+        let
+            tv = Type.Var(project.env)
+            callee = self.callee.infer(project, global)
+            args = self.args.mapIt(it.infer(project, global))
         Type.Unit
     of ExpressionKind.Apply:
         Type.Unit
