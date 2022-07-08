@@ -215,6 +215,9 @@ type
         Apply
         If
         Case
+        Tuple
+        Array
+        Record
         ObjCons
         Ref
 
@@ -273,7 +276,9 @@ type
             els*: Expression
         of ExpressionKind.Case:
             ofs*: (Pattern, Expression)
-        of ExpressionKind.ObjCons:
+        of ExpressionKind.Tuple, ExpressionKind.Array:
+            elements*: Expression
+        of ExpressionKind.Record, ExpressionKind.ObjCons:
             obj*: Expression
             implicits*: seq[Expression]
             members*: Table[Ident, Expression]
