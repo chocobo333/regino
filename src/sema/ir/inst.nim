@@ -60,4 +60,4 @@ proc inst(self: Type, subs: Table[GenericType, Type]): Type =
     of TypeKind.Gen:
         if self.gt in subs: subs[self.gt] else: Type.Gen(self.gt)
     of TypeKind.Link:
-        Type.Link(self.to.inst(subs))
+        Type.Link(self)
