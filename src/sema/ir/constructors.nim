@@ -139,8 +139,8 @@ proc If*(_: typedesc[Expression], cond: Expression, then: Expression, els: Expre
     Expression(kind: ExpressionKind.If, cond: cond, them: then, els: els, loc: loc)
 proc Case*(_: typedesc[Expression], ofs: (Pattern, Expression), loc: Location): Expression = 
     Expression(kind: ExpressionKind.Case, ofs: ofs, loc: loc)
-proc Tuple*(_: typedesc[Expression], elements: Expression, loc: Location): Expression = 
-    Expression(kind: ExpressionKind.Tuple, elements: elements, loc: loc)
+proc Pair*(_: typedesc[Expression], first: Expression, second: Expression, loc: Location): Expression = 
+    Expression(kind: ExpressionKind.Pair, first: first, second: second, loc: loc)
 proc Array*(_: typedesc[Expression], elements: Expression, loc: Location): Expression = 
     Expression(kind: ExpressionKind.Array, elements: elements, loc: loc)
 proc Record*(_: typedesc[Expression], obj: Expression, implicits: seq[Expression], members: Table[Ident, Expression], loc: Location): Expression = 
