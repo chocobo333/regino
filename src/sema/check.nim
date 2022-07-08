@@ -41,6 +41,12 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         false
     of ExpressionKind.Case:
         false
+    of ExpressionKind.Tuple:
+        false
+    of ExpressionKind.Array:
+        false
+    of ExpressionKind.Record:
+        false
     of ExpressionKind.ObjCons:
         false
     of ExpressionKind.Ref:

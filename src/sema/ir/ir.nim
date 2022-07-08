@@ -40,6 +40,7 @@ type
         Float
         Char
         CString
+        Array
         Function
     Value* = object
         case kind*: ValueKind
@@ -57,6 +58,8 @@ type
             charval*: char
         of ValueKind.CString:
             strval*: string
+        of ValueKind.Array:
+            vals*: seq[Type]
         of ValueKind.Function:
             fn*: Function
     TypeKind* {.pure.} = enum
@@ -69,10 +72,12 @@ type
         Char
         CString
         Pair
+        Array
         Record
         Object
         Arrow
         Cons
+        Distinct
         Recursive
         Trait
         Var
@@ -97,6 +102,9 @@ type
             second*: Type
         of TypeKind.Record, TypeKind.Object:
             members*: Table[string, Type]
+        of TypeKind.Array, TypeKind.Distinct:
+            length*: uint # for Array
+            base*: Type
         of TypeKind.Arrow:
             params*: seq[Type]
             rety*: Type
