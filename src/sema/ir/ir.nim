@@ -83,6 +83,7 @@ type
         Cons
         Distinct
         Singleton
+        Ptr
         Recursive
         Trait
         Var
@@ -112,6 +113,8 @@ type
         of TypeKind.Array, TypeKind.Distinct, Singleton:
             length*: uint # for Array
             base*: Type
+        of TypeKind.Ptr:
+            pointee*: Type
         of TypeKind.Arrow:
             params*: seq[Type]
             rety*: Type
