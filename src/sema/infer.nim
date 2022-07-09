@@ -1,11 +1,15 @@
 
 import sets
+import tables
 import sequtils
+import sugar
 
 import ir
 import projects
 import typeenvs
 import coerce
+
+import ../utils
 
 
 proc infer(self: Ident, project: Project, global: bool = false): Type =
@@ -85,8 +89,11 @@ proc infer(self: Expression, project: Project, global: bool = false): Type =
             project.env.coerce(e <= tv)
         tv
     of ExpressionKind.Record:
-        # TODO:
-        Type.Unit
+        var
+            members = initTable[string, Type]()
+        for (k, v) in self.members.pairs:
+            members[k.name] = v.infer(project, global)
+        Type.Record(members)
     of ExpressionKind.ObjCons:
         # TODO:
         Type.Unit
