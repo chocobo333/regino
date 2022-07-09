@@ -5,32 +5,20 @@ import sequtils
 import ir
 import constructors
 
+proc copy*(self: Value): Value
 proc copy*(self: Pattern): Pattern
 proc copy*(self: GenericType): GenericType
 proc copy*(self: FunctionSignature): FunctionSignature
 proc copy*(self: Function): Function
 
-proc copy*(self: PiType): PiType =
-    # TODO:
-    self
 proc copy*[A, B](self: (A, B)): (A, B) =
     let (a, b) = self
     (a.copy, b.copy)
-proc copy*(self: Pattern): Pattern =
+
+proc copy*(self: PiType): PiType =
     # TODO:
     self
-    # case self.kind
-    # of PatternKind.Literal:
-    #     Pattern.Literal
-    # of PatternKind.Ident:
-    #     Pattern.Ident
-    # of PatternKind.Tuple:
-    #     Pattern.Tuple
-    # of PatternKind.Record:
-    #     Pattern.Record
-proc copy*(self: Value): Value = 
-    # TODO:
-    self
+
 proc copy*(self: Type): Type =
     case self.kind
     of TypeKind.Bottom:
@@ -85,6 +73,39 @@ proc copy*(self: Type): Type =
         Type.Gen(self.gt.copy)
     of TypeKind.Link:
         Type.Link(self.to.copy)
+
+proc copy*(self: Pattern): Pattern =
+    # TODO:
+    self
+    # case self.kind
+    # of PatternKind.Literal:
+    #     Pattern.Literal
+    # of PatternKind.Ident:
+    #     Pattern.Ident
+    # of PatternKind.Tuple:
+    #     Pattern.Tuple
+    # of PatternKind.Record:
+    #     Pattern.Record
+proc copy*(self: Value): Value = 
+    case self.kind:
+    of ValueKind.Unit:
+        Value.Unit
+    of ValueKind.Univ:
+        Value.Univ(self.level)
+    of ValueKind.Bool:
+        Value.Bool(self.boolval)
+    of ValueKind.Integer:
+        Value.Integer(self.intval, self.intbits)
+    of ValueKind.Float:
+        Value.Float(self.floatval, self.floatbits)
+    of ValueKind.Char:
+        Value.Char(self.charval)
+    of ValueKind.CString:
+        Value.CString(self.strval)
+    of ValueKind.Array:
+        Value.Array(self.vals.map(copy))
+    of ValueKind.Function:
+        Value.Function(self.fn.copy)
 
 proc copy*(self: GenericType): GenericType =
     # TODO:
