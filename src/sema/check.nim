@@ -19,6 +19,8 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         case self.litval.kind
         of LiteralKind.Unit:
             assume(Type.Unit)
+        of LiteralKind.Bool:
+            assume(Type.Bool)
         of LiteralKind.Integer:
             assume(Type.Integer(self.litval.intbits))
         of LiteralKind.Float:
@@ -41,7 +43,7 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         false
     of ExpressionKind.Case:
         false
-    of ExpressionKind.Tuple:
+    of ExpressionKind.Pair:
         false
     of ExpressionKind.Array:
         false

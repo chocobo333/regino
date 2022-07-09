@@ -103,30 +103,44 @@ proc infer(self: Expression, project: Project, global: bool = false): Type =
         # TODO:
         Type.Unit
     of ExpressionKind.LetSection:
+        # TODO:
         Type.Unit
     of ExpressionKind.VarSection:
+        # TODO:
         Type.Unit
     of ExpressionKind.TypeSection:
+        # TODO:
         Type.Unit
     of ExpressionKind.Assign:
+        # TODO:
         Type.Unit
     of ExpressionKind.Funcdef:
+        # TODO:
         Type.Unit
     of ExpressionKind.ImportLL:
+        # TODO:
         Type.Unit
     of ExpressionKind.Loop:
+        # TODO:
         Type.Unit
     of ExpressionKind.Discard:
+        # TODO:
         Type.Unit
     of ExpressionKind.Seq:
+        # TODO:
         Type.Unit
     of ExpressionKind.Typeof:
+        # TODO:
         Type.Unit
     of ExpressionKind.Malloc:
+        # TODO:
         Type.Unit
     of ExpressionKind.Realloc:
+        # TODO:
         Type.Unit
     of ExpressionKind.PtrSet:
+        # TODO:
         Type.Unit
     of ExpressionKind.PtrGet:
+        # TODO:
         Type.Unit
