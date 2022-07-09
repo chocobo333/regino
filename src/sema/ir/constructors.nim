@@ -197,7 +197,7 @@ proc Literal*(_: typedesc[Pattern], litval: Literal): Pattern =
     Pattern(kind: PatternKind.Literal, litval: litval)
 proc Ident*(_: typedesc[Pattern], ident: Ident): Pattern =
     Pattern(kind: PatternKind.Ident, ident: ident)
-proc Tuple*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern], members: seq[(Ident, Pattern)]): Pattern =
-    Pattern(kind: PatternKind.Tuple, tag: tag, patterns: patterns, members: members)
-proc Record*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern], members: seq[(Ident, Pattern)]): Pattern =
-    Pattern(kind: PatternKind.Record, tag: tag, patterns: patterns, members: members)
+proc Tuple*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern]): Pattern =
+    Pattern(kind: PatternKind.Tuple, tag: tag, patterns: patterns)
+proc Record*(_: typedesc[Pattern], tag: Option[ir.Ident], members: seq[(Ident, Pattern)]): Pattern =
+    Pattern(kind: PatternKind.Record, tag: tag, members: members)
