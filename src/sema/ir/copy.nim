@@ -17,6 +17,8 @@ proc copy*(self: Function): Function
 proc copy*(self: TypeExpression): TypeExpression
 proc copy*(self: Expression): Expression
 
+# TODO: copy members that is not inisialized when construct using constructor
+
 proc copy*[A, B](self: (A, B)): (A, B) =
     let (a, b) = self
     (a.copy, b.copy)
@@ -113,6 +115,10 @@ proc copy*(self: Value): Value =
 proc copy*(self: GenericType): GenericType =
     GenericType(id: self.id, ub: self.ub.copy, typ: self.typ.copy)
 
+proc copy*(self: Scope): Scope =
+    # TODO:
+    self
+
 proc copy*(self: Ident): Ident = self
 
 proc copy*(self: IdentDef): IdentDef =
@@ -161,7 +167,7 @@ proc copy*(self: VariantElement): VariantElement =
         VariantElement.Tuple(self.fields.map(copy))
     of VariantElementKind.Object:
         VariantElement.Object(self.members.map(copy))
-        
+
 proc copy*(self: TypeExpression): TypeExpression =
     case self.kind:
     of TypeExpressionKind.Ref:
@@ -176,5 +182,56 @@ proc copy*(self: TypeExpression): TypeExpression =
         TypeExpression.Expression(self.expression.copy)
 
 proc copy*(self: Expression): Expression =
-    # TODO:
-    self
+    case self.kind:
+    of ExpressionKind.Literal:
+        ir.Expression.Literal(self.litval, self.loc)
+    of ExpressionKind.Ident:
+        ir.Expression.Ident(self.ident, self.loc)
+    of ExpressionKind.Call:
+        ir.Expression.Call(self.callee.copy, self.args.map(copy), self.loc)
+    of ExpressionKind.Apply:
+        ir.Expression.Apply(self.callee.copy, self.args.map(copy), self.loc)
+    of ExpressionKind.If:
+        ir.Expression.If(self.cond.copy, self.then.copy, self.els.copy, self.loc)
+    of ExpressionKind.Case:
+        ir.Expression.Case(self.ofs.copy, self.loc)
+    of ExpressionKind.Pair:
+        ir.Expression.Pair(self.first.copy, self.second.copy, self.loc)
+    of ExpressionKind.Array:
+        ir.Expression.Array(self.elements.map(copy), self.loc)
+    of ExpressionKind.Record:
+        ir.Expression.Record(self.obj.copy, self.implicits.map(copy), self.members.map(copy), self.loc)
+    of ExpressionKind.ObjCons:
+        ir.Expression.ObjCons(self.obj.copy, self.implicits.map(copy), self.members.map(copy), self.loc)
+    of ExpressionKind.Ref:
+        ir.Expression.Ref(self.to.copy, self.loc)
+    of ExpressionKind.Import:
+        ir.Expression.Import(self.ident, self.loc)
+    of ExpressionKind.LetSection:
+        ir.Expression.LetSection(self.iddefs.map(copy), self.loc)
+    of ExpressionKind.VarSection:
+        ir.Expression.VarSection(self.iddefs.map(copy), self.loc)
+    of ExpressionKind.TypeSection:
+        ir.Expression.TypeSection(self.typedefs.map(copy), self.loc)
+    of ExpressionKind.Assign:
+        ir.Expression.Assign(self.assign_lval.copy, self.assign_val.copy, self.loc)
+    of ExpressionKind.Funcdef:
+        ir.Expression.Funcdef(self.fn.copy, self.loc)
+    of ExpressionKind.ImportLL:
+        ir.Expression.ImportLL(self.signature.copy, self.loc)
+    of ExpressionKind.Loop:
+        ir.Expression.Loop(self.lable, self.`block`.copy, self.loc)
+    of ExpressionKind.Discard:
+        ir.Expression.Discard(self.lable, self.`block`.copy, self.loc)
+    of ExpressionKind.Seq:
+        ir.Expression.Seq(self.expressions.map(copy), self.scope.copy, self.loc)
+    of ExpressionKind.Typeof:
+        ir.Expression.Typeof(self.`typeof`.copy, self.loc)
+    of ExpressionKind.Malloc:
+        ir.Expression.Malloc(self.mtype.copy, self.msize.copy, self.loc)
+    of ExpressionKind.Realloc:
+        ir.Expression.Realloc(self.rptr.copy, self.msize.copy, self.loc)
+    of ExpressionKind.PtrSet:
+        ir.Expression.PtrSet(self.`ptr`.copy, self.index.copy, self.val.copy, self.loc)
+    of ExpressionKind.PtrGet:
+        ir.Expression.PtrGet(self.`ptr`.copy, self.index.copy, self.loc)
