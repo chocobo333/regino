@@ -122,8 +122,9 @@ proc copy*(self: GenTypeDef): GenTypeDef =
     self
 
 proc copy*(self: Metadata): Metadata =
-    # TODO:
-    self
+    case self.kind:
+    of MetadataKind.SubType:
+        Metadata.SubType()
 
 proc copy*(self: FunctionSignature): FunctionSignature =
     FunctionSignature(
