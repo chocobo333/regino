@@ -11,6 +11,7 @@ proc copy*(self: Pattern): Pattern
 proc copy*(self: GenericType): GenericType
 proc copy*(self: FunctionSignature): FunctionSignature
 proc copy*(self: Function): Function
+proc copy*(self: Expression): Expression
 
 proc copy*[A, B](self: (A, B)): (A, B) =
     let (a, b) = self
@@ -110,9 +111,34 @@ proc copy*(self: Value): Value =
 proc copy*(self: GenericType): GenericType =
     GenericType(id: self.id, ub: self.ub.copy, typ: self.typ.copy)
 
-proc copy*(self: FunctionSignature): FunctionSignature =
+proc copy*(self: IdentDef): IdentDef =
     # TODO:
     self
+proc copy*(self: TypeDef): TypeDef =
+    # TODO:
+    self
+proc copy*(self: GenTypeDef): GenTypeDef =
+    # TODO:
+    self
+
+proc copy*(self: Metadata): Metadata =
+    # TODO:
+    self
+
+proc copy*(self: FunctionSignature): FunctionSignature =
+    FunctionSignature(
+        ident: self.ident, 
+        implicits: self.implicits.map(copy), 
+        params: self.params.map(copy), 
+        rety: self.rety.copy
+    )
 proc copy*(self: Function): Function =
+    Function(
+        signature: self.signature.copy, 
+        body: self.body.copy, 
+        metadata: self.metadata.map(copy)
+    )
+
+proc copy*(self: Expression): Expression =
     # TODO:
     self
