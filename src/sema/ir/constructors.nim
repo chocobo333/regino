@@ -116,7 +116,7 @@ proc Object*(_: typedesc[TypeExpression], ident: Ident, members: Table[Ident, Ex
 proc Variant*(_: typedesc[TypeExpression], elements: seq[VariantElement]): TypeExpression =
     TypeExpression(kind: TypeExpressionKind.Variant, elements: elements)
 proc Trait*(_: typedesc[TypeExpression], paty: (Pattern, Expression), iss: seq[(Pattern, Expression)], fns: seq[Function], fnss: seq[FunctionSignature]): TypeExpression =
-    TypeExpression(kind: TypeExpressionKind.Trait, paty: paty, iss: iss, fns: fns, funss: fnss)
+    TypeExpression(kind: TypeExpressionKind.Trait, paty: paty, iss: iss, fns: fns, fnss: fnss)
 proc Expression*(_: typedesc[TypeExpression], expression: Expression): TypeExpression =
     TypeExpression(kind: TypeExpressionKind.Expression, expression: expression)
 

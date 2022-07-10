@@ -5,6 +5,7 @@ import options
 
 import ir
 import constructors
+import ../../utils
 
 proc copy*(self: PiType): PiType
 proc copy*(self: Value): Value
@@ -152,9 +153,22 @@ proc copy*(self: Function): Function =
         metadata: self.metadata.map(copy)
     )
 
-proc copy*(self: TypeExpression): TypeExpression =
+proc copy*(self: VariantElement): VariantElement =
     # TODO:
     self
+
+proc copy*(self: TypeExpression): TypeExpression =
+    case self.kind:
+    of TypeExpressionKind.Ref:
+        TypeExpression.Ref(self.to.copy)
+    of TypeExpressionKind.Object:
+        TypeExpression.Object(self.ident, self.members.map(copy))
+    of TypeExpressionKind.Variant:
+        TypeExpression.Variant(self.elements.map(copy))
+    of TypeExpressionKind.Trait:
+        TypeExpression.Trait(self.paty.copy, self.iss.map(copy), self.fns.map(copy), self.fnss.map(copy))
+    of TypeExpressionKind.Expression:
+        TypeExpression.Expression(self.expression.copy)
 
 proc copy*(self: Expression): Expression =
     # TODO:
