@@ -72,8 +72,7 @@ proc copy*(self: Type): Type =
         Type.Link(self.to.copy)
 
 proc copy*(self: PiType): PiType =
-    # TODO:
-    self
+    PiType(ident: self.ident, params: self.params.map(copy), rety: self.rety.copy)
 
 proc copy*(self: Pattern): Pattern =
     # TODO:
