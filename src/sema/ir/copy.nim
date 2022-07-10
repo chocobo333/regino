@@ -9,6 +9,7 @@ import constructors
 proc copy*(self: PiType): PiType
 proc copy*(self: Value): Value
 proc copy*(self: Pattern): Pattern
+proc copy*(self: Ident): Ident
 proc copy*(self: GenericType): GenericType
 proc copy*(self: FunctionSignature): FunctionSignature
 proc copy*(self: Function): Function
@@ -78,17 +79,15 @@ proc copy*(self: PiType): PiType =
     PiType(ident: self.ident, params: self.params.map(copy), rety: self.rety.copy)
 
 proc copy*(self: Pattern): Pattern =
-    # TODO:
-    self
-    # case self.kind
-    # of PatternKind.Literal:
-    #     Pattern.Literal
-    # of PatternKind.Ident:
-    #     Pattern.Ident
-    # of PatternKind.Tuple:
-    #     Pattern.Tuple
-    # of PatternKind.Record:
-    #     Pattern.Record
+    case self.kind
+    of PatternKind.Literal:
+        Pattern.Literal(self.litval)
+    of PatternKind.Ident:
+        Pattern.Ident(self.ident)
+    of PatternKind.Tuple:
+        Pattern.Tuple(self.tag, self.patterns.map(copy))
+    of PatternKind.Record:
+        Pattern.Record(self.tag, self.members.map(copy))
 proc copy*(self: Value): Value = 
     case self.kind:
     of ValueKind.Unit:
@@ -112,6 +111,8 @@ proc copy*(self: Value): Value =
 
 proc copy*(self: GenericType): GenericType =
     GenericType(id: self.id, ub: self.ub.copy, typ: self.typ.copy)
+
+proc copy*(self: Ident): Ident = self
 
 proc copy*(self: IdentDef): IdentDef =
     IdentDef(

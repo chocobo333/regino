@@ -347,7 +347,7 @@ type
     Pattern* = ref object
         case kind*: PatternKind
         of PatternKind.Literal:
-            litval: Literal
+            litval*: Literal
         of PatternKind.Ident:
             ident*: Ident
         of PatternKind.Tuple, PatternKind.Record:
