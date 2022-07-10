@@ -5,6 +5,7 @@ import sequtils
 import ir
 import constructors
 
+proc copy*(self: PiType): PiType
 proc copy*(self: Value): Value
 proc copy*(self: Pattern): Pattern
 proc copy*(self: GenericType): GenericType
@@ -14,10 +15,6 @@ proc copy*(self: Function): Function
 proc copy*[A, B](self: (A, B)): (A, B) =
     let (a, b) = self
     (a.copy, b.copy)
-
-proc copy*(self: PiType): PiType =
-    # TODO:
-    self
 
 proc copy*(self: Type): Type =
     case self.kind
@@ -74,6 +71,10 @@ proc copy*(self: Type): Type =
     of TypeKind.Link:
         Type.Link(self.to.copy)
 
+proc copy*(self: PiType): PiType =
+    # TODO:
+    self
+
 proc copy*(self: Pattern): Pattern =
     # TODO:
     self
@@ -108,8 +109,7 @@ proc copy*(self: Value): Value =
         Value.Function(self.fn.copy)
 
 proc copy*(self: GenericType): GenericType =
-    # TODO:
-    self
+    GenericType(id: self.id, ub: self.ub.copy, typ: self.typ.copy)
 
 proc copy*(self: FunctionSignature): FunctionSignature =
     # TODO:
