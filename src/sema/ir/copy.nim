@@ -154,9 +154,14 @@ proc copy*(self: Function): Function =
     )
 
 proc copy*(self: VariantElement): VariantElement =
-    # TODO:
-    self
-
+    case self.kind:
+    of VariantElementKind.NoField:
+        VariantElement.NoField
+    of VariantElementKind.Tuple:
+        VariantElement.Tuple(self.fields.map(copy))
+    of VariantElementKind.Object:
+        VariantElement.Object(self.members.map(copy))
+        
 proc copy*(self: TypeExpression): TypeExpression =
     case self.kind:
     of TypeExpressionKind.Ref:

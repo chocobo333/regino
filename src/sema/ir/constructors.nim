@@ -124,7 +124,7 @@ proc NoField*(_: typedesc[VariantElement]): VariantElement =
     VariantElement(kind: VariantElementKind.NoField)
 proc Tuple*(_: typedesc[VariantElement], fields: seq[Expression]): VariantElement =
     VariantElement(kind: VariantElementKind.Tuple, fields: fields)
-proc Object*(_: typedesc[VariantElement], members: Table[Ident, Expression]): VariantElement =
+proc Object*(_: typedesc[VariantElement], members: Table[Ident, ir.Expression]): VariantElement =
     VariantElement(kind: VariantElementKind.Object, members: members)
 
 proc Literal*(_: typedesc[Expression], litval: Literal, loc: Location): Expression =
