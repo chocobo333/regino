@@ -17,14 +17,12 @@ proc copy*(self: Function): Function
 proc copy*(self: TypeExpression): TypeExpression
 proc copy*(self: Expression): Expression
 
-# TODO: copy members that is not inisialized when construct using constructor
-
 proc copy*[A, B](self: (A, B)): (A, B) =
     let (a, b) = self
     (a.copy, b.copy)
 
 proc copy*(self: Type): Type =
-    case self.kind
+    result = case self.kind
     of TypeKind.Bottom:
         Type.Bottom
     of TypeKind.Unit:
@@ -77,6 +75,7 @@ proc copy*(self: Type): Type =
         Type.Gen(self.gt.copy)
     of TypeKind.Link:
         Type.Link(self.to.copy)
+    result.symbol = self.symbol
 
 proc copy*(self: PiType): PiType =
     PiType(ident: self.ident, params: self.params.map(copy), rety: self.rety.copy)
@@ -160,13 +159,14 @@ proc copy*(self: Function): Function =
     )
 
 proc copy*(self: VariantElement): VariantElement =
-    case self.kind:
+    result = case self.kind:
     of VariantElementKind.NoField:
         VariantElement.NoField
     of VariantElementKind.Tuple:
         VariantElement.Tuple(self.fields.map(copy))
     of VariantElementKind.Object:
         VariantElement.Object(self.members.map(copy))
+    result.ident = self.ident
 
 proc copy*(self: TypeExpression): TypeExpression =
     case self.kind:
@@ -182,7 +182,7 @@ proc copy*(self: TypeExpression): TypeExpression =
         TypeExpression.Expression(self.expression.copy)
 
 proc copy*(self: Expression): Expression =
-    case self.kind:
+    result = case self.kind:
     of ExpressionKind.Literal:
         ir.Expression.Literal(self.litval, self.loc)
     of ExpressionKind.Ident:
@@ -235,3 +235,5 @@ proc copy*(self: Expression): Expression =
         ir.Expression.PtrSet(self.`ptr`.copy, self.index.copy, self.val.copy, self.loc)
     of ExpressionKind.PtrGet:
         ir.Expression.PtrGet(self.`ptr`.copy, self.index.copy, self.loc)
+    if self.typ.isNil: result.typ = nil else: result.typ = self.typ.copy
+    return result
