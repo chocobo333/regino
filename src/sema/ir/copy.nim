@@ -1,6 +1,7 @@
 
 import tables
 import sequtils
+import options
 
 import ir
 import constructors
@@ -11,6 +12,7 @@ proc copy*(self: Pattern): Pattern
 proc copy*(self: GenericType): GenericType
 proc copy*(self: FunctionSignature): FunctionSignature
 proc copy*(self: Function): Function
+proc copy*(self: TypeExpression): TypeExpression
 proc copy*(self: Expression): Expression
 
 proc copy*[A, B](self: (A, B)): (A, B) =
@@ -112,14 +114,23 @@ proc copy*(self: GenericType): GenericType =
     GenericType(id: self.id, ub: self.ub.copy, typ: self.typ.copy)
 
 proc copy*(self: IdentDef): IdentDef =
-    # TODO:
-    self
-proc copy*(self: TypeDef): TypeDef =
-    # TODO:
-    self
+    IdentDef(
+        pat: self.pat.copy,
+        typ: self.typ.map(copy),
+        default: self.default.map(copy)
+    )
 proc copy*(self: GenTypeDef): GenTypeDef =
-    # TODO:
-    self
+    GenTypeDef(
+        ident: self.ident,
+        typ: self.typ.map(copy),
+        ub: self.typ.map(copy)
+    )
+proc copy*(self: TypeDef): TypeDef =
+    TypeDef(
+        ident: self.ident,
+        params: self.params.map(copy),
+        typ: self.typ.copy
+    )
 
 proc copy*(self: Metadata): Metadata =
     case self.kind:
@@ -139,6 +150,10 @@ proc copy*(self: Function): Function =
         body: self.body.copy, 
         metadata: self.metadata.map(copy)
     )
+
+proc copy*(self: TypeExpression): TypeExpression =
+    # TODO:
+    self
 
 proc copy*(self: Expression): Expression =
     # TODO:
