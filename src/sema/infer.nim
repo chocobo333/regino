@@ -45,7 +45,8 @@ proc infer(self: Literal): Type =
         Type.Char
     of LiteralKind.CString:
         Type.CString
-proc infer(self: Expression, project: Project, global: bool = false): Type =
+proc infer*(self: Expression, project: Project, global: bool = false): Type =
+    # collect constraints of types
     case self.kind
     of ExpressionKind.Literal:
         self.litval.infer()

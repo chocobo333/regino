@@ -8,7 +8,7 @@ import errors
 
 
 type
-    Buffer*[T] = (Project, Table[string, T])
+    Buffer*[T] = Table[string, T]
     Project* = ref object
         main*: string
         programs*: Buffer[ir.Expression]
@@ -17,7 +17,7 @@ type
 
 
 proc newBuffer*[T](p: Project): Buffer[T] =
-    (p, initTable[string, T]())
+    initTable[string, T]()
 proc newProject*(main: string): Project =
     result = Project(main: main)
     result.programs = newBuffer[ir.Expression](result)

@@ -2,13 +2,13 @@
 import ir/[
     ir,
     constructors,
-    copy,
+    # copy,
     inst,
     hash
 ]
 
 export ir
 export constructors
-export copy
+# export copy
 export inst
 export hash
