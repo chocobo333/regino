@@ -10,10 +10,7 @@ import hash
 import ../../utils
 
 
-proc inst*(self: PiType): Type =
-    # TODO:
-    discard
-proc inst(self: Type, subs: Table[GenericType, Type]): Type =
+proc inst*(self: Type, subs: Table[GenericType, Type]): Type =
     case self.kind
     of TypeKind.Bottom:
         Type.Bottom()

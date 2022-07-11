@@ -6,6 +6,7 @@ import options
 import ir
 import errors
 import generators
+import ir/inst
 
 type
     Constraint = (Type, Type)
@@ -99,3 +100,9 @@ proc Select*(_: typedesc[Type], choices: HashSet[Type], env: TypeEnv): Type =
     Type.Var(env.newSelect(choices))
 proc Select*(_: typedesc[Type], choices: seq[Type], env: TypeEnv): Type =
     Type.Var(env.newSelect(choices.toHashSet))
+
+proc inst*(self: PiType, env: TypeEnv): Type =
+    var subs = initTable[GenericType, Type]()
+    for k in self.params:
+        subs[k] = Type.Var(env)
+    self.rety.inst(subs)
