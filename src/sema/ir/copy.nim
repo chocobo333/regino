@@ -4,6 +4,7 @@ import sequtils
 import options
 
 import ir
+import hash
 import constructors
 import ../../utils
 

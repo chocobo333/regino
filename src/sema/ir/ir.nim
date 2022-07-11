@@ -1,7 +1,6 @@
 
 import tables
 import sets
-import hashes
 import options
 
 import ../../lineinfos
@@ -160,9 +159,10 @@ type
         vars*: Table[string, Symbol]
         types*: Table[string, Symbol]
         funcs*: Table[string, seq[Symbol]]
-    Ident* = object
+    Ident* = ref object
         loc*: Location
         name*: string
+        typ*: Type
     IdentDef* = object
         pat*: Pattern
         typ*: Option[Expression]

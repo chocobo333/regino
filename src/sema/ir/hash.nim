@@ -4,6 +4,8 @@ import tables
 
 import ir
 
+proc hash*(self: Ident): Hash =
+    self.name.hash
 proc hash*(self: Function): Hash =
     # TODO:
     result = 0
