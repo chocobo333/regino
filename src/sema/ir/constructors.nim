@@ -204,3 +204,28 @@ proc Tuple*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern])
     Pattern(kind: PatternKind.Tuple, tag: tag, patterns: patterns)
 proc Record*(_: typedesc[Pattern], tag: Option[ir.Ident], members: seq[(Ident, Pattern)]): Pattern =
     Pattern(kind: PatternKind.Record, tag: tag, members: members)
+
+
+import sequtils
+
+import macros
+import ast_pattern_matching
+
+
+proc parseImpl(body: NimNode): NimNode =
+    discard
+macro parse(body: untyped): untyped =
+    body.parseImpl
+
+
+
+when isMainModule:
+    import tos
+
+    let program = parse:
+        type
+            int = typeof(0)
+        proc id(a: int): int =
+            a
+        0
+    echo program

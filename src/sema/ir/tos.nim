@@ -78,6 +78,11 @@ proc `$`*(self: Literal): string =
     of LiteralKind.CString:
         self.strval.escape
 proc `$`*(self: Expression): string =
+    template kind2str(self: Expression): string =
+        if self.typ.isNil:
+            $self.kind
+        else:
+            fmt"{self.kind}: {self.typ}"
     # TODO:
     result = case self.kind
     of ExpressionKind.Literal:
@@ -136,5 +141,3 @@ proc `$`*(self: Expression): string =
         ""
     of ExpressionKind.PtrGet:
         ""
-    if not self.typ.isNil:
-        result = fmt"{result}: {self.typ}"
