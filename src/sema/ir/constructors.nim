@@ -5,6 +5,9 @@ import ../../lineinfos
 
 import ir
 
+proc newIdent*(name: string, loc: Location): Ident =
+    Ident(name: name, loc: loc)
+
 proc Unit*(_: typedesc[Value]): Value =
     Value(kind: ValueKind.Unit)
 proc Univ*(_: typedesc[Value], level: uint): Value =
@@ -117,7 +120,7 @@ proc Variant*(_: typedesc[TypeExpression], elements: seq[VariantElement]): TypeE
     TypeExpression(kind: TypeExpressionKind.Variant, elements: elements)
 proc Trait*(_: typedesc[TypeExpression], paty: (Pattern, Expression), iss: seq[(Pattern, Expression)], fns: seq[Function], fnss: seq[FunctionSignature]): TypeExpression =
     TypeExpression(kind: TypeExpressionKind.Trait, paty: paty, iss: iss, fns: fns, fnss: fnss)
-proc Expression*(_: typedesc[TypeExpression], expression: Expression): TypeExpression =
+proc expression*(_: typedesc[TypeExpression], expression: Expression): TypeExpression =
     TypeExpression(kind: TypeExpressionKind.Expression, expression: expression)
 
 proc NoField*(_: typedesc[VariantElement]): VariantElement =
@@ -129,7 +132,7 @@ proc Object*(_: typedesc[VariantElement], members: Table[Ident, ir.Expression]):
 
 proc Literal*(_: typedesc[Expression], litval: Literal, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Literal, litval: litval, loc: loc)
-proc Ident*(_: typedesc[Expression], ident: Ident, loc: Location): Expression =
+proc ident*(_: typedesc[Expression], ident: Ident, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Ident, ident: ident, loc: loc)
 proc Call*(_: typedesc[Expression], callee: Expression, args: seq[Expression], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Call, callee: callee, args: args, loc: loc)
@@ -195,7 +198,7 @@ proc CString*(_: typedesc[Literal], strval: string): Literal =
 
 proc Literal*(_: typedesc[Pattern], litval: Literal): Pattern =
     Pattern(kind: PatternKind.Literal, litval: litval)
-proc Ident*(_: typedesc[Pattern], ident: Ident): Pattern =
+proc ident*(_: typedesc[Pattern], ident: Ident): Pattern =
     Pattern(kind: PatternKind.Ident, ident: ident)
 proc Tuple*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern]): Pattern =
     Pattern(kind: PatternKind.Tuple, tag: tag, patterns: patterns)
