@@ -26,7 +26,7 @@ proc eval(self: Literal, project: Project): Type =
 proc eval*(self: Expression, project: Project): Type
 proc preeval*(self: Expression, project: Project): Type =
     # compile-time evaluation
-    result = case self.kind
+    case self.kind
     of ExpressionKind.Literal:
         self.litval.eval(project)
     of ExpressionKind.Ident:
@@ -35,7 +35,7 @@ proc preeval*(self: Expression, project: Project): Type =
     of ExpressionKind.Call:
         discard self.callee.preeval(project)
         discard self.args.mapIt(it.preeval(project))
-        Type.Var(project.env)
+        Type.Bottom
     of ExpressionKind.Apply:
         # TODO: type
         Type.Bottom
@@ -87,7 +87,6 @@ proc preeval*(self: Expression, project: Project): Type =
         Type.Bottom
     of ExpressionKind.PtrGet:
         Type.Bottom
-    self.typ = result
 proc posteval*(self: Expression, project: Project): Type =
     case self.kind
     of ExpressionKind.Literal:

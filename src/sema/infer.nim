@@ -18,7 +18,7 @@ proc infer(self: Ident, project: Project, global: bool = false): Type =
         vars = project.env.lookupVar(name)
         types = project.env.lookupType(name)
         funcs = project.env.lookupFunc(name)
-        t = vars.mapIt(it.typ) & types.mapIt(it.typ) & funcs.mapIt(it.pty.inst)
+        t = vars.mapIt(it.typ) & types.mapIt(it.typ) & funcs.mapIt(it.pty.inst(project.env))
     case t.len
     of 0:
         let
@@ -32,19 +32,7 @@ proc infer(self: Ident, project: Project, global: bool = false): Type =
         Type.Select(t, project.env)
 
 proc infer(self: Literal): Type =
-    case self.kind
-    of LiteralKind.Unit:
-        Type.Unit
-    of LiteralKind.Bool:
-        Type.Bool
-    of LiteralKind.Integer:
-        Type.Integer(self.intbits)
-    of LiteralKind.Float:
-        Type.Float(self.floatbits)
-    of LiteralKind.Char:
-        Type.Char
-    of LiteralKind.CString:
-        Type.CString
+    self.typ
 proc infer*(self: Expression, project: Project, global: bool = false): Type =
     # collect constraints of types
     case self.kind
