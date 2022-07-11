@@ -9,8 +9,8 @@ import ../../lineinfos
 type
     PiType* = object
         ident*: Option[Ident]
-        params: seq[GenericType]
-        rety: Type
+        params*: seq[GenericType]
+        rety*: Type
 
     SymbolKind* {.pure.} = enum
         Notdeclared
