@@ -130,7 +130,7 @@ proc Tuple*(_: typedesc[VariantElement], fields: seq[Expression]): VariantElemen
 proc Object*(_: typedesc[VariantElement], members: Table[Ident, ir.Expression]): VariantElement =
     VariantElement(kind: VariantElementKind.Object, members: members)
 
-proc Literal*(_: typedesc[Expression], litval: Literal, loc: Location): Expression =
+proc Lit*(_: typedesc[Expression], litval: Literal, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Literal, litval: litval, loc: loc)
 proc Id*(_: typedesc[Expression], ident: Ident, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Ident, ident: ident, loc: loc)
@@ -196,7 +196,7 @@ proc Char*(_: typedesc[Literal], charval: string): Literal =
 proc CString*(_: typedesc[Literal], strval: string): Literal =
     Literal(kind: LiteralKind.CString, strval: strval)
 
-proc Literal*(_: typedesc[Pattern], litval: Literal): Pattern =
+proc Lit*(_: typedesc[Pattern], litval: Literal): Pattern =
     Pattern(kind: PatternKind.Literal, litval: litval)
 proc Id*(_: typedesc[Pattern], ident: Ident): Pattern =
     Pattern(kind: PatternKind.Ident, ident: ident)
