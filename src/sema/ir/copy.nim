@@ -85,12 +85,12 @@ proc copy*(self: Pattern): Pattern =
     of PatternKind.Literal:
         Pattern.Literal(self.litval)
     of PatternKind.Ident:
-        Pattern.Ident(self.ident)
+        Pattern.Id(self.ident)
     of PatternKind.Tuple:
         Pattern.Tuple(self.tag, self.patterns.map(copy))
     of PatternKind.Record:
         Pattern.Record(self.tag, self.members.map(copy))
-proc copy*(self: Value): Value = 
+proc copy*(self: Value): Value =
     case self.kind:
     of ValueKind.Unit:
         Value.Unit
@@ -146,15 +146,15 @@ proc copy*(self: Metadata): Metadata =
 
 proc copy*(self: FunctionSignature): FunctionSignature =
     FunctionSignature(
-        ident: self.ident, 
-        implicits: self.implicits.map(copy), 
-        params: self.params.map(copy), 
+        ident: self.ident,
+        implicits: self.implicits.map(copy),
+        params: self.params.map(copy),
         rety: self.rety.copy
     )
 proc copy*(self: Function): Function =
     Function(
-        signature: self.signature.copy, 
-        body: self.body.copy, 
+        signature: self.signature.copy,
+        body: self.body.copy,
         metadata: self.metadata.map(copy)
     )
 
@@ -179,14 +179,14 @@ proc copy*(self: TypeExpression): TypeExpression =
     of TypeExpressionKind.Trait:
         TypeExpression.Trait(self.paty.copy, self.iss.map(copy), self.fns.map(copy), self.fnss.map(copy))
     of TypeExpressionKind.Expression:
-        TypeExpression.Expression(self.expression.copy)
+        TypeExpression.Expr(self.expression.copy)
 
 proc copy*(self: Expression): Expression =
     result = case self.kind:
     of ExpressionKind.Literal:
         ir.Expression.Literal(self.litval, self.loc)
     of ExpressionKind.Ident:
-        ir.Expression.Ident(self.ident, self.loc)
+        ir.Expression.Id(self.ident, self.loc)
     of ExpressionKind.Call:
         ir.Expression.Call(self.callee.copy, self.args.map(copy), self.loc)
     of ExpressionKind.Apply:
