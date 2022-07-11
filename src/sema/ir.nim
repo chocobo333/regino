@@ -5,7 +5,8 @@ import ir/[
     copy,
     inst,
     hash,
-    typ
+    typ,
+    tos
 ]
 
 export ir
@@ -14,3 +15,4 @@ export copy
 export inst
 export hash
 export typ
+export tos
