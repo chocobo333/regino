@@ -83,7 +83,7 @@ proc copy*(self: PiType): PiType =
 proc copy*(self: Pattern): Pattern =
     case self.kind
     of PatternKind.Literal:
-        Pattern.Literal(self.litval)
+        Pattern.Lit(self.litval)
     of PatternKind.Ident:
         Pattern.Id(self.ident)
     of PatternKind.Tuple:
@@ -184,7 +184,7 @@ proc copy*(self: TypeExpression): TypeExpression =
 proc copy*(self: Expression): Expression =
     result = case self.kind:
     of ExpressionKind.Literal:
-        ir.Expression.Literal(self.litval, self.loc)
+        ir.Expression.Lit(self.litval, self.loc)
     of ExpressionKind.Ident:
         ir.Expression.Id(self.ident, self.loc)
     of ExpressionKind.Call:
