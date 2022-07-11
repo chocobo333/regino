@@ -10,7 +10,6 @@ from llvm import nil
 type
     Program* = ref object
         stmts*: seq[Statement]
-        scope*: Scope
     StatementKind* {.pure.} = enum
         Import
         For             ## represents for statement
@@ -78,17 +77,9 @@ type
             nil
     Suite* = ref object
         stmts*: seq[Statement]
-        scope*: Scope
     ElifBranch* = tuple[cond: Expression, suite: Suite]
     ElseBranch* = Suite
     OfBranch* = tuple[pat: Pattern, suite: Suite]
-    Scope* = ref object
-        parent*: Scope
-        imports*: seq[Program]
-        syms*: Table[string, seq[Symbol]]
-        consts*: Table[string, seq[Symbol]] # deprecated
-        typeOrder*: Order[Value]  # cumulative
-        converters*: Table[(Value, Value), Ident]
     DefKind* {.pure.} = enum
         Def
         Comment
@@ -113,7 +104,6 @@ type
         implicit*: seq[GenTypeDef]
         params*: seq[IdentDef]
         rety*: Option[Expression]
-        scope*: Scope
     Function* = ref object
         isProp*: bool
         id*: Ident
