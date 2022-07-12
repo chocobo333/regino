@@ -13,13 +13,19 @@ import sema/ir/[
 
 import lineinfos
 
-proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
+proc il2ir*(self: il.IdentDef, scope: Scope): ir.IdentDef =
     # TODO:
     discard
 
-proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.TypeDef] =
+proc il2ir*(self: il.TypeDef, scope: Scope): ir.TypeDef =
     # TODO:
     discard
+
+proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
+    self.iddefs.map(_ => il2ir(_, scope))
+
+proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.TypeDef] =
+    self.typedefs.map(_ => il2ir(_, scope))
 
 proc il2ir*(self: Statement, scope: Scope): ir.Expression =
     # TODO:
