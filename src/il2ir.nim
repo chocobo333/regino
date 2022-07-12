@@ -15,8 +15,7 @@ import sema/ir/[
 import lineinfos
 
 proc il2ir*(self: il.Ident, scope: Scope): ir.Ident =
-    # TODO:
-    discard
+    constructors.newIdent(self.name, self.loc)
 
 proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     # TODO:
