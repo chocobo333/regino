@@ -88,7 +88,7 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
         for v in self.members.values:
             v.predeclare(project, global)
     of ExpressionKind.ObjCons:
-        self.obj.predeclare(project, global)
+        # self.obj.predeclare(project, global)
         for e in self.implicits:
             e.predeclare(project, global)
         for v in self.members.values:
@@ -181,8 +181,10 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             let
                 getId = newIdent("[]", self.loc)
                 getExp = Expression.Id(getId, self.loc)
+                scope = self.scope
             discard getExp.preeval(project, global)
             self[] = Expression.Call(getExp, @[self.callee] & self.args, self.loc)[]
+            self.scope = scope
         Type.Var(project.env)
     of ExpressionKind.If:
         discard self.cond.preeval(project, global)
@@ -209,7 +211,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         Type.Record(members)
     of ExpressionKind.ObjCons:
         let
-            obj = self.obj.eval(project)
+            obj = self.obj.preeval(project)
             implicits = self.implicits.mapIt(it.eval(project))
         self.obj.typ = Type.Singleton(obj)
         for i, e in implicits.pairs:

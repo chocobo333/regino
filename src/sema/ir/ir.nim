@@ -308,7 +308,7 @@ type
         of ExpressionKind.Array:
             elements*: seq[Expression]
         of ExpressionKind.Record, ExpressionKind.ObjCons:
-            obj*: Expression
+            obj*: Ident
             implicits*: seq[Expression]
             members*: Table[Ident, Expression]
         of ExpressionKind.Ref:

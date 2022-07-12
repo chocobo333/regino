@@ -201,7 +201,7 @@ proc copy*(self: Expression): Expression =
     of ExpressionKind.Array:
         ir.Expression.Array(self.elements.map(copy), self.loc)
     of ExpressionKind.Record:
-        ir.Expression.Record(self.obj.copy, self.implicits.map(copy), self.members.map(copy), self.loc)
+        ir.Expression.Record(self.members.map(copy), self.loc)
     of ExpressionKind.ObjCons:
         ir.Expression.ObjCons(self.obj.copy, self.implicits.map(copy), self.members.map(copy), self.loc)
     of ExpressionKind.Ref:

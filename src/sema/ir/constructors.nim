@@ -151,9 +151,9 @@ proc Pair*(_: typedesc[Expression], first: Expression, second: Expression, loc: 
     ir.Expression(kind: ExpressionKind.Pair, first: first, second: second, loc: loc)
 proc Array*(_: typedesc[Expression], elements: seq[Expression], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Array, elements: elements, loc: loc)
-proc Record*(_: typedesc[Expression], obj: Expression, implicits: seq[Expression], members: Table[ir.Ident, ir.Expression], loc: Location): Expression =
-    ir.Expression(kind: ExpressionKind.Record, obj: obj, implicits: implicits, members: members, loc: loc)
-proc ObjCons*(_: typedesc[Expression], obj: Expression, implicits: seq[Expression], members: Table[ir.Ident, ir.Expression], loc: Location): Expression =
+proc Record*(_: typedesc[Expression], members: Table[ir.Ident, ir.Expression], loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.Record, members: members, loc: loc)
+proc ObjCons*(_: typedesc[Expression], obj: Ident, implicits: seq[Expression], members: Table[ir.Ident, ir.Expression], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.ObjCons, obj: obj, implicits: implicits, members: members, loc: loc)
 proc Ref*(_: typedesc[Expression], to: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Ref, to: to, loc: loc)
