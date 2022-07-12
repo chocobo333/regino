@@ -225,7 +225,7 @@ proc copy*(self: Expression): Expression =
     of ExpressionKind.Discard:
         ir.Expression.Discard(self.lable, self.`block`.copy, self.loc)
     of ExpressionKind.Seq:
-        ir.Expression.Seq(self.expressions.map(copy), self.scope.copy, self.loc)
+        ir.Expression.Seq(self.expressions.map(copy), self.loc)
     of ExpressionKind.Typeof:
         ir.Expression.Typeof(self.`typeof`.copy, self.loc)
     of ExpressionKind.Malloc:
