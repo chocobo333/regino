@@ -13,9 +13,35 @@ import sema/ir/[
 
 import lineinfos
 
-proc il2ir*(self: Statement, scope: Scope): ir.Expression =
+proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
     # TODO:
     discard
+
+proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.TypeDef] =
+    # TODO:
+    discard
+
+proc il2ir*(self: Statement, scope: Scope): ir.Expression =
+    # TODO:
+    # to be deleted
+    let 
+        unitLit = ir.Literal.Unit
+        unit = ir.Expression.Lit(unitLit, self.loc)
+    case self.kind:
+    of StatementKind.LetSection:
+        ir.Expression.LetSection(self.iddefSection.il2ir(scope), self.loc)
+    of StatementKind.VarSection:
+        ir.Expression.VarSection(self.iddefSection.il2ir(scope), self.loc)
+    of StatementKind.ConstSection:
+        ir.Expression.ConsSection(self.iddefSection.il2ir(scope), self.loc)
+    of StatementKind.TypeSection:
+        ir.Expression.TypeSection(self.typedefSection.il2ir(scope), self.loc)
+    of StatementKind.Funcdef:
+        unit
+    of StatementKind.Expression:
+        unit
+    else:
+        unit
 
 proc il2ir*(self: Program): ir.Expression =
     let scope = newScope()
