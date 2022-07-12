@@ -58,3 +58,11 @@ proc inst*(self: Type, subs: Table[GenericType, Type]): Type =
         if self.gt in subs: subs[self.gt] else: Type.Gen(self.gt)
     of TypeKind.Link:
         Type.Link(self)
+
+proc inst*(self: PiType, p: seq[Type]): Type =
+    assert self.params.len == p.len
+    var
+        subs = initTable[GenericType, Type]()
+    for (a, b) in self.params.zip(p):
+        subs[a] = b
+    self.rety.inst(subs)
