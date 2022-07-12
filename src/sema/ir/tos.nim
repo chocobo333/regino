@@ -112,6 +112,8 @@ proc `$`*(self: Expression): string =
         ""
     of ExpressionKind.VarSection:
         ""
+    of ExpressionKind.ConsSection:
+        ""
     of ExpressionKind.TypeSection:
         ""
     of ExpressionKind.Assign:

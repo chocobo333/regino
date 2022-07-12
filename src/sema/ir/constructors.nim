@@ -163,6 +163,8 @@ proc LetSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location):
     ir.Expression(kind: ExpressionKind.LetSection, iddefs: iddefs, loc: loc)
 proc VarSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.VarSection, iddefs: iddefs, loc: loc)
+proc ConsSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.ConsSection, iddefs: iddefs, loc: loc)
 proc TypeSection*(_: typedesc[Expression], typedefs: seq[TypeDef], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.TypeSection, typedefs: typedefs, loc: loc)
 proc Assign*(_: typedesc[Expression], assign_lval: Pattern, assign_val: Expression, loc: Location): Expression =

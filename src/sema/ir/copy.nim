@@ -212,6 +212,8 @@ proc copy*(self: Expression): Expression =
         ir.Expression.LetSection(self.iddefs.map(copy), self.loc)
     of ExpressionKind.VarSection:
         ir.Expression.VarSection(self.iddefs.map(copy), self.loc)
+    of ExpressionKind.ConsSection:
+        ir.Expression.ConsSection(self.iddefs.map(copy), self.loc)
     of ExpressionKind.TypeSection:
         ir.Expression.TypeSection(self.typedefs.map(copy), self.loc)
     of ExpressionKind.Assign:
