@@ -17,6 +17,10 @@ import lineinfos
 proc il2ir*(self: il.Ident, scope: Scope): ir.Ident =
     constructors.newIdent(self.name, self.loc)
 
+proc il2ir*(self: il.Literal, scope: Scope): ir.Literal =
+    # TODO:
+    discard
+
 proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     # TODO:
     discard
@@ -26,8 +30,18 @@ proc il2ir*(self: il.TypeExpression, scope: Scope): ir.TypeExpression =
     discard
 
 proc il2ir*(self: il.Pattern, scope: Scope): ir.Pattern =
-    # TODO:
-    discard
+    case self.kind:
+    of il.PatternKind.Literal:
+        ir.Pattern.Lit(self.litval.il2ir(scope))
+    of il.PatternKind.Ident:
+        ir.Pattern.Id(self.ident.il2ir(scope))
+    of il.PatternKind.Tuple:
+        ir.Pattern.Tuple(self.tag.map(_ => il2ir(_, scope)), self.patterns.map(_ => il2ir(_, scope)))
+    of il.PatternKind.Record:
+        ir.Pattern.Record(self.tag.map(_ => il2ir(_, scope)), self.members.map(_ => (il2ir(_[0], scope), il2ir(_[1], scope))))
+    of il.PatternKind.UnderScore:
+        let ident = constructors.newIdent("_", self.loc)
+        ir.Pattern.Id(ident)
 
 proc il2ir*(self: il.IdentDef, scope: Scope): ir.IdentDef =
     ir.IdentDef(
