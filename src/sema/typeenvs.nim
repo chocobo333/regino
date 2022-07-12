@@ -49,11 +49,11 @@ proc addSymbol*(self: TypeEnv, symbol: Symbol): Option[Error] =
     case symbol.kind
     of SymbolKind.Notdeclared:
         result = some Error.InternalError
-    of SymbolKind.Let, SymbolKind.Var, SymbolKind.Const:
+    of SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param:
         if name in self.scope.types:
             result = some Error.Redifinition
         self.scope.vars[name] = symbol
-    of SymbolKind.Type:
+    of SymbolKind.Type, SymbolKind.GenParam:
         if name in self.scope.types or name in self.scope.funcs or name in self.scope.vars:
             result = some Error.Redifinition
         self.scope.types[name] = symbol

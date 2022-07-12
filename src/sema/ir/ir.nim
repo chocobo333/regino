@@ -16,7 +16,9 @@ type
         Let
         Var
         Const
+        Param
         Type
+        GenParam
         Func
         Field
     Symbol* = object
@@ -24,11 +26,11 @@ type
         ident*: Ident
         global*: bool
         case kind*: SymbolKind
-        of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const:
+        of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param:
             val*: Type
             typ*: Type
-        of SymbolKind.Type, SymbolKind.Func, SymbolKind.Field:
-            pval*: PiType # for Type
+        of SymbolKind.Type, SymbolKind.GenParam, SymbolKind.Func, SymbolKind.Field:
+            pval*: PiType # for Type, GenParam
             pty*: PiType # for Func, Field
             definition*: Function # for Func
             instances*: Table[seq[Type], Symbol]
@@ -309,7 +311,7 @@ type
         of ExpressionKind.Array:
             elements*: seq[Expression]
         of ExpressionKind.Record, ExpressionKind.ObjCons:
-            obj*: Expression
+            obj*: Ident
             implicits*: seq[Expression]
             members*: Table[Ident, Expression]
         of ExpressionKind.Ref:
@@ -319,7 +321,7 @@ type
         of ExpressionKind.LetSection, ExpressionKind.VarSection, ExpressionKind.ConsSection:
             iddefs*: seq[IdentDef]
         of ExpressionKind.TypeSection:
-            typedefs*: seq[TypeDef]
+            typedef*: TypeDef
         of ExpressionKind.Assign:
             assign_lval*: Pattern
             assign_val*: Expression

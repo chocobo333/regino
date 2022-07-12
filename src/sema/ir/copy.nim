@@ -201,7 +201,7 @@ proc copy*(self: Expression): Expression =
     of ExpressionKind.Array:
         ir.Expression.Array(self.elements.map(copy), self.loc)
     of ExpressionKind.Record:
-        ir.Expression.Record(self.obj.copy, self.implicits.map(copy), self.members.map(copy), self.loc)
+        ir.Expression.Record(self.members.map(copy), self.loc)
     of ExpressionKind.ObjCons:
         ir.Expression.ObjCons(self.obj.copy, self.implicits.map(copy), self.members.map(copy), self.loc)
     of ExpressionKind.Ref:
@@ -215,7 +215,7 @@ proc copy*(self: Expression): Expression =
     of ExpressionKind.ConsSection:
         ir.Expression.ConsSection(self.iddefs.map(copy), self.loc)
     of ExpressionKind.TypeSection:
-        ir.Expression.TypeSection(self.typedefs.map(copy), self.loc)
+        ir.Expression.TypeSection(self.typedef.copy, self.loc)
     of ExpressionKind.Assign:
         ir.Expression.Assign(self.assign_lval.copy, self.assign_val.copy, self.loc)
     of ExpressionKind.Funcdef:

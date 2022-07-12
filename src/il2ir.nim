@@ -59,19 +59,23 @@ proc il2ir*(self: il.GenTypeDef, scope: Scope): ir.GenTypeDef =
         loc: self.loc
     )
 
-proc il2ir*(self: il.TypeDef, scope: Scope): ir.TypeDef =
-    let params = if self.params.isSome: self.params.get.map(_ => il2ir(_, scope)) else: @[]
-    ir.TypeDef(
-        ident: self.id.il2ir(scope),
-        params: params,
-        typ: self.typ.il2ir(scope),
-        loc: self.loc
-    )
+proc il2ir*(self: il.TypeDef, scope: Scope): ir.Expression =
+    let 
+        scope = newScope(scope)
+        params = if self.params.isSome: self.params.get.map(_ => il2ir(_, scope)) else: @[]
+        typeDef = ir.TypeDef(
+            ident: self.id.il2ir(scope),
+            params: params,
+            typ: self.typ.il2ir(scope),
+            loc: self.loc
+        )
+    result = ir.Expression.TypeSection(typeDef, self.loc)
+    result.scope = scope
 
 proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
     self.iddefs.map(_ => il2ir(_, scope))
 
-proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.TypeDef] =
+proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.Expression] =
     self.typedefs.map(_ => il2ir(_, scope))
 
 proc il2ir*(self: Statement, scope: Scope): ir.Expression =
@@ -88,7 +92,8 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
     of StatementKind.ConstSection:
         ir.Expression.ConsSection(self.iddefSection.il2ir(scope), self.loc)
     of StatementKind.TypeSection:
-        ir.Expression.TypeSection(self.typedefSection.il2ir(scope), self.loc)
+        let typeDefs = self.typedefSection.il2ir(scope)
+        ir.Expression.Seq(typeDefs, scope, self.loc)
     of StatementKind.Funcdef:
         unit
     of StatementKind.Expression:
