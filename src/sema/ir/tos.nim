@@ -6,6 +6,55 @@ import sequtils
 import ir
 
 
+proc `$`*(self: Type): string =
+    # TODO:
+    case self.kind
+    of TypeKind.Bottom:
+        "⊥"
+    of TypeKind.Unit:
+        "()"
+    of TypeKind.Univ:
+        fmt"U{self.level}"
+    of TypeKind.Value:
+        fmt"<{self.val}>"
+    of TypeKind.Bool:
+        "bool"
+    of TypeKind.Integer:
+        fmt"i{self.nbits}"
+    of TypeKind.Float:
+        fmt"f{self.nbits}"
+    of TypeKind.Char:
+        "char"
+    of TypeKind.CString:
+        "cstring"
+    of TypeKind.Pair:
+        fmt"({self.first}, {self.second})"
+    of TypeKind.Array:
+        ""
+    of TypeKind.Record:
+        ""
+    of TypeKind.Object:
+        ""
+    of TypeKind.Arrow:
+        ""
+    of TypeKind.Cons:
+        ""
+    of TypeKind.Distinct:
+        "distinct {self.base}"
+    of TypeKind.Singleton:
+        fmt"singleton {self.base}"
+    of TypeKind.Ptr:
+        fmt"ptr {self.pointee}"
+    of TypeKind.Recursive:
+        ""
+    of TypeKind.Trait:
+        ""
+    of TypeKind.Var:
+        ""
+    of TypeKind.Gen:
+        ""
+    of TypeKind.Link:
+        fmt"~{self.to}"
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.Unit:
@@ -30,7 +79,7 @@ proc `$`*(self: Literal): string =
         self.strval.escape
 proc `$`*(self: Expression): string =
     # TODO:
-    case self.kind
+    result = case self.kind
     of ExpressionKind.Literal:
         $self.litval
     of ExpressionKind.Ident:
@@ -87,3 +136,5 @@ proc `$`*(self: Expression): string =
         ""
     of ExpressionKind.PtrGet:
         ""
+    if not self.typ.isNil:
+        result = fmt"{result}: {self.typ}"

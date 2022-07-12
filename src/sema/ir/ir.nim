@@ -1,7 +1,6 @@
 
 import tables
 import sets
-import hashes
 import options
 
 import ../../lineinfos
@@ -23,13 +22,14 @@ type
     Symbol* = object
         loc*: Location
         ident*: Ident
-        val*: Type
         global*: bool
         case kind*: SymbolKind
         of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const:
+            val*: Type
             typ*: Type
         of SymbolKind.Type, SymbolKind.Func, SymbolKind.Field:
-            pty*: PiType
+            pval*: PiType # for Type
+            pty*: PiType # for Func, Field
             definition*: Function # for Func
             instances*: Table[seq[Type], Symbol]
             index*: int # for Field
@@ -160,21 +160,25 @@ type
         vars*: Table[string, Symbol]
         types*: Table[string, Symbol]
         funcs*: Table[string, seq[Symbol]]
-    Ident* = object
+    Ident* = ref object
         loc*: Location
         name*: string
+        typ*: Type
     IdentDef* = object
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
+        loc*: Location
     TypeDef* = object
         ident*: Ident
         params*: seq[GenTypeDef]
         typ*: TypeExpression
+        loc*: Location
     GenTypeDef* = object
         ident*: Ident
         typ*: Option[Expression]
         ub*: Option[Expression]
+        loc*: Location
     MetadataKind* {.pure.} = enum
         SubType
     Metadata* = object
@@ -283,6 +287,7 @@ type
     ExpressionObject = object
         loc*: Location
         typ*: Type
+        scope*: Scope
         case kind*: ExpressionKind
         of ExpressionKind.Literal:
             litval*: Literal
@@ -326,7 +331,6 @@ type
             `block`*: Expression
         of ExpressionKind.Seq:
             expressions*: seq[Expression]
-            scope*: Scope
         of ExpressionKind.Typeof:
             `typeof`*: Expression
         of ExpressionKind.Malloc, ExpressionKind.Realloc:
