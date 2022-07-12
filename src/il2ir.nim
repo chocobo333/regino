@@ -1,6 +1,7 @@
 
 import sequtils
 import tables
+import sugar
 
 import syntax/il
 import syntax/projects as ilprojects
@@ -12,14 +13,15 @@ import sema/ir/[
 
 import lineinfos
 
-proc il2ir*(self: Statement): ir.Expression =
+proc il2ir*(self: Statement, scope: Scope): ir.Expression =
     # TODO:
     discard
 
 proc il2ir*(self: Program): ir.Expression =
+    let scope = newScope()
     ir.Expression.Seq(
-        self.stmts.map(il2ir), 
-        newScope(),
+        self.stmts.map(_ => il2ir(_, scope)), 
+        scope,
         # TODO:
         # calculate location from stmts or 
         # change definition of Program to have location and revise parser of Program
