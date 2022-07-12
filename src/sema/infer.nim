@@ -12,25 +12,6 @@ import coerce
 import ../utils
 
 
-proc infer(self: Ident, project: Project, global: bool = false): Type =
-    let
-        name = self.name
-        vars = project.env.lookupVar(name)
-        types = project.env.lookupType(name)
-        funcs = project.env.lookupFunc(name)
-        t = vars.mapIt(it.typ) & types.mapIt(it.typ) & funcs.mapIt(it.pty.inst(project.env))
-    case t.len
-    of 0:
-        let
-            tv = Type.Var(project.env)
-            symbol = Symbol.NotDeclared(self, tv, global)
-        project.addErr project.env.addSymbol(symbol)
-        tv
-    of 1:
-        t[0]
-    else:
-        Type.Select(t, project.env)
-
 proc infer(self: Literal): Type =
     self.typ
 proc infer*(self: Expression, project: Project, global: bool = false): Type =
@@ -39,7 +20,7 @@ proc infer*(self: Expression, project: Project, global: bool = false): Type =
     of ExpressionKind.Literal:
         self.litval.infer()
     of ExpressionKind.Ident:
-        self.ident.infer(project)
+        self.typ
     of ExpressionKind.Call:
         let
             tv = Type.Var(project.env)

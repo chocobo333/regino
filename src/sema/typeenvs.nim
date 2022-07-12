@@ -24,10 +24,10 @@ proc newScope*(parent: Scope = nil): Scope =
         funcs: initTable[string, seq[Symbol]]()
     )
 
-proc pushScope(self: TypeEnv, scope: Scope) =
+proc pushScope*(self: TypeEnv, scope: Scope) =
     assert scope.parent == self.scope
     self.scope = scope
-proc popScope(self: TypeEnv): Scope {.discardable.} =
+proc popScope*(self: TypeEnv): Scope {.discardable.} =
     result = self.scope
     self.scope = self.scope.parent
 
@@ -49,11 +49,11 @@ proc addSymbol*(self: TypeEnv, symbol: Symbol): Option[Error] =
     case symbol.kind
     of SymbolKind.Notdeclared:
         result = some Error.InternalError
-    of SymbolKind.Let, SymbolKind.Var, SymbolKind.Const:
+    of SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param:
         if name in self.scope.types:
             result = some Error.Redifinition
         self.scope.vars[name] = symbol
-    of SymbolKind.Type:
+    of SymbolKind.Type, SymbolKind.GenParam:
         if name in self.scope.types or name in self.scope.funcs or name in self.scope.vars:
             result = some Error.Redifinition
         self.scope.types[name] = symbol
@@ -94,12 +94,21 @@ proc newSelect(self: TypeEnv, choices: HashSet[Type]): TypeVar =
         choices: choices
     )
     self.vars.incl result
+proc newGen(self: TypeEnv, ub: Type = Type.Unit, typ: Type = Type.Univ(0)): GenericType =
+    let id = self.id_gen.get()
+    GenericType(
+        id: id,
+        ub: ub,
+        typ: typ
+    )
 proc Var*(_: typedesc[Type], env: TypeEnv): Type =
     Type.Var(env.newVar())
 proc Select*(_: typedesc[Type], choices: HashSet[Type], env: TypeEnv): Type =
     Type.Var(env.newSelect(choices))
 proc Select*(_: typedesc[Type], choices: seq[Type], env: TypeEnv): Type =
     Type.Var(env.newSelect(choices.toHashSet))
+proc Gen*(_: typedesc[Type], env: TypeEnv, ub: Type = Type.Unit, typ: Type = Type.Univ(0)): Type =
+    Type.Gen(env.newGen(ub, typ))
 
 proc inst*(self: PiType, env: TypeEnv): Type =
     var subs = initTable[GenericType, Type]()

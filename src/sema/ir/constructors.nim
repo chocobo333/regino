@@ -7,7 +7,12 @@ import ir
 
 proc newIdent*(name: string, loc: Location): Ident =
     Ident(name: name, loc: loc)
-
+proc newPiType*(typ: Type, implicits: seq[GenericType], ident: Option[Ident] = none(Ident)): PiType =
+    PiType(
+        ident: ident,
+        params: implicits,
+        rety: typ
+    )
 proc Unit*(_: typedesc[Value]): Value =
     Value(kind: ValueKind.Unit)
 proc Univ*(_: typedesc[Value], level: uint): Value =
@@ -90,18 +95,18 @@ proc Param*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol 
     result = Symbol(kind: SymbolKind.Param, ident: ident, typ: typ, global: global)
     ident.typ = typ
     typ.symbol = some result
-proc Typ*(_: typedesc[Symbol], ident: Ident, val: Type, global: bool): Symbol =
+proc Typ*(_: typedesc[Symbol], ident: Ident, val: PiType, global: bool, loc: Location): Symbol =
     let typ = val.typ
     ident.typ = typ
-    result = Symbol(kind: SymbolKind.Typ, ident: ident, val: val, typ: typ, global: global)
+    result = Symbol(kind: SymbolKind.Type, ident: ident, pval: val, global: global, loc: loc)
     typ.symbol = some result
-proc GenParam*(_: typedesc[Symbol], ident: Ident, val: Type): Symbol =
+proc GenParam*(_: typedesc[Symbol], ident: Ident, val: PiType): Symbol =
     let typ = val.typ
-    result = Symbol(kind: SymbolKind.GenParam, ident: ident, val: val, typ: typ, global: false)
+    result = Symbol(kind: SymbolKind.GenParam, ident: ident, pval: val, global: false)
     typ.symbol = some result
-proc Func*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Func, ident: ident, typ: typ, global: global)
-    typ.symbol = some result
+proc Func*(_: typedesc[Symbol], ident: Ident, pty: PiType, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Func, ident: ident, pty: pty, global: global)
+    pty.rety.symbol = some result
 proc Field*(_: typedesc[Symbol], ident: Ident, typ: Type, index: int,  global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Field, ident: ident, typ: typ, index: index, global: global)
     typ.symbol = some result
@@ -146,9 +151,9 @@ proc Pair*(_: typedesc[Expression], first: Expression, second: Expression, loc: 
     ir.Expression(kind: ExpressionKind.Pair, first: first, second: second, loc: loc)
 proc Array*(_: typedesc[Expression], elements: seq[Expression], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Array, elements: elements, loc: loc)
-proc Record*(_: typedesc[Expression], obj: Expression, implicits: seq[Expression], members: Table[ir.Ident, ir.Expression], loc: Location): Expression =
-    ir.Expression(kind: ExpressionKind.Record, obj: obj, implicits: implicits, members: members, loc: loc)
-proc ObjCons*(_: typedesc[Expression], obj: Expression, implicits: seq[Expression], members: Table[ir.Ident, ir.Expression], loc: Location): Expression =
+proc Record*(_: typedesc[Expression], members: Table[ir.Ident, ir.Expression], loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.Record, members: members, loc: loc)
+proc ObjCons*(_: typedesc[Expression], obj: Ident, implicits: seq[Expression], members: Table[ir.Ident, ir.Expression], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.ObjCons, obj: obj, implicits: implicits, members: members, loc: loc)
 proc Ref*(_: typedesc[Expression], to: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Ref, to: to, loc: loc)
@@ -158,8 +163,8 @@ proc LetSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location):
     ir.Expression(kind: ExpressionKind.LetSection, iddefs: iddefs, loc: loc)
 proc VarSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.VarSection, iddefs: iddefs, loc: loc)
-proc TypeSection*(_: typedesc[Expression], typedefs: seq[TypeDef], loc: Location): Expression =
-    ir.Expression(kind: ExpressionKind.TypeSection, typedefs: typedefs, loc: loc)
+proc TypeSection*(_: typedesc[Expression], typedef: TypeDef, loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.TypeSection, typedef: typedef, loc: loc)
 proc Assign*(_: typedesc[Expression], assign_lval: Pattern, assign_val: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Assign, assign_lval: assign_lval, assign_val: assign_val, loc: loc)
 proc Funcdef*(_: typedesc[Expression], fn: Function, loc: Location): Expression =
@@ -170,8 +175,8 @@ proc Loop*(_: typedesc[Expression], lable: Ident, `block`: Expression, loc: Loca
     ir.Expression(kind: ExpressionKind.Loop, lable: lable, `block`: `block`, loc: loc)
 proc Discard*(_: typedesc[Expression], lable: Ident, `block`: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Discard, lable: lable, `block`: `block`, loc: loc)
-proc Seq*(_: typedesc[Expression], expressions: seq[Expression], scope: Scope, loc: Location): Expression =
-    ir.Expression(kind: ExpressionKind.Seq, expressions: expressions, scope: scope, loc: loc)
+proc Seq*(_: typedesc[Expression], expressions: seq[Expression], loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.Seq, expressions: expressions, loc: loc)
 proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Typeof, `typeof`: `typeof`, loc: loc)
 proc Malloc*(_: typedesc[Expression], mtype, msize: Expression, loc: Location): Expression =

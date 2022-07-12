@@ -16,19 +16,22 @@ type
         Let
         Var
         Const
+        Param
         Type
+        GenParam
         Func
         Field
     Symbol* = object
         loc*: Location
         ident*: Ident
-        val*: Type
         global*: bool
         case kind*: SymbolKind
-        of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const:
+        of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param:
+            val*: Type
             typ*: Type
-        of SymbolKind.Type, SymbolKind.Func, SymbolKind.Field:
-            pty*: PiType
+        of SymbolKind.Type, SymbolKind.GenParam, SymbolKind.Func, SymbolKind.Field:
+            pval*: PiType # for Type, GenParam
+            pty*: PiType # for Func, Field
             definition*: Function # for Func
             instances*: Table[seq[Type], Symbol]
             index*: int # for Field
@@ -167,14 +170,17 @@ type
         pat*: Pattern
         typ*: Option[Expression]
         default*: Option[Expression]
+        loc*: Location
     TypeDef* = object
         ident*: Ident
         params*: seq[GenTypeDef]
         typ*: TypeExpression
+        loc*: Location
     GenTypeDef* = object
         ident*: Ident
         typ*: Option[Expression]
         ub*: Option[Expression]
+        loc*: Location
     MetadataKind* {.pure.} = enum
         SubType
     Metadata* = object
@@ -283,6 +289,7 @@ type
     ExpressionObject = object
         loc*: Location
         typ*: Type
+        scope*: Scope
         case kind*: ExpressionKind
         of ExpressionKind.Literal:
             litval*: Literal
@@ -303,7 +310,7 @@ type
         of ExpressionKind.Array:
             elements*: seq[Expression]
         of ExpressionKind.Record, ExpressionKind.ObjCons:
-            obj*: Expression
+            obj*: Ident
             implicits*: seq[Expression]
             members*: Table[Ident, Expression]
         of ExpressionKind.Ref:
@@ -313,7 +320,7 @@ type
         of ExpressionKind.LetSection, ExpressionKind.VarSection:
             iddefs*: seq[IdentDef]
         of ExpressionKind.TypeSection:
-            typedefs*: seq[TypeDef]
+            typedef*: TypeDef
         of ExpressionKind.Assign:
             assign_lval*: Pattern
             assign_val*: Expression
@@ -326,7 +333,6 @@ type
             `block`*: Expression
         of ExpressionKind.Seq:
             expressions*: seq[Expression]
-            scope*: Scope
         of ExpressionKind.Typeof:
             `typeof`*: Expression
         of ExpressionKind.Malloc, ExpressionKind.Realloc:
@@ -345,6 +351,7 @@ type
         Tuple
         Record
     Pattern* = ref object
+        typ*: Type
         case kind*: PatternKind
         of PatternKind.Literal:
             litval*: Literal
