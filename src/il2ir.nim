@@ -1,6 +1,7 @@
 
 import sequtils
 import tables
+import options
 import sugar
 
 import syntax/il
@@ -13,13 +14,46 @@ import sema/ir/[
 
 import lineinfos
 
-proc il2ir*(self: il.IdentDef, scope: Scope): ir.IdentDef =
+proc il2ir*(self: il.Ident, scope: Scope): ir.Ident =
     # TODO:
     discard
 
-proc il2ir*(self: il.TypeDef, scope: Scope): ir.TypeDef =
+proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     # TODO:
     discard
+
+proc il2ir*(self: il.TypeExpression, scope: Scope): ir.TypeExpression =
+    # TODO:
+    discard
+
+proc il2ir*(self: il.Pattern, scope: Scope): ir.Pattern =
+    # TODO:
+    discard
+
+proc il2ir*(self: il.IdentDef, scope: Scope): ir.IdentDef =
+    ir.IdentDef(
+        pat: self.pat.il2ir(scope), 
+        typ: self.typ.map(_ => il2ir(_, scope)), 
+        default: self.default.map(_ => il2ir(_, scope)),
+        loc: self.loc
+    )
+
+proc il2ir*(self: il.GenTypeDef, scope: Scope): ir.GenTypeDef =
+    ir.GenTypeDef(
+        ident: self.id.il2ir(scope),
+        typ: self.typ.map(_ => il2ir(_, scope)),
+        ub: self.ub.map(_ => il2ir(_, scope)),
+        loc: self.loc
+    )
+
+proc il2ir*(self: il.TypeDef, scope: Scope): ir.TypeDef =
+    let params = if self.params.isSome: self.params.get.map(_ => il2ir(_, scope)) else: @[]
+    ir.TypeDef(
+        ident: self.id.il2ir(scope),
+        params: params,
+        typ: self.typ.il2ir(scope),
+        loc: self.loc
+    )
 
 proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
     self.iddefs.map(_ => il2ir(_, scope))

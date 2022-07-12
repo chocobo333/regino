@@ -98,6 +98,7 @@ type
     GenTypeDef* = ref object
         # represents `id <: ub`
         id*: Ident
+        typ*: Option[Expression]
         ub*: Option[Expression]
     FunctionParam* = ref object
         # represents `[implicit](params) -> rety`
