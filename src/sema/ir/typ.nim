@@ -89,3 +89,7 @@ proc typ*(self: Type): Type =
         Type.Univ(0)
     of TypeKind.Link:
         Type.Univ(0)
+
+proc typ*(self: PiType): Type =
+    # TODO:
+    Type.Univ(1)

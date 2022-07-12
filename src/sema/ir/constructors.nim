@@ -7,7 +7,12 @@ import ir
 
 proc newIdent*(name: string, loc: Location): Ident =
     Ident(name: name, loc: loc)
-
+proc newPiType*(typ: Type, implicits: seq[GenericType], ident: Option[Ident] = none(Ident)): PiType =
+    PiType(
+        ident: ident,
+        params: implicits,
+        rety: typ
+    )
 proc Unit*(_: typedesc[Value]): Value =
     Value(kind: ValueKind.Unit)
 proc Univ*(_: typedesc[Value], level: uint): Value =
@@ -90,18 +95,18 @@ proc Param*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol 
     result = Symbol(kind: SymbolKind.Param, ident: ident, typ: typ, global: global)
     ident.typ = typ
     typ.symbol = some result
-proc Typ*(_: typedesc[Symbol], ident: Ident, val: Type, global: bool): Symbol =
+proc Typ*(_: typedesc[Symbol], ident: Ident, val: PiType, global: bool, loc: Location): Symbol =
     let typ = val.typ
     ident.typ = typ
-    result = Symbol(kind: SymbolKind.Typ, ident: ident, val: val, typ: typ, global: global)
+    result = Symbol(kind: SymbolKind.Type, ident: ident, pval: val, global: global, loc: loc)
     typ.symbol = some result
 proc GenParam*(_: typedesc[Symbol], ident: Ident, val: Type): Symbol =
     let typ = val.typ
     result = Symbol(kind: SymbolKind.GenParam, ident: ident, val: val, typ: typ, global: false)
     typ.symbol = some result
-proc Func*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Func, ident: ident, typ: typ, global: global)
-    typ.symbol = some result
+proc Func*(_: typedesc[Symbol], ident: Ident, pty: PiType, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Func, ident: ident, pty: pty, global: global)
+    pty.rety.symbol = some result
 proc Field*(_: typedesc[Symbol], ident: Ident, typ: Type, index: int,  global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Field, ident: ident, typ: typ, index: index, global: global)
     typ.symbol = some result
