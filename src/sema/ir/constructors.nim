@@ -100,9 +100,9 @@ proc Typ*(_: typedesc[Symbol], ident: Ident, val: PiType, global: bool, loc: Loc
     ident.typ = typ
     result = Symbol(kind: SymbolKind.Type, ident: ident, pval: val, global: global, loc: loc)
     typ.symbol = some result
-proc GenParam*(_: typedesc[Symbol], ident: Ident, val: Type): Symbol =
+proc GenParam*(_: typedesc[Symbol], ident: Ident, val: PiType): Symbol =
     let typ = val.typ
-    result = Symbol(kind: SymbolKind.GenParam, ident: ident, val: val, typ: typ, global: false)
+    result = Symbol(kind: SymbolKind.GenParam, ident: ident, pval: val, global: false)
     typ.symbol = some result
 proc Func*(_: typedesc[Symbol], ident: Ident, pty: PiType, global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Func, ident: ident, pty: pty, global: global)
@@ -163,8 +163,8 @@ proc LetSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location):
     ir.Expression(kind: ExpressionKind.LetSection, iddefs: iddefs, loc: loc)
 proc VarSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.VarSection, iddefs: iddefs, loc: loc)
-proc TypeSection*(_: typedesc[Expression], typedefs: seq[TypeDef], loc: Location): Expression =
-    ir.Expression(kind: ExpressionKind.TypeSection, typedefs: typedefs, loc: loc)
+proc TypeSection*(_: typedesc[Expression], typedef: TypeDef, loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.TypeSection, typedef: typedef, loc: loc)
 proc Assign*(_: typedesc[Expression], assign_lval: Pattern, assign_val: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Assign, assign_lval: assign_lval, assign_val: assign_val, loc: loc)
 proc Funcdef*(_: typedesc[Expression], fn: Function, loc: Location): Expression =
