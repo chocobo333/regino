@@ -77,16 +77,27 @@ proc `$`*(self: Literal): string =
         fmt"'{self.charval}'"
     of LiteralKind.CString:
         self.strval.escape
+
+proc `$`*(self: Expression): string
+proc `$`*(self: TypeExpression): string =
+    # TODO: unit
+    if self.kind == TypeExpressionKind.Expression:
+        $self.expression
+    else:
+        $self.kind
+proc `$`*(self: TypeDef): string =
+    # TODO: unit
+    &"{self.ident.name}\n{self.typ}"
 proc `$`*(self: Expression): string =
     template kind2str(self: Expression): string =
         if self.typ.isNil:
             $self.kind
         else:
             fmt"{self.kind}: {self.typ}"
-    # TODO:
+    # TODO: unit
     result = case self.kind
     of ExpressionKind.Literal:
-        $self.litval
+        "Lit " & $self.litval
     of ExpressionKind.Ident:
         self.ident.name
     of ExpressionKind.Call:
@@ -118,7 +129,7 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.VarSection:
         ""
     of ExpressionKind.TypeSection:
-        ""
+        self.kind2str & "\n" & ($self.typedef).indent(2)
     of ExpressionKind.Assign:
         ""
     of ExpressionKind.Funcdef:
@@ -130,9 +141,9 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.Discard:
         ""
     of ExpressionKind.Seq:
-        ""
+        self.kind2str & "\n" & self.expressions.map(`$`).join("\n").indent(2)
     of ExpressionKind.Typeof:
-        ""
+        self.kind2str & "\n" & ($self.`typeof`).indent(2)
     of ExpressionKind.Malloc:
         ""
     of ExpressionKind.Realloc:
