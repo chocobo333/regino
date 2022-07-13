@@ -8,13 +8,17 @@ import errors
 import generators
 import ir/inst
 
+import ../orders
+
 type
     Constraint = (Type, Type)
     TypeEnv* = ref object
         id_gen: Generator[VarId]
-        vars*: HashSet[TypeVar]
+        tvs*: HashSet[TypeVar]
+        selects*: HashSet[TypeVar]
         constraints*: seq[Constraint]
         scope*: Scope
+        order*: Order[Type]
 
 proc newScope*(parent: Scope = nil): Scope =
     Scope(
@@ -22,6 +26,15 @@ proc newScope*(parent: Scope = nil): Scope =
         vars: initTable[string, Symbol](),
         types: initTable[string, Symbol](),
         funcs: initTable[string, seq[Symbol]]()
+    )
+
+proc newTypeEnv*(scope: Scope): TypeEnv =
+    TypeEnv(
+        id_gen: newGenerator(0),
+        tvs: initHashSet[TypeVar](),
+        selects: initHashSet[TypeVar](),
+        scope: scope,
+        order: newOrder[Type]()
     )
 
 proc pushScope*(self: TypeEnv, scope: Scope) =
@@ -85,7 +98,7 @@ proc newVar(self: TypeEnv): TypeVar =
         ub: Type.Unit,
         lb: Type.Bottom
     )
-    self.vars.incl result
+    self.tvs.incl result
 proc newSelect(self: TypeEnv, choices: HashSet[Type]): TypeVar =
     let id = self.id_gen.get()
     result = TypeVar(
@@ -93,7 +106,7 @@ proc newSelect(self: TypeEnv, choices: HashSet[Type]): TypeVar =
         id: id,
         choices: choices
     )
-    self.vars.incl result
+    self.selects.incl result
 proc newGen(self: TypeEnv, ub: Type = Type.Unit, typ: Type = Type.Univ(0)): GenericType =
     let id = self.id_gen.get()
     GenericType(
