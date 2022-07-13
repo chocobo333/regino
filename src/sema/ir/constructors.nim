@@ -195,12 +195,12 @@ proc Univ*(_: typedesc[Literal], level: uint): Literal =
 proc Unit*(_: typedesc[Literal]): Literal =
     Literal(kind: LiteralKind.Unit)
 proc Bool*(_: typedesc[Literal], boolval: bool): Literal =
-    Literal(kind: LiteralKind.Bool, boolval: bool)
+    Literal(kind: LiteralKind.Bool, boolval: boolval)
 proc Integer*(_: typedesc[Literal], intval: BiggestInt, intbits: uint): Literal =
     Literal(kind: LiteralKind.Integer, intval: intval, intbits: intbits)
 proc Float*(_: typedesc[Literal], floatval: BiggestFloat, floatbits: uint): Literal =
     Literal(kind: LiteralKind.Float, floatval: floatval, floatbits: floatbits)
-proc Char*(_: typedesc[Literal], charval: string): Literal =
+proc Char*(_: typedesc[Literal], charval: char): Literal =
     Literal(kind: LiteralKind.Char, charval: charval)
 proc CString*(_: typedesc[Literal], strval: string): Literal =
     Literal(kind: LiteralKind.CString, strval: strval)
