@@ -355,6 +355,7 @@ type
         Tuple
         Record
     Pattern* = ref object
+        typ*: Type
         case kind*: PatternKind
         of PatternKind.Literal:
             litval*: Literal

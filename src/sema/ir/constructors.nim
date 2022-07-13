@@ -177,8 +177,8 @@ proc Loop*(_: typedesc[Expression], lable: Ident, `block`: Expression, loc: Loca
     ir.Expression(kind: ExpressionKind.Loop, lable: lable, `block`: `block`, loc: loc)
 proc Discard*(_: typedesc[Expression], lable: Ident, `block`: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Discard, lable: lable, `block`: `block`, loc: loc)
-proc Seq*(_: typedesc[Expression], expressions: seq[Expression], scope: Scope, loc: Location): Expression =
-    ir.Expression(kind: ExpressionKind.Seq, expressions: expressions, scope: scope, loc: loc)
+proc Seq*(_: typedesc[Expression], expressions: seq[Expression], loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.Seq, expressions: expressions, loc: loc)
 proc Typeof*(_: typedesc[Expression], `typeof`: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Typeof, `typeof`: `typeof`, loc: loc)
 proc Malloc*(_: typedesc[Expression], mtype, msize: Expression, loc: Location): Expression =

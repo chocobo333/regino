@@ -78,6 +78,9 @@ proc infer*(self: Expression, project: Project, global: bool = false): Type =
     of ExpressionKind.VarSection:
         # TODO:
         Type.Unit
+    of ExpressionKind.ConsSection:
+        # TODO:
+        Type.Unit
     of ExpressionKind.TypeSection:
         # TODO:
         Type.Unit
