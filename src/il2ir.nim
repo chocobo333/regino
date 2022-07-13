@@ -18,8 +18,21 @@ proc il2ir*(self: il.Ident, scope: Scope): ir.Ident =
     constructors.newIdent(self.name, self.loc)
 
 proc il2ir*(self: il.Literal, scope: Scope): ir.Literal =
-    # TODO:
-    discard
+    case self.kind:
+    of il.LiteralKind.unit:
+        ir.Literal.Unit
+    of il.LiteralKind.bool:
+        ir.Literal.Bool(self.boolval)
+    of il.LiteralKind.integer:
+        ir.Literal.Integer(self.intval, self.intbits)
+    of il.LiteralKind.float:
+        ir.Literal.Float(self.floatval, self.floatbits)
+    of il.LiteralKind.char:
+        ir.Literal.Char(self.charval)
+    of il.LiteralKind.string:
+        ir.Literal.CString(self.strval)
+    of il.LiteralKind.Univ:
+        ir.Literal.Univ(self.level)
 
 proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     # TODO:
