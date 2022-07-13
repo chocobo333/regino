@@ -18,6 +18,8 @@ let
     dummyExpression = ir.Expression.Lit(ir.Literal.Unit, newLocation())
     dummyTypeExpression = ir.TypeExpression.Expr(dummyExpression)
 
+proc il2ir*(self: Suite, scope: Scope): ir.Expression
+
 proc il2ir*(self: il.Ident, scope: Scope): ir.Ident =
     constructors.newIdent(self.name, self.loc)
 
@@ -115,6 +117,22 @@ proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
 proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.Expression] =
     self.typedefs.map(it => it.il2ir(scope))
 
+proc il2ir*(self: il.Function, scope: Scope): ir.Function = 
+    let 
+        signature = FunctionSignature(
+            ident: self.id.il2ir(scope),
+            implicits: self.param.implicit.map(it => it.il2ir(scope)),
+            params: self.param.params.map(it => it.il2ir(scope)),
+            # TODO: when rety is none
+            rety: if self.param.rety.isSome: self.param.rety.get.il2ir(scope) else: dummyExpression
+        )
+        body = if self.suite.isSome: self.suite.get.il2ir(scope) else: dummyExpression
+
+    ir.Function(
+        signature: signature,
+        body: body
+    )
+
 proc il2ir*(self: Statement, scope: Scope): ir.Expression =
     # TODO:
     result = case self.kind:
@@ -128,13 +146,17 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
         let typeDefs = self.typedefSection.il2ir(scope)
         ir.Expression.Seq(typeDefs, scope, self.loc)
     of StatementKind.Funcdef:
-        dummyExpression
+        ir.Expression.Funcdef(self.fn.il2ir(scope), self.loc)
     of StatementKind.Expression:
         self.expression.il2ir(scope)
     else:
         dummyExpression
 
     result.scope = scope
+
+proc il2ir*(self: Suite, scope: Scope): ir.Expression =
+    let scope = newScope(scope)
+    ir.Expression.Seq(self.stmts.map(it => it.il2ir(scope)), scope, self.loc)
 
 proc il2ir*(self: Program): ir.Expression =
     let scope = newScope()
