@@ -14,6 +14,10 @@ import sema/ir/[
 
 import lineinfos
 
+let 
+    dummyExpression = ir.Expression.Lit(ir.Literal.Unit, newLocation())
+    dummyTypeExpression = ir.TypeExpression.Expr(dummyExpression)
+
 proc il2ir*(self: il.Ident, scope: Scope): ir.Ident =
     constructors.newIdent(self.name, self.loc)
 
@@ -36,11 +40,29 @@ proc il2ir*(self: il.Literal, scope: Scope): ir.Literal =
 
 proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     # TODO:
-    discard
+    case self.kind:
+    of il.ExpressionKind.Literal:
+        ir.Expression.Lit(self.litval.il2ir(scope), self.loc)
+    of il.ExpressionKind.Ident:
+        ir.Expression.Id(self.ident.il2ir(scope), self.loc)
+    of il.ExpressionKind.Array:
+        ir.Expression.Array(self.exprs.map(it => it.il2ir(scope)), self.loc)
+    else:
+        assert(false, "Not Implemented")
+        dummyExpression
 
 proc il2ir*(self: il.TypeExpression, scope: Scope): ir.TypeExpression =
     # TODO:
-    discard
+    result = case self.kind:
+    of il.TypeExpressionKind.Expression:
+        ir.TypeExpression.Expr(self.expression.il2ir(scope))
+    else:
+        assert(false, "Not Implemented")
+        dummyTypeExpression
+
+    if self.isRef:
+        result = ir.TypeExpression.Ref(result)
+
 
 proc il2ir*(self: il.Pattern, scope: Scope): ir.Pattern =
     case self.kind:
@@ -93,11 +115,7 @@ proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.Expression] =
 
 proc il2ir*(self: Statement, scope: Scope): ir.Expression =
     # TODO:
-    # to be deleted
-    let 
-        unitLit = ir.Literal.Unit
-        unit = ir.Expression.Lit(unitLit, self.loc)
-    case self.kind:
+    result = case self.kind:
     of StatementKind.LetSection:
         ir.Expression.LetSection(self.iddefSection.il2ir(scope), self.loc)
     of StatementKind.VarSection:
@@ -108,11 +126,11 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
         let typeDefs = self.typedefSection.il2ir(scope)
         ir.Expression.Seq(typeDefs, scope, self.loc)
     of StatementKind.Funcdef:
-        unit
+        dummyExpression
     of StatementKind.Expression:
-        unit
+        dummyExpression
     else:
-        unit
+        dummyExpression
 
 proc il2ir*(self: Program): ir.Expression =
     let scope = newScope()
