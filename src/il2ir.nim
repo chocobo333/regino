@@ -8,13 +8,13 @@ import syntax/il
 import syntax/projects as ilprojects
 import sema/projects as irprojects
 import sema/ir/[
-    ir, 
+    ir,
     constructors
 ]
 
 import lineinfos
 
-let 
+let
     dummyExpression = ir.Expression.Lit(ir.Literal.Unit, newLocation())
     dummyTypeExpression = ir.TypeExpression.Expr(dummyExpression)
 
@@ -84,8 +84,8 @@ proc il2ir*(self: il.Pattern, scope: Scope): ir.Pattern =
 
 proc il2ir*(self: il.IdentDef, scope: Scope): ir.IdentDef =
     ir.IdentDef(
-        pat: self.pat.il2ir(scope), 
-        typ: self.typ.map(it => it.il2ir(scope)), 
+        pat: self.pat.il2ir(scope),
+        typ: self.typ.map(it => it.il2ir(scope)),
         default: self.default.map(it => it.il2ir(scope)),
         loc: self.loc
     )
@@ -99,7 +99,7 @@ proc il2ir*(self: il.GenTypeDef, scope: Scope): ir.GenTypeDef =
     )
 
 proc il2ir*(self: il.TypeDef, scope: Scope): ir.Expression =
-    let 
+    let
         scope = newScope(scope)
         params = if self.params.isSome: self.params.get.map(it => it.il2ir(scope)) else: @[]
         typeDef = ir.TypeDef(
@@ -117,8 +117,8 @@ proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
 proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.Expression] =
     self.typedefs.map(it => it.il2ir(scope))
 
-proc il2ir*(self: il.Function, scope: Scope): ir.Function = 
-    let 
+proc il2ir*(self: il.Function, scope: Scope): ir.Function =
+    let
         signature = FunctionSignature(
             ident: self.id.il2ir(scope),
             implicits: self.param.implicit.map(it => it.il2ir(scope)),
@@ -144,7 +144,7 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
         ir.Expression.ConsSection(self.iddefSection.il2ir(scope), self.loc)
     of StatementKind.TypeSection:
         let typeDefs = self.typedefSection.il2ir(scope)
-        ir.Expression.Seq(typeDefs, scope, self.loc)
+        ir.Expression.Seq(typeDefs, self.loc)
     of StatementKind.Funcdef:
         ir.Expression.Funcdef(self.fn.il2ir(scope), self.loc)
     of StatementKind.Expression:
@@ -156,15 +156,14 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
 
 proc il2ir*(self: Suite, scope: Scope): ir.Expression =
     let scope = newScope(scope)
-    ir.Expression.Seq(self.stmts.map(it => it.il2ir(scope)), scope, self.loc)
+    ir.Expression.Seq(self.stmts.map(it => it.il2ir(scope)), self.loc)
 
 proc il2ir*(self: Program): ir.Expression =
     let scope = newScope()
     ir.Expression.Seq(
-        self.stmts.map(it => it.il2ir(scope)), 
-        scope,
+        self.stmts.map(it => it.il2ir(scope)),
         # TODO:
-        # calculate location from stmts or 
+        # calculate location from stmts or
         # change definition of Program to have location and revise parser of Program
         newLocation()
     )
