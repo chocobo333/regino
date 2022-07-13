@@ -156,7 +156,8 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
 
 proc il2ir*(self: Suite, scope: Scope): ir.Expression =
     let scope = newScope(scope)
-    ir.Expression.Seq(self.stmts.map(it => it.il2ir(scope)), self.loc)
+    result = ir.Expression.Seq(self.stmts.map(it => it.il2ir(scope)), self.loc)
+    result.scope = scope
 
 proc il2ir*(self: Program): ir.Expression =
     let scope = newScope()
