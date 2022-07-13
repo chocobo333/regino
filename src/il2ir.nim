@@ -128,7 +128,7 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
     of StatementKind.Funcdef:
         dummyExpression
     of StatementKind.Expression:
-        dummyExpression
+        self.expression.il2ir(scope)
     else:
         dummyExpression
 
