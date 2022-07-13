@@ -36,9 +36,9 @@ proc il2ir*(self: il.Pattern, scope: Scope): ir.Pattern =
     of il.PatternKind.Ident:
         ir.Pattern.Id(self.ident.il2ir(scope))
     of il.PatternKind.Tuple:
-        ir.Pattern.Tuple(self.tag.map(_ => il2ir(_, scope)), self.patterns.map(_ => il2ir(_, scope)))
+        ir.Pattern.Tuple(self.tag.map(it => it.il2ir(scope)), self.patterns.map(it => it.il2ir(scope)))
     of il.PatternKind.Record:
-        ir.Pattern.Record(self.tag.map(_ => il2ir(_, scope)), self.members.map(_ => (il2ir(_[0], scope), il2ir(_[1], scope))))
+        ir.Pattern.Record(self.tag.map(it => it.il2ir(scope)), self.members.map(_ => (il2ir(_[0], scope), il2ir(_[1], scope))))
     of il.PatternKind.UnderScore:
         let ident = constructors.newIdent("_", self.loc)
         ir.Pattern.Id(ident)
@@ -46,23 +46,23 @@ proc il2ir*(self: il.Pattern, scope: Scope): ir.Pattern =
 proc il2ir*(self: il.IdentDef, scope: Scope): ir.IdentDef =
     ir.IdentDef(
         pat: self.pat.il2ir(scope), 
-        typ: self.typ.map(_ => il2ir(_, scope)), 
-        default: self.default.map(_ => il2ir(_, scope)),
+        typ: self.typ.map(it => it.il2ir(scope)), 
+        default: self.default.map(it => it.il2ir(scope)),
         loc: self.loc
     )
 
 proc il2ir*(self: il.GenTypeDef, scope: Scope): ir.GenTypeDef =
     ir.GenTypeDef(
         ident: self.id.il2ir(scope),
-        typ: self.typ.map(_ => il2ir(_, scope)),
-        ub: self.ub.map(_ => il2ir(_, scope)),
+        typ: self.typ.map(it => it.il2ir(scope)),
+        ub: self.ub.map(it => it.il2ir(scope)),
         loc: self.loc
     )
 
 proc il2ir*(self: il.TypeDef, scope: Scope): ir.Expression =
     let 
         scope = newScope(scope)
-        params = if self.params.isSome: self.params.get.map(_ => il2ir(_, scope)) else: @[]
+        params = if self.params.isSome: self.params.get.map(it => it.il2ir(scope)) else: @[]
         typeDef = ir.TypeDef(
             ident: self.id.il2ir(scope),
             params: params,
@@ -73,10 +73,10 @@ proc il2ir*(self: il.TypeDef, scope: Scope): ir.Expression =
     result.scope = scope
 
 proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
-    self.iddefs.map(_ => il2ir(_, scope))
+    self.iddefs.map(it => it.il2ir(scope))
 
 proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.Expression] =
-    self.typedefs.map(_ => il2ir(_, scope))
+    self.typedefs.map(it => it.il2ir(scope))
 
 proc il2ir*(self: Statement, scope: Scope): ir.Expression =
     # TODO:
@@ -104,7 +104,7 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
 proc il2ir*(self: Program): ir.Expression =
     let scope = newScope()
     ir.Expression.Seq(
-        self.stmts.map(_ => il2ir(_, scope)), 
+        self.stmts.map(it => it.il2ir(scope)), 
         scope,
         # TODO:
         # calculate location from stmts or 
