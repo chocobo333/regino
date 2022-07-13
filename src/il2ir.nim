@@ -40,7 +40,7 @@ proc il2ir*(self: il.Literal, scope: Scope): ir.Literal =
 
 proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     # TODO:
-    case self.kind:
+    result = case self.kind:
     of il.ExpressionKind.Literal:
         ir.Expression.Lit(self.litval.il2ir(scope), self.loc)
     of il.ExpressionKind.Ident:
@@ -50,6 +50,8 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     else:
         assert(false, "Not Implemented")
         dummyExpression
+
+    result.scope = scope
 
 proc il2ir*(self: il.TypeExpression, scope: Scope): ir.TypeExpression =
     # TODO:
@@ -131,6 +133,8 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
         self.expression.il2ir(scope)
     else:
         dummyExpression
+
+    result.scope = scope
 
 proc il2ir*(self: Program): ir.Expression =
     let scope = newScope()
