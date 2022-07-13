@@ -17,6 +17,8 @@ proc typ*(self: Literal): Type =
         Type.Char
     of LiteralKind.CString:
         Type.CString
+    of LiteralKind.Univ:
+        Type.Univ(self.level)
 
 proc typ*(self: Value): Type =
     # TODO:

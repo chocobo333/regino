@@ -77,6 +77,8 @@ proc `$`*(self: Literal): string =
         fmt"'{self.charval}'"
     of LiteralKind.CString:
         self.strval.escape
+    of LiteralKind.Univ:
+        fmt"Type{self.level}"
 proc `$`*(self: Expression): string =
     # TODO:
     result = case self.kind
@@ -111,6 +113,8 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.LetSection:
         ""
     of ExpressionKind.VarSection:
+        ""
+    of ExpressionKind.ConsSection:
         ""
     of ExpressionKind.TypeSection:
         ""

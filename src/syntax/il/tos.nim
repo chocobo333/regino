@@ -626,41 +626,6 @@ proc `$`*(self: Symbol, typed: bool = false, regioned: bool = false, comment: bo
                 `$`(self.enumdef, typed, regioned, comment)
         loc = self.id.loc
     fmt"{loc}: ({kind}){id}: {typ} ({impl})"
-proc `$`*(self: Scope, typed: bool = false, regioned: bool = false, comment: bool = false): string =
-    var
-        tmp = self
-        scopes: seq[Table[string, seq[Symbol]]]
-        consts: seq[Table[string, seq[Symbol]]]
-    while not tmp.isNil:
-        scopes.add tmp.syms
-        consts.add tmp.consts
-        tmp = tmp.parent
-    result = if scopes.foldl(a + b.len, 0) == 0:
-        "{}"
-    else:
-        for scope in scopes:
-            for (key, val) in scope.pairs:
-                let
-                    val =
-                        if val.len == 1:
-                            `$`(val[0], typed, regioned, comment)
-                        else:
-                            val.mapIt(`$`(it, typed, regioned, comment)).join("\n").indent(2)
-                result &= &"\"{key}\": {val},\n"
-        &"{{\n{result[0..^3].indent(2)}\n}}"
-    result.add "\n"
-    result.add if consts.foldl(a + b.len, 0) == 0:
-        "{}"
-    else:
-        var ret: string
-        for scope in consts:
-            for (key, val) in scope.pairs:
-                discard `$`(@[1, 2])
-                let
-                    val = val.mapIt(`$`(it, typed, regioned, comment)).join(", ")
-                ret &= &"\"{key}\" = {val},\n"
-        &"{{\n{ret[0..^3].indent(2)}\n}}"
-
 proc treeRepr*(self: Ident): string =
     "Ident\n" & ($self).indent(2)
 proc treeRepr*(self: Expression): string =

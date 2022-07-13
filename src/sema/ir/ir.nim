@@ -248,6 +248,7 @@ type
         Import
         LetSection
         VarSection
+        ConsSection
         TypeSection
         Assign
         Funcdef
@@ -263,6 +264,7 @@ type
         PtrGet
     PremitiveExpressionKind = range[ExpressionKind.Typeof..ExpressionKind.PtrGet]
     LiteralKind* {.pure.} = enum
+        Univ
         Unit
         Bool
         Integer
@@ -271,6 +273,8 @@ type
         CString
     Literal* = object
         case kind*: LiteralKind
+        of LiteralKind.Univ:
+            level*: uint
         of LiteralKind.Unit:
             nil
         of LiteralKind.Bool:
@@ -317,7 +321,7 @@ type
             to*: Expression
         of ExpressionKind.Import:
             module*: Ident
-        of ExpressionKind.LetSection, ExpressionKind.VarSection:
+        of ExpressionKind.LetSection, ExpressionKind.VarSection, ExpressionKind.ConsSection:
             iddefs*: seq[IdentDef]
         of ExpressionKind.TypeSection:
             typedef*: TypeDef
