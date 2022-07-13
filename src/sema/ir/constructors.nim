@@ -190,6 +190,8 @@ proc PtrSet*(_: typedesc[Expression], `ptr`, index, val: Expression, loc: Locati
 proc PtrGet*(_: typedesc[Expression], `ptr`, index: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.PtrGet, `ptr`: `ptr`, index: index, loc: loc)
 
+proc Univ*(_: typedesc[Literal], level: uint): Literal =
+    Literal(kind: LiteralKind.Univ, level: level)
 proc Unit*(_: typedesc[Literal]): Literal =
     Literal(kind: LiteralKind.Unit)
 proc Bool*(_: typedesc[Literal], boolval: bool): Literal =

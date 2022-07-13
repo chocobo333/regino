@@ -264,6 +264,7 @@ type
         PtrGet
     PremitiveExpressionKind = range[ExpressionKind.Typeof..ExpressionKind.PtrGet]
     LiteralKind* {.pure.} = enum
+        Univ
         Unit
         Bool
         Integer
@@ -272,6 +273,8 @@ type
         CString
     Literal* = object
         case kind*: LiteralKind
+        of LiteralKind.Univ:
+            level*: uint
         of LiteralKind.Unit:
             nil
         of LiteralKind.Bool:
