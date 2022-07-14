@@ -180,8 +180,3 @@ when isMainModule:
         mainPath = "test/unit.rgn".absolutePath
         ilProject = buildProject(mainPath)
         irProject = ilProject.il2ir
-
-    let expression = irProject.programs[mainPath]
-    debug expression.kind            # Seq
-    debug expression.expressions.len # 1
-    debug expression.expressions[0]  # 1

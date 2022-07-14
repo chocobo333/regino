@@ -4,6 +4,7 @@ import options
 
 import il
 import parsers
+import desugar
 
 type
     Buffer*[T] = Table[string, T]
@@ -21,7 +22,7 @@ proc buildProject*(main: string): Project =
     let 
         f = open(main)
         s = f.readAll
-        program = Program(Source.from(s)).get
+        program = Program(Source.from(s)).get.desugar
         project = newProject(main)
     
     project.program[main] = program
