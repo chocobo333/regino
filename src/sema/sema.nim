@@ -8,14 +8,17 @@ import eval
 import check
 import resolve
 
+import ../utils
+
 
 proc sema*(self: Project) =
     let
         main = self.programs[self.main]
     main.predeclare(self, global=true)
-    discard main.preeval(self)
-    discard main.infer(self)
-    discard main.check(self)
+    discard main.preeval(self, global=true)
+    debug self.env.constraints
+    main.infer(self, global=true)
+    discard main.check(self, global=true)
 
 
 when isMainModule:

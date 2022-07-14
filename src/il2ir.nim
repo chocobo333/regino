@@ -47,6 +47,8 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
         ir.Expression.Id(self.ident.il2ir(scope), self.loc)
     of il.ExpressionKind.Array:
         ir.Expression.Array(self.exprs.map(it => it.il2ir(scope)), self.loc)
+    of il.ExpressionKind.Typeof:
+        ir.Expression.Typeof(self.`typeof`.il2ir(scope), self.loc)
     else:
         assert(false, "Not Implemented")
         dummyExpression
@@ -176,7 +178,8 @@ when isMainModule:
     import os
     import syntax/projects
     import utils
-    let 
+    let
         mainPath = "test/unit.rgn".absolutePath
         ilProject = buildProject(mainPath)
         irProject = ilProject.il2ir
+    debug irProject.programs[irProject.main]

@@ -305,7 +305,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             members = initTable[string, Type]()
         for k, v in self.members.pairs:
             let
-                tv = Type.Var(project.env)
+                tv = v.preeval(project, global)
             k.typ = tv
             members[k.name] = tv
         Type.Record(members)
@@ -438,6 +438,6 @@ proc posteval*(self: Expression, project: Project): Type =
 proc eval*(self: Expression, project: Project, global: bool = false): Type =
     self.predeclare(project, global)
     discard self.preeval(project, global)
-    discard self.infer(project)
+    self.infer(project, global)
     discard self.check(project)
     discard self.posteval(project)

@@ -1,1 +1,4 @@
-1
+type
+    int = typeof(0)
+let a: int = 3
+a

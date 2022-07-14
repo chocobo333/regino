@@ -12,108 +12,89 @@ import coerce
 import ../utils
 
 
-proc infer(self: Literal): Type =
-    self.typ
-proc infer*(self: Expression, project: Project, global: bool = false): Type =
+proc infer*(self: Expression, project: Project, global: bool = false) =
     # collect constraints of types
     case self.kind
     of ExpressionKind.Literal:
-        self.litval.infer()
+        discard
     of ExpressionKind.Ident:
-        self.typ
+        discard
     of ExpressionKind.Call:
-        let
-            tv = Type.Var(project.env)
-            callee = self.callee.infer(project, global)
-            args = self.args.mapIt(it.infer(project, global))
-        project.env.coerce(callee <= Type.Arrow(args, tv))
-        project.env.coerce(Type.Arrow(args.mapIt(Type.Unit), tv) <= callee) # i dont know whether this is correct.
-        tv
+        self.callee.infer(project, global)
+        for e in self.args:
+            e.infer(project, global)
+        project.env.coerce(self.callee.typ <= Type.Arrow(self.args.mapIt(it.typ), self.typ))
+        project.env.coerce(Type.Arrow(self.args.mapIt(Type.Unit), self.typ) <= self.callee.typ)
     of ExpressionKind.Apply:
-        let
-            callee = self.callee.infer(project, global)
-        Type.Unit
+        # TODO:
+        discard
     of ExpressionKind.If:
-        let
-            tv = Type.Var(project.env)
-            cond = self.cond.infer(project, global)
-            then = self.then.infer(project, global)
-            els = self.els.infer(project, global)
-        project.env.coerce(cond <= Type.Bool)
-        project.env.coerce(then <= tv)
-        project.env.coerce(els <= tv)
-        tv
+        self.cond.infer(project, global)
+        self.then.infer(project, global)
+        self.els.infer(project, global)
+        project.env.coerce(self.cond.typ <= Type.Bool)
+        project.env.coerce(self.then.typ <= self.typ)
+        project.env.coerce(self.els.typ <= self.typ)
     of ExpressionKind.Case:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.Pair:
-        let
-            first = self.first.infer(project, global)
-            second = self.second.infer(project, global)
-        Type.Pair(first, second)
+        self.first.infer(project, global)
+        self.second.infer(project, global)
     of ExpressionKind.Array:
-        let
-            tv = Type.Var(project.env)
-            elements = self.elements.mapIt(it.infer(project, global))
-        for e in elements:
-            project.env.coerce(e <= tv)
-        tv
+        for e in self.elements:
+            e.infer(project, global)
+            project.env.coerce(e.typ <= self.typ)
     of ExpressionKind.Record:
-        var
-            members = initTable[string, Type]()
         for (k, v) in self.members.pairs:
-            members[k.name] = v.infer(project, global)
-        Type.Record(members)
+            v.infer(project, global)
     of ExpressionKind.ObjCons:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.Ref:
-        Type.Ptr(self.to.infer(project, global))
+        self.to.infer(project, global)
     of ExpressionKind.Import:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.LetSection:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.VarSection:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.ConsSection:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.TypeSection:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.Assign:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.Funcdef:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.ImportLL:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.Loop:
-        # TODO:
-        Type.Unit
+        self.`block`.infer(project, global)
     of ExpressionKind.Discard:
-        # TODO:
-        Type.Unit
+        self.`block`.infer(project, global)
     of ExpressionKind.Seq:
-        # TODO:
-        Type.Unit
+        for e in self.expressions:
+            e.infer(project, global)
     of ExpressionKind.Typeof:
-        # TODO:
-        Type.Unit
+        self.typeof.infer(project, global)
     of ExpressionKind.Malloc:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.Realloc:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.PtrSet:
         # TODO:
-        Type.Unit
+        discard
     of ExpressionKind.PtrGet:
         # TODO:
-        Type.Unit
+        discard
