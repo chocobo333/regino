@@ -7,7 +7,8 @@ import ir/[
     hash,
     eq,
     typ,
-    tos
+    tos,
+    compilable
 ]
 
 export ir
@@ -18,3 +19,4 @@ export hash
 export eq
 export typ
 export tos
+export compilable
