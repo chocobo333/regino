@@ -6,6 +6,7 @@ import projects
 import infer
 import eval
 import check
+import resolve
 
 
 proc sema*(self: Project) =
