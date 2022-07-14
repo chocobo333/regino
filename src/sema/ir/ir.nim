@@ -157,6 +157,8 @@ type
         vars*: Table[string, Symbol]
         types*: Table[string, Symbol]
         funcs*: Table[string, seq[Symbol]]
+        converters*: Table[(Type, Type), Ident]
+        imports*: seq[Expression]
     Ident* = ref object
         loc*: Location
         name*: string
