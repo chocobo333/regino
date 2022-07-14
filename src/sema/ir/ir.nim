@@ -89,6 +89,10 @@ type
         Recursive
         Trait
         Var
+        Select
+        RecursiveVar
+        Intersection
+        Union
         Gen
         Link
     Type* = ref TypeObject
@@ -131,26 +135,17 @@ type
             iss*: seq[(Pattern, Value)]
             fns*: seq[Function]
             fnss*: seq[FunctionSignature]
-        of TypeKind.Var:
-            tv*: TypeVar
+        of TypeKind.Var, TypeKind.Select, TypeKind.RecursiveVar:
+            id*: VarId
+            ub*: Type # for Var
+            lb*: Type # for Var
+            choices*: HashSet[Type] # for Select
+        of TypeKind.Intersection, TypeKind.Union:
+            types*: HashSet[Type]
         of TypeKind.Gen:
             gt*: GenericType
         of TypeKind.Link:
             to*: Type
-    TypeVarKind* {.pure.} = enum
-        Var
-        Select
-        Recursive
-    TypeVar* = object
-        id*: VarId
-        case kind*: TypeVarKind
-        of TypeVarKind.Var:
-            ub*: Type
-            lb*: Type
-        of TypeVarKind.Select:
-            choices*: HashSet[Type]
-        of TypeVarKind.Recursive:
-            nil
     GenericType* = object
         id*: VarId
         ub*: Type
@@ -162,6 +157,8 @@ type
         vars*: Table[string, Symbol]
         types*: Table[string, Symbol]
         funcs*: Table[string, seq[Symbol]]
+        converters*: Table[(Type, Type), Ident]
+        imports*: seq[Expression]
     Ident* = ref object
         loc*: Location
         name*: string
@@ -248,6 +245,7 @@ type
         Import
         LetSection
         VarSection
+        ConsSection
         TypeSection
         Assign
         Funcdef
@@ -263,6 +261,7 @@ type
         PtrGet
     PremitiveExpressionKind = range[ExpressionKind.Typeof..ExpressionKind.PtrGet]
     LiteralKind* {.pure.} = enum
+        Univ
         Unit
         Bool
         Integer
@@ -271,6 +270,8 @@ type
         CString
     Literal* = object
         case kind*: LiteralKind
+        of LiteralKind.Univ:
+            level*: uint
         of LiteralKind.Unit:
             nil
         of LiteralKind.Bool:
@@ -317,7 +318,7 @@ type
             to*: Expression
         of ExpressionKind.Import:
             module*: Ident
-        of ExpressionKind.LetSection, ExpressionKind.VarSection:
+        of ExpressionKind.LetSection, ExpressionKind.VarSection, ExpressionKind.ConsSection:
             iddefs*: seq[IdentDef]
         of ExpressionKind.TypeSection:
             typedef*: TypeDef
@@ -361,11 +362,5 @@ type
             tag*: Option[Ident]
             patterns*: seq[Pattern]         # for Tuple
             members*: seq[(Ident, Pattern)] # for Record
-
-
-
-
-proc `==`*(self, other: TypeVar): bool =
-    self.id == other.id
 
 

@@ -17,6 +17,8 @@ proc typ*(self: Literal): Type =
         Type.Char
     of LiteralKind.CString:
         Type.CString
+    of LiteralKind.Univ:
+        Type.Univ(self.level)
 
 proc typ*(self: Value): Type =
     # TODO:
@@ -84,6 +86,14 @@ proc typ*(self: Type): Type =
     of TypeKind.Trait:
         Type.Univ(0)
     of TypeKind.Var:
+        Type.Univ(0)
+    of TypeKind.Select:
+        Type.Univ(0)
+    of TypeKind.RecursiveVar:
+        Type.Univ(0)
+    of TypeKind.Intersection:
+        Type.Univ(0)
+    of TypeKind.Union:
         Type.Univ(0)
     of TypeKind.Gen:
         Type.Univ(0)

@@ -14,6 +14,8 @@ proc eval(self: Literal, project: Project): Type =
     case self.kind
     of LiteralKind.Unit:
         Type.value(Value.Unit)
+    of LiteralKind.Univ:
+        Type.value(Value.Univ(self.level))
     of LiteralKind.Bool:
         Type.value(Value.Bool(self.boolval))
     of LiteralKind.Integer:
@@ -121,6 +123,9 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.VarSection:
         for e in self.iddefs:
             e.predeclare(project, global)
+    of ExpressionKind.ConsSection:
+        # TODO:
+        discard
     of ExpressionKind.TypeSection:
         project.env.enter self.scope:
             self.typedef.predeclare(project, global)
@@ -300,7 +305,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             members = initTable[string, Type]()
         for k, v in self.members.pairs:
             let
-                tv = Type.Var(project.env)
+                tv = v.preeval(project, global)
             k.typ = tv
             members[k.name] = tv
         Type.Record(members)
@@ -328,6 +333,9 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
     of ExpressionKind.VarSection:
         for e in self.iddefs:
             e.preevalVar(project, global)
+        Type.Unit
+    of ExpressionKind.ConsSection:
+        # TODO:
         Type.Unit
     of ExpressionKind.TypeSection:
         project.env.enter self.scope:
@@ -400,6 +408,8 @@ proc posteval*(self: Expression, project: Project): Type =
         Type.Unit
     of ExpressionKind.VarSection:
         Type.Unit
+    of ExpressionKind.ConsSection:
+        Type.Unit
     of ExpressionKind.TypeSection:
         Type.Unit
     of ExpressionKind.Assign:
@@ -428,6 +438,6 @@ proc posteval*(self: Expression, project: Project): Type =
 proc eval*(self: Expression, project: Project, global: bool = false): Type =
     self.predeclare(project, global)
     discard self.preeval(project, global)
-    discard self.infer(project)
+    self.infer(project, global)
     discard self.check(project)
     discard self.posteval(project)

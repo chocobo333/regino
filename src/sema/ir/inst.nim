@@ -1,5 +1,6 @@
 
 import tables
+import sets
 import sequtils
 import sugar
 
@@ -52,12 +53,22 @@ proc inst*(self: Type, subs: Table[GenericType, Type]): Type =
         Type.Recursive(self.self, self.body.inst(subs))
     of TypeKind.Trait:
         Type.Trait((self.paty[0], self.paty[1].inst(subs)), self.iss, self.fns, self.fnss)
-    of TypeKind.Var:
-        Type.Var(self.tv)
+    of TypeKind.Var, TypeKind.Select, TypeKind.RecursiveVar:
+        Type.Link(self)
+    of TypeKind.Intersection:
+        var types = initHashSet[Type]()
+        for e in self.types:
+            types.incl e.inst(subs)
+        Type.Intersection(types)
+    of TypeKind.Union:
+        var types = initHashSet[Type]()
+        for e in self.types:
+            types.incl e.inst(subs)
+        Type.Union(types)
     of TypeKind.Gen:
         if self.gt in subs: subs[self.gt] else: Type.Gen(self.gt)
     of TypeKind.Link:
-        Type.Link(self)
+        Type.Link(self.to)
 
 proc inst*(self: PiType, p: seq[Type]): Type =
     assert self.params.len == p.len

@@ -30,15 +30,15 @@ proc `$`*(self: Type): string =
     of TypeKind.Pair:
         fmt"({self.first}, {self.second})"
     of TypeKind.Array:
-        ""
+        $self.kind
     of TypeKind.Record:
-        ""
+        $self.kind
     of TypeKind.Object:
-        ""
+        $self.kind
     of TypeKind.Arrow:
-        ""
+        $self.kind
     of TypeKind.Cons:
-        ""
+        $self.kind
     of TypeKind.Distinct:
         "distinct {self.base}"
     of TypeKind.Singleton:
@@ -46,19 +46,29 @@ proc `$`*(self: Type): string =
     of TypeKind.Ptr:
         fmt"ptr {self.pointee}"
     of TypeKind.Recursive:
-        ""
+        $self.kind
     of TypeKind.Trait:
-        ""
+        $self.kind
     of TypeKind.Var:
-        ""
+        $self.kind
+    of TypeKind.Select:
+        $self.kind
+    of TypeKind.RecursiveVar:
+        $self.kind
+    of TypeKind.Intersection:
+        $self.kind
+    of TypeKind.Union:
+        $self.kind
     of TypeKind.Gen:
-        ""
+        $self.kind
     of TypeKind.Link:
         fmt"~{self.to}"
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.Unit:
         "()"
+    of LiteralKind.Univ:
+        fmt"Type{self.level}"
     of LiteralKind.Bool:
         $self.boolval
     of LiteralKind.Integer:
@@ -127,6 +137,8 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.LetSection:
         ""
     of ExpressionKind.VarSection:
+        ""
+    of ExpressionKind.ConsSection:
         ""
     of ExpressionKind.TypeSection:
         self.kind2str & "\n" & ($self.typedef).indent(2)

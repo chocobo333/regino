@@ -2,26 +2,62 @@
 import sets
 import tables
 import options
+import sequtils
+import algorithm
 
 import ir
 import errors
 import generators
 import ir/inst
 
+import ../orders
+
 type
-    Constraint = (Type, Type)
+    Constraint* = (Type, Type)
     TypeEnv* = ref object
         id_gen: Generator[VarId]
-        vars*: HashSet[TypeVar]
+        tvs*: HashSet[Type]
+        selects*: HashSet[Type]
         constraints*: seq[Constraint]
         scope*: Scope
+        order*: Order[Type]
 
 proc newScope*(parent: Scope = nil): Scope =
     Scope(
         parent: parent,
         vars: initTable[string, Symbol](),
         types: initTable[string, Symbol](),
-        funcs: initTable[string, seq[Symbol]]()
+        funcs: initTable[string, seq[Symbol]](),
+        converters: initTable[(Type, Type), Ident](),
+    )
+
+iterator items*(self: Scope): Scope =
+    ## The first element is the youngest scope
+    var scope = self
+    while not scope.isNil:
+        yield scope
+        for prog in scope.imports:
+            yield prog.scope
+        scope = scope.parent
+
+iterator reversed*(self: Scope): Scope =
+    ## The first element is the oldest scope
+    for scope in toSeq(self.items).reversed:
+        yield scope
+
+proc getConverters*(self: Scope): Table[(Type, Type), Ident] =
+    for scope in self:
+        for (k, v) in scope.converters.pairs:
+            if not result.contains(k):
+                result[k] = v
+
+proc newTypeEnv*(scope: Scope): TypeEnv =
+    TypeEnv(
+        id_gen: newGenerator(0),
+        tvs: initHashSet[Type](),
+        selects: initHashSet[Type](),
+        scope: scope,
+        order: newOrder[Type]()
     )
 
 proc pushScope*(self: TypeEnv, scope: Scope) =
@@ -38,11 +74,6 @@ template enter*(self: TypeEnv, scope: Scope, body: untyped): untyped =
             self.popScope
         body
 
-iterator items*(self: Scope): Scope =
-    var self = self
-    while not self.isNil:
-        yield self
-        self = self.parent
 proc addSymbol*(self: TypeEnv, symbol: Symbol): Option[Error] =
     let
         name = symbol.ident.name
@@ -77,23 +108,23 @@ proc lookupFunc*(self: TypeEnv, name: string): seq[Symbol] =
     for scope in self.scope:
         if name in scope.funcs:
             result.add scope.funcs[name]
-proc newVar(self: TypeEnv): TypeVar =
+proc newVar(self: TypeEnv): Type =
     let id = self.id_gen.get()
-    result = TypeVar(
-        kind: TypeVarKind.Var,
+    result = Type(
+        kind: TypeKind.Var,
         id: id,
         ub: Type.Unit,
         lb: Type.Bottom
     )
-    self.vars.incl result
-proc newSelect(self: TypeEnv, choices: HashSet[Type]): TypeVar =
+    self.tvs.incl result
+proc newSelect(self: TypeEnv, choices: HashSet[Type]): Type =
     let id = self.id_gen.get()
-    result = TypeVar(
-        kind: TypeVarKind.Select,
+    result = Type(
+        kind: TypeKind.Select,
         id: id,
         choices: choices
     )
-    self.vars.incl result
+    self.selects.incl result
 proc newGen(self: TypeEnv, ub: Type = Type.Unit, typ: Type = Type.Univ(0)): GenericType =
     let id = self.id_gen.get()
     GenericType(
@@ -102,11 +133,11 @@ proc newGen(self: TypeEnv, ub: Type = Type.Unit, typ: Type = Type.Univ(0)): Gene
         typ: typ
     )
 proc Var*(_: typedesc[Type], env: TypeEnv): Type =
-    Type.Var(env.newVar())
+    env.newVar()
 proc Select*(_: typedesc[Type], choices: HashSet[Type], env: TypeEnv): Type =
-    Type.Var(env.newSelect(choices))
+    env.newSelect(choices)
 proc Select*(_: typedesc[Type], choices: seq[Type], env: TypeEnv): Type =
-    Type.Var(env.newSelect(choices.toHashSet))
+    env.newSelect(choices.toHashSet)
 proc Gen*(_: typedesc[Type], env: TypeEnv, ub: Type = Type.Unit, typ: Type = Type.Univ(0)): Type =
     Type.Gen(env.newGen(ub, typ))
 

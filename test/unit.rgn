@@ -1,21 +1,4 @@
-
-![link: "arith.ll"]
-![link: "io.ll"]
-![link: "int.ll"]
-![link: "string.ll"]
-
 type
-  int = 0.typeof
-  float = typeof(0.0)
-  string = typeof("")
-
-func f(a: int, b: int) -> int:
-  1
-
-let
-  a: int = 0
-  b: int = 1
-
-a.f(b)
-
-# malloc(a, 1)
+    int = typeof(0)
+let a: int = 3
+a

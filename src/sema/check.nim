@@ -19,6 +19,8 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         case self.litval.kind
         of LiteralKind.Unit:
             assume(Type.Unit)
+        of LiteralKind.Univ:
+            assume(Type.Univ(self.litval.level+1))
         of LiteralKind.Bool:
             assume(Type.Bool)
         of LiteralKind.Integer:
@@ -58,6 +60,8 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
     of ExpressionKind.LetSection:
         false
     of ExpressionKind.VarSection:
+        false
+    of ExpressionKind.ConsSection:
         false
     of ExpressionKind.TypeSection:
         false

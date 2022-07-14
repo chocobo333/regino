@@ -1,5 +1,6 @@
 
 import tables
+import sets
 import options
 import ../../lineinfos
 
@@ -72,8 +73,12 @@ proc Recursive*(_: typedesc[Type], self: VarId, body: Type): Type =
     Type(kind: TypeKind.Recursive, self: self, body: body)
 proc Trait*(_: typedesc[Type], paty: (Pattern, Type), iss: seq[(Pattern, Value)], fns: seq[Function], fnss: seq[FunctionSignature]): Type =
     Type(kind: TypeKind.Trait, paty: paty, iss: iss, fns: fns, fnss: fnss)
-proc Var*(_: typedesc[Type], tv: TypeVar): Type =
-    Type(kind: TypeKind.Var, tv: tv)
+# proc Var*(_: typedesc[Type], tv: TypeVar): Type =
+#     Type(kind: TypeKind.Var, tv: tv)
+proc Intersection*(_: typedesc[Type], types: HashSet[Type]): Type =
+    Type(kind: TypeKind.Intersection, types: types)
+proc Union*(_: typedesc[Type], types: HashSet[Type]): Type =
+    Type(kind: TypeKind.Union, types: types)
 proc Gen*(_: typedesc[Type], gt: GenericType): Type =
     Type(kind: TypeKind.Gen, gt: gt)
 proc Link*(_: typedesc[Type], to: Type): Type =
@@ -163,6 +168,8 @@ proc LetSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location):
     ir.Expression(kind: ExpressionKind.LetSection, iddefs: iddefs, loc: loc)
 proc VarSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.VarSection, iddefs: iddefs, loc: loc)
+proc ConsSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.ConsSection, iddefs: iddefs, loc: loc)
 proc TypeSection*(_: typedesc[Expression], typedef: TypeDef, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.TypeSection, typedef: typedef, loc: loc)
 proc Assign*(_: typedesc[Expression], assign_lval: Pattern, assign_val: Expression, loc: Location): Expression =
@@ -188,15 +195,17 @@ proc PtrSet*(_: typedesc[Expression], `ptr`, index, val: Expression, loc: Locati
 proc PtrGet*(_: typedesc[Expression], `ptr`, index: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.PtrGet, `ptr`: `ptr`, index: index, loc: loc)
 
+proc Univ*(_: typedesc[Literal], level: uint): Literal =
+    Literal(kind: LiteralKind.Univ, level: level)
 proc Unit*(_: typedesc[Literal]): Literal =
     Literal(kind: LiteralKind.Unit)
 proc Bool*(_: typedesc[Literal], boolval: bool): Literal =
-    Literal(kind: LiteralKind.Bool, boolval: bool)
+    Literal(kind: LiteralKind.Bool, boolval: boolval)
 proc Integer*(_: typedesc[Literal], intval: BiggestInt, intbits: uint): Literal =
     Literal(kind: LiteralKind.Integer, intval: intval, intbits: intbits)
 proc Float*(_: typedesc[Literal], floatval: BiggestFloat, floatbits: uint): Literal =
     Literal(kind: LiteralKind.Float, floatval: floatval, floatbits: floatbits)
-proc Char*(_: typedesc[Literal], charval: string): Literal =
+proc Char*(_: typedesc[Literal], charval: char): Literal =
     Literal(kind: LiteralKind.Char, charval: charval)
 proc CString*(_: typedesc[Literal], strval: string): Literal =
     Literal(kind: LiteralKind.CString, strval: strval)
@@ -209,3 +218,11 @@ proc Tuple*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern])
     Pattern(kind: PatternKind.Tuple, tag: tag, patterns: patterns)
 proc Record*(_: typedesc[Pattern], tag: Option[ir.Ident], members: seq[(Ident, Pattern)]): Pattern =
     Pattern(kind: PatternKind.Record, tag: tag, members: members)
+
+proc newScope*(parent: Scope = nil): Scope =
+    Scope(
+        parent: parent,
+        vars: initTable[string, Symbol](),
+        types: initTable[string, Symbol](),
+        funcs: initTable[string, seq[Symbol]]()
+    )
