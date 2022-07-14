@@ -7,10 +7,8 @@ import sugar
 import syntax/il
 import syntax/projects as ilprojects
 import sema/projects as irprojects
-import sema/ir/[
-    ir,
-    constructors
-]
+import sema/ir
+import sema/ir/constructors
 
 import lineinfos
 
@@ -173,3 +171,17 @@ proc il2ir*(self: ilprojects.Project): irprojects.Project =
     result = irprojects.newProject(self.main)
     for uri, program in self.program.pairs:
         result.programs[uri] = program.il2ir
+
+when isMainModule:
+    import os
+    import syntax/projects
+    import utils
+    let 
+        mainPath = "test/unit.rgn".absolutePath
+        ilProject = buildProject(mainPath)
+        irProject = ilProject.il2ir
+
+    let expression = irProject.programs[mainPath]
+    debug expression.kind            # Seq
+    debug expression.expressions.len # 1
+    debug expression.expressions[0]  # 1
