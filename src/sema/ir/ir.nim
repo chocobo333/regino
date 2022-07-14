@@ -89,6 +89,10 @@ type
         Recursive
         Trait
         Var
+        Select
+        RecursiveVar
+        Intersection
+        Union
         Gen
         Link
     Type* = ref TypeObject
@@ -131,26 +135,17 @@ type
             iss*: seq[(Pattern, Value)]
             fns*: seq[Function]
             fnss*: seq[FunctionSignature]
-        of TypeKind.Var:
-            tv*: TypeVar
+        of TypeKind.Var, TypeKind.Select, TypeKind.RecursiveVar:
+            id*: VarId
+            ub*: Type # for Var
+            lb*: Type # for Var
+            choices*: HashSet[Type] # for Select
+        of TypeKind.Intersection, TypeKind.Union:
+            types*: HashSet[Type]
         of TypeKind.Gen:
             gt*: GenericType
         of TypeKind.Link:
             to*: Type
-    TypeVarKind* {.pure.} = enum
-        Var
-        Select
-        Recursive
-    TypeVar* = object
-        id*: VarId
-        case kind*: TypeVarKind
-        of TypeVarKind.Var:
-            ub*: Type
-            lb*: Type
-        of TypeVarKind.Select:
-            choices*: HashSet[Type]
-        of TypeVarKind.Recursive:
-            nil
     GenericType* = object
         id*: VarId
         ub*: Type
@@ -365,11 +360,5 @@ type
             tag*: Option[Ident]
             patterns*: seq[Pattern]         # for Tuple
             members*: seq[(Ident, Pattern)] # for Record
-
-
-
-
-proc `==`*(self, other: TypeVar): bool =
-    self.id == other.id
 
 

@@ -51,6 +51,14 @@ proc `$`*(self: Type): string =
         ""
     of TypeKind.Var:
         ""
+    of TypeKind.Select:
+        ""
+    of TypeKind.RecursiveVar:
+        ""
+    of TypeKind.Intersection:
+        ""
+    of TypeKind.Union:
+        ""
     of TypeKind.Gen:
         ""
     of TypeKind.Link:

@@ -1,5 +1,6 @@
 
 import tables
+import sets
 import sequtils
 import options
 
@@ -72,6 +73,20 @@ proc copy*(self: Type): Type =
         Type.Trait(self.paty.copy, self.iss.mapIt(it.copy), self.fns.mapIt(it.copy), self.fnss.mapIt(it.copy))
     of TypeKind.Var:
         Type.Link(self)
+    of TypeKind.Select:
+        Type.Link(self)
+    of TypeKind.RecursiveVar:
+        Type.Link(self)
+    of TypeKind.Intersection:
+        var types = initHashSet[Type]()
+        for e in self.types:
+            types.incl e.copy
+        Type.Intersection(types)
+    of TypeKind.Union:
+        var types = initHashSet[Type]()
+        for e in self.types:
+            types.incl e.copy
+        Type.Union(types)
     of TypeKind.Gen:
         Type.Gen(self.gt.copy)
     of TypeKind.Link:

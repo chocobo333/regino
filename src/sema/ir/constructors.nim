@@ -1,5 +1,6 @@
 
 import tables
+import sets
 import options
 import ../../lineinfos
 
@@ -72,8 +73,12 @@ proc Recursive*(_: typedesc[Type], self: VarId, body: Type): Type =
     Type(kind: TypeKind.Recursive, self: self, body: body)
 proc Trait*(_: typedesc[Type], paty: (Pattern, Type), iss: seq[(Pattern, Value)], fns: seq[Function], fnss: seq[FunctionSignature]): Type =
     Type(kind: TypeKind.Trait, paty: paty, iss: iss, fns: fns, fnss: fnss)
-proc Var*(_: typedesc[Type], tv: TypeVar): Type =
-    Type(kind: TypeKind.Var, tv: tv)
+# proc Var*(_: typedesc[Type], tv: TypeVar): Type =
+#     Type(kind: TypeKind.Var, tv: tv)
+proc Intersection*(_: typedesc[Type], types: HashSet[Type]): Type =
+    Type(kind: TypeKind.Intersection, types: types)
+proc Union*(_: typedesc[Type], types: HashSet[Type]): Type =
+    Type(kind: TypeKind.Union, types: types)
 proc Gen*(_: typedesc[Type], gt: GenericType): Type =
     Type(kind: TypeKind.Gen, gt: gt)
 proc Link*(_: typedesc[Type], to: Type): Type =

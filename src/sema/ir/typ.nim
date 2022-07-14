@@ -87,6 +87,14 @@ proc typ*(self: Type): Type =
         Type.Univ(0)
     of TypeKind.Var:
         Type.Univ(0)
+    of TypeKind.Select:
+        Type.Univ(0)
+    of TypeKind.RecursiveVar:
+        Type.Univ(0)
+    of TypeKind.Intersection:
+        Type.Univ(0)
+    of TypeKind.Union:
+        Type.Univ(0)
     of TypeKind.Gen:
         Type.Univ(0)
     of TypeKind.Link:

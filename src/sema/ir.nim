@@ -5,6 +5,7 @@ import ir/[
     copy,
     inst,
     hash,
+    eq,
     typ,
     tos
 ]
@@ -14,5 +15,6 @@ export constructors
 export copy
 export inst
 export hash
+export eq
 export typ
 export tos

@@ -22,8 +22,8 @@ proc hash*(self: Value): Hash =
     # TODO:
     result = 0
     result = !$ result
-proc hash*(self: TypeVar): Hash =
-    self.id.hash
+# proc hash*(self: TypeVar): Hash =
+#     self.id.hash
 proc hash*(self: GenericType): Hash =
     self.id.hash
 proc hash*(self: Type): Hash =
@@ -67,7 +67,13 @@ proc hash*(self: Type): Hash =
     of TypeKind.Trait:
         self.paty.hash !& self.iss.hash !& self.fns.hash !& self.fnss.hash
     of TypeKind.Var:
-        self.tv.hash
+        self.id.hash
+    of TypeKind.Select:
+        self.choices.hash !& self.id.hash
+    of TypeKind.RecursiveVar:
+        self.id.hash
+    of TypeKind.Intersection, TypeKind.Union:
+        self.types.hash
     of TypeKind.Gen:
         self.gt.hash
     of TypeKind.Link:
