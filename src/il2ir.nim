@@ -8,7 +8,7 @@ import syntax/il
 import syntax/projects as ilprojects
 import sema/projects as irprojects
 import sema/ir
-import sema/ir/constructors
+import sema/typeenvs
 
 import lineinfos
 
@@ -161,13 +161,14 @@ proc il2ir*(self: Suite, scope: Scope): ir.Expression =
 
 proc il2ir*(self: Program): ir.Expression =
     let scope = newScope()
-    ir.Expression.Seq(
+    result = ir.Expression.Seq(
         self.stmts.map(it => it.il2ir(scope)),
         # TODO:
         # calculate location from stmts or
         # change definition of Program to have location and revise parser of Program
         newLocation()
     )
+    result.scope = scope
 
 proc il2ir*(self: ilprojects.Project): irprojects.Project =
     result = irprojects.newProject(self.main)

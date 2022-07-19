@@ -147,7 +147,6 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
             self.`block`.predeclare(project, global)
     of ExpressionKind.Seq:
         for e in self.expressions:
-            debug e.kind
             e.predeclare(project, global)
     of ExpressionKind.Typeof:
         self.`typeof`.predeclare(project, global)
