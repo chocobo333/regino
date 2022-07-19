@@ -115,7 +115,7 @@ proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
     self.iddefs.map(it => it.il2ir(scope))
 
 proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.Expression] =
-    self.typedefs.map(it => it.il2ir(scope))
+    result = self.typedefs.map(it => it.il2ir(scope))
 
 proc il2ir*(self: il.Function, scope: Scope): ir.Function =
     let
@@ -155,7 +155,7 @@ proc il2ir*(self: Statement, scope: Scope): ir.Expression =
     result.scope = scope
 
 proc il2ir*(self: Suite, scope: Scope): ir.Expression =
-    let scope = newScope(scope)
+    # let scope = newScope(scope)
     result = ir.Expression.Seq(self.stmts.map(it => it.il2ir(scope)), self.loc)
     result.scope = scope
 
@@ -177,9 +177,10 @@ proc il2ir*(self: ilprojects.Project): irprojects.Project =
 when isMainModule:
     import os
     import syntax/projects
+    import sema/sema
     import utils
     let
         mainPath = "test/unit.rgn".absolutePath
         ilProject = buildProject(mainPath)
         irProject = ilProject.il2ir
-    debug irProject.programs[irProject.main]
+    irProject.sema

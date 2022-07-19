@@ -3,6 +3,7 @@ import tables
 
 import ir
 import projects
+import typeenvs
 import infer
 import eval
 import check
@@ -14,6 +15,7 @@ import ../utils
 proc sema*(self: Project) =
     let
         main = self.programs[self.main]
+    self.env = newTypeEnv(main.scope)
     main.predeclare(self, global=true)
     discard main.preeval(self, global=true)
     debug self.env.constraints

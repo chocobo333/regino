@@ -219,10 +219,10 @@ proc Tuple*(_: typedesc[Pattern], tag: Option[ir.Ident], patterns: seq[Pattern])
 proc Record*(_: typedesc[Pattern], tag: Option[ir.Ident], members: seq[(Ident, Pattern)]): Pattern =
     Pattern(kind: PatternKind.Record, tag: tag, members: members)
 
-proc newScope*(parent: Scope = nil): Scope =
-    Scope(
-        parent: parent,
-        vars: initTable[string, Symbol](),
-        types: initTable[string, Symbol](),
-        funcs: initTable[string, seq[Symbol]]()
-    )
+# proc newScope*(parent: Scope = nil): Scope =
+#     Scope(
+#         parent: parent,
+#         vars: initTable[string, Symbol](),
+#         types: initTable[string, Symbol](),
+#         funcs: initTable[string, seq[Symbol]]()
+#     )
