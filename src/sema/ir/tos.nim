@@ -2,6 +2,7 @@
 import strformat
 import strutils
 import sequtils
+import tables
 
 import ir
 
@@ -164,3 +165,19 @@ proc `$`*(self: Expression): string =
         ""
     of ExpressionKind.PtrGet:
         ""
+
+proc `$`*(self: Symbol): string =
+    let
+        kind = $self.kind
+        id = self.ident.name
+        loc = self.loc
+        typ = case self.kind
+        of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param:
+            $self.typ
+        of SymbolKind.Type, SymbolKind.GenParam:
+            $self.pval
+        of SymbolKind.Func, SymbolKind.Field:
+            $self.pty
+    fmt"{loc}: ({kind}){id}: {typ}"
+proc `$`*(self: Scope): string =
+    @[$self.vars, $self.types, $self.funcs].join("\n")
