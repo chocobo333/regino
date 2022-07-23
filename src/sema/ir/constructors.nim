@@ -103,7 +103,7 @@ proc Param*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol 
 proc Typ*(_: typedesc[Symbol], ident: Ident, val: PiType, global: bool, loc: Location): Symbol =
     let typ = val.typ
     ident.typ = typ
-    result = Symbol(kind: SymbolKind.Type, ident: ident, pval: val, global: global, loc: loc)
+    result = Symbol(kind: SymbolKind.Type, ident: ident, pval: val, global: global)
     typ.symbol = some result
 proc GenParam*(_: typedesc[Symbol], ident: Ident, val: PiType): Symbol =
     let typ = val.typ

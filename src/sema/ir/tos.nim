@@ -170,7 +170,7 @@ proc `$`*(self: Symbol): string =
     let
         kind = $self.kind
         id = self.ident.name
-        loc = self.loc
+        loc = self.ident.loc
         typ = case self.kind
         of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param:
             $self.typ

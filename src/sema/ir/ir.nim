@@ -22,7 +22,7 @@ type
         Func
         Field
     Symbol* = object
-        loc*: Location
+        # loc*: Location
         ident*: Ident
         global*: bool
         case kind*: SymbolKind
