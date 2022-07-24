@@ -119,6 +119,18 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
 proc il2ir*(self: il.TypeExpression, scope: Scope): ir.TypeExpression =
     # TODO:
     result = case self.kind:
+    of il.TypeExpressionKind.Object:
+        assert false, "notimplemented"
+        dummyTypeExpression
+    of il.TypeExpressionKind.Sum:
+        assert false, "notimplemented"
+        dummyTypeExpression
+    of il.TypeExpressionKind.Distinct:
+        assert false, "notimplemented"
+        dummyTypeExpression
+    of il.TypeExpressionKind.Trait:
+        assert false, "notimplemented"
+        dummyTypeExpression
     of il.TypeExpressionKind.Expression:
         ir.TypeExpression.Expr(self.expression.il2ir(scope))
     else:
