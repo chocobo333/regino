@@ -45,12 +45,73 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
         ir.Expression.Lit(self.litval.il2ir(scope), self.loc)
     of il.ExpressionKind.Ident:
         ir.Expression.Id(self.ident.il2ir(scope), self.loc)
+    of il.ExpressionKind.Tuple:
+        assert false, "notimplemented"
+        dummyExpression
     of il.ExpressionKind.Array:
         ir.Expression.Array(self.exprs.map(it => it.il2ir(scope)), self.loc)
+    of il.ExpressionKind.Record:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.ObjCons:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.If:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.When:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Case:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Call:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Command:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Dot:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Bracket:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Binary:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Prefix:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Postfix:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Block:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Lambda:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Malloc:
+        ir.Expression.Malloc(self.mtype.il2ir(scope), self.msize.il2ir(scope), self.loc)
+    of il.ExpressionKind.Realloc:
+        ir.Expression.Realloc(self.rptr.il2ir(scope), self.msize.il2ir(scope), self.loc)
     of il.ExpressionKind.Typeof:
         ir.Expression.Typeof(self.`typeof`.il2ir(scope), self.loc)
-    else:
-        assert(false, "Not Implemented")
+    of il.ExpressionKind.Ptrset:
+        ir.Expression.PtrSet(self.`ptr`.il2ir(scope), self.idx.il2ir(scope), self.v.il2ir(scope), self.loc)
+    of il.ExpressionKind.Ptrget:
+        ir.Expression.PtrGet(self.`ptr`.il2ir(scope), self.idx.il2ir(scope), self.loc)
+    of il.ExpressionKind.Ref:
+        ir.Expression.Ref(self.`ref`.il2ir(scope), self.loc)
+    of il.ExpressionKind.FnType:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.IntCast:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.ExpressionKind.Fail:
+        assert false, "notimplemented"
         dummyExpression
 
     result.scope = scope
