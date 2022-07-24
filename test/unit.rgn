@@ -1,4 +1,6 @@
 type
     int = typeof(0)
+    bool = typeof(false)
 let a: int = 3
+let b = false
 a
