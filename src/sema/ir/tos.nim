@@ -109,7 +109,15 @@ proc `$`*(self: TypeExpression): string =
     else:
         $self.kind
 proc `$`*(self: Pattern): string =
-    "Pattern"
+    case self.kind
+    of PatternKind.Literal:
+        "Pattern"
+    of PatternKind.Ident:
+        fmt"{self.ident}: {self.typ}"
+    of PatternKind.Tuple:
+        "Pattern"
+    of PatternKind.Record:
+        "Pattern"
 proc `$`*(self: IdentDef): string =
     let
         typ = self.typ.map(`$`).get("")
