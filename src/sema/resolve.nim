@@ -515,6 +515,10 @@ proc update(self: TypeEnv): bool {.discardable.} =
     self.tvs = self.tvs.filter(it => it.kind == TypeKind.Var)
     self.selects = self.selects.filter(it => it.kind == TypeKind.Select)
     not (self.tvs.len == 0 and self.selects.len == 0)
+proc resolveEq*(self: TypeEnv) =
+    self.update
+    discard self.order.SCC.mapIt(self.collapse(it))
+    debug self.order
 proc resolve*(self: TypeEnv) =
     setTypeEnv(self)
 
