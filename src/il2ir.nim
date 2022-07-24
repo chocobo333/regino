@@ -133,9 +133,6 @@ proc il2ir*(self: il.TypeExpression, scope: Scope): ir.TypeExpression =
         dummyTypeExpression
     of il.TypeExpressionKind.Expression:
         ir.TypeExpression.Expr(self.expression.il2ir(scope))
-    else:
-        assert(false, "Not Implemented")
-        dummyTypeExpression
 
     if self.isRef:
         result = ir.TypeExpression.Ref(result)
@@ -209,6 +206,18 @@ proc il2ir*(self: il.Function, scope: Scope): Function =
 proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
     # TODO:
     result = case self.kind:
+    of il.StatementKind.Import:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.StatementKind.For:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.StatementKind.While:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.StatementKind.Loop:
+        assert false, "notimplemented"
+        dummyExpression
     of il.StatementKind.LetSection:
         ir.Expression.LetSection(self.iddefSection.il2ir(scope), self.loc)
     of il.StatementKind.VarSection:
@@ -218,11 +227,27 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
     of il.StatementKind.TypeSection:
         let typeDefs = self.typedefSection.il2ir(scope)
         ir.Expression.Seq(typeDefs, self.loc)
+    of il.StatementKind.Asign:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.StatementKind.IndexAssign:
+        assert false, "notimplemented"
+        dummyExpression
     of il.StatementKind.Funcdef:
         ir.Expression.Funcdef(self.fn.il2ir(scope), self.loc)
+    of il.StatementKind.Meta:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.StatementKind.Discard:
+        assert false, "notimplemented"
+        dummyExpression
+    of il.StatementKind.Comments:
+        assert false, "il.Comment cannnot be translated to ir"
+        dummyExpression
     of il.StatementKind.Expression:
         self.expression.il2ir(scope)
-    else:
+    of il.StatementKind.Fail:
+        assert false, "notimplemented"
         dummyExpression
 
     result.scope = scope
