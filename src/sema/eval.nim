@@ -194,7 +194,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         project.addErr project.env.addSymbol(symbol)
         tv
     proc preevalLet(self: Pattern, project: Project, global: bool = false): Type =
-        case self.kind
+        result = case self.kind
         of PatternKind.Literal:
             self.litval.typ
         of PatternKind.Ident:
@@ -209,6 +209,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
                 discard k.preevalLet(project, global)
                 members[k.name] = v.preevalLet(project, global)
             Type.Record(members)
+        self.typ = result
     proc preevalLet(self: IdentDef, project: Project, global: bool = false) =
         let
             tv = self.pat.preevalLet(project, global)
@@ -217,8 +218,6 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         if self.typ.isSome:
             let
                 t = self.typ.get.eval(project, global)
-            debug self.typ
-            debug t
             self.typ.get.typ = t.typ
             project.env.coerce(tv == t)
     proc preevalVar(self: Ident, project: Project, global: bool = false): Type =

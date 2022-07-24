@@ -518,7 +518,6 @@ proc update(self: TypeEnv): bool {.discardable.} =
 proc resolveEq*(self: TypeEnv) =
     self.update
     discard self.order.SCC.mapIt(self.collapse(it))
-    debug self.order
 proc resolve*(self: TypeEnv) =
     setTypeEnv(self)
 

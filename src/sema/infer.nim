@@ -2,6 +2,7 @@
 import sets
 import tables
 import sequtils
+import options
 import sugar
 
 import ir
@@ -14,6 +15,9 @@ import ../utils
 
 proc infer*(self: Expression, project: Project, global: bool = false) =
     # collect constraints of types
+    proc infer(self: IdentDef, project: Project, global: bool = false) =
+        if self.default.isSome:
+            project.env.coerce(self.pat.typ <= self.default.get.typ)
     case self.kind
     of ExpressionKind.Literal:
         discard
@@ -56,21 +60,15 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.Import:
         # TODO:
         discard
-    of ExpressionKind.LetSection:
-        # TODO:
-        discard
-    of ExpressionKind.VarSection:
-        # TODO:
-        discard
+    of ExpressionKind.LetSection, ExpressionKind.VarSection:
+        for iddef in self.iddefs:
+            iddef.infer(project, global)
     of ExpressionKind.ConsSection:
-        # TODO:
         discard
     of ExpressionKind.TypeSection:
-        # TODO:
         discard
     of ExpressionKind.Assign:
-        # TODO:
-        discard
+        project.env.coerce(self.assign_lval.typ <= self.assign_val.typ)
     of ExpressionKind.Funcdef:
         # TODO:
         discard
