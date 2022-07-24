@@ -4,7 +4,7 @@ import tables
 import options
 import sugar
 
-import syntax/il
+from syntax/il import loc
 import syntax/projects as ilprojects
 import sema/projects as irprojects
 import sema/ir
@@ -16,7 +16,7 @@ let
     dummyExpression = ir.Expression.Lit(ir.Literal.Unit, newLocation())
     dummyTypeExpression = ir.TypeExpression.Expr(dummyExpression)
 
-proc il2ir*(self: Suite, scope: Scope): ir.Expression
+proc il2ir*(self: il.Suite, scope: Scope): ir.Expression
 
 proc il2ir*(self: il.Ident, scope: Scope): ir.Ident =
     constructors.newIdent(self.name, self.loc)
@@ -111,13 +111,13 @@ proc il2ir*(self: il.TypeDef, scope: Scope): ir.Expression =
     result = ir.Expression.TypeSection(typeDef, self.loc)
     result.scope = scope
 
-proc il2ir*(self: IdentDefSection, scope: Scope): seq[ir.IdentDef] =
+proc il2ir*(self: il.IdentDefSection, scope: Scope): seq[ir.IdentDef] =
     self.iddefs.map(it => it.il2ir(scope))
 
-proc il2ir*(self: TypeDefSection, scope: Scope): seq[ir.Expression] =
+proc il2ir*(self: il.TypeDefSection, scope: Scope): seq[ir.Expression] =
     result = self.typedefs.map(it => it.il2ir(scope))
 
-proc il2ir*(self: il.Function, scope: Scope): ir.Function =
+proc il2ir*(self: il.Function, scope: Scope): Function =
     let
         signature = FunctionSignature(
             ident: self.id.il2ir(scope),
@@ -128,38 +128,38 @@ proc il2ir*(self: il.Function, scope: Scope): ir.Function =
         )
         body = if self.suite.isSome: self.suite.get.il2ir(scope) else: dummyExpression
 
-    ir.Function(
+    Function(
         signature: signature,
         body: body
     )
 
-proc il2ir*(self: Statement, scope: Scope): ir.Expression =
+proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
     # TODO:
     result = case self.kind:
-    of StatementKind.LetSection:
+    of il.StatementKind.LetSection:
         ir.Expression.LetSection(self.iddefSection.il2ir(scope), self.loc)
-    of StatementKind.VarSection:
+    of il.StatementKind.VarSection:
         ir.Expression.VarSection(self.iddefSection.il2ir(scope), self.loc)
-    of StatementKind.ConstSection:
+    of il.StatementKind.ConstSection:
         ir.Expression.ConsSection(self.iddefSection.il2ir(scope), self.loc)
-    of StatementKind.TypeSection:
+    of il.StatementKind.TypeSection:
         let typeDefs = self.typedefSection.il2ir(scope)
         ir.Expression.Seq(typeDefs, self.loc)
-    of StatementKind.Funcdef:
+    of il.StatementKind.Funcdef:
         ir.Expression.Funcdef(self.fn.il2ir(scope), self.loc)
-    of StatementKind.Expression:
+    of il.StatementKind.Expression:
         self.expression.il2ir(scope)
     else:
         dummyExpression
 
     result.scope = scope
 
-proc il2ir*(self: Suite, scope: Scope): ir.Expression =
+proc il2ir*(self: il.Suite, scope: Scope): ir.Expression =
     # let scope = newScope(scope)
     result = ir.Expression.Seq(self.stmts.map(it => it.il2ir(scope)), self.loc)
     result.scope = scope
 
-proc il2ir*(self: Program): ir.Expression =
+proc il2ir*(self: il.Program): ir.Expression =
     let scope = newScope()
     result = ir.Expression.Seq(
         self.stmts.map(it => it.il2ir(scope)),

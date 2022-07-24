@@ -19,8 +19,10 @@ proc sema*(self: Project) =
     main.predeclare(self, global=true)
     discard main.preeval(self, global=true)
     debug self.env.constraints
+    self.env.resolveEq
     main.infer(self, global=true)
     discard main.check(self, global=true)
+    debug main
 
 
 when isMainModule:

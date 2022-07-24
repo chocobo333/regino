@@ -61,7 +61,7 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
             tv = Type.Var(project.env)
             implicits = self.params.mapIt(it.ident.typ.gt)
             pval = newPiType(tv, implicits, some self.ident)
-            symbol = Symbol.Typ(self.ident, pval, global, self.loc)
+        Symbol.Typ(self.ident, pval, global, self.loc)
     proc predeclare(self: FunctionSignature, project: Project, global: bool = false) =
         for e in self.implicits:
             e.predeclare(project, global)
@@ -129,9 +129,10 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
         # TODO:
         discard
     of ExpressionKind.TypeSection:
+        var symbol: Symbol
         project.env.enter self.scope:
-            let symbol = self.typedef.predeclare(project, global)
-            project.addErr project.env.addSymbol(symbol)
+            symbol = self.typedef.predeclare(project, global)
+        project.addErr project.env.addSymbol(symbol)
     of ExpressionKind.Assign:
         self.assign_val.predeclare(project, global)
     of ExpressionKind.Funcdef:
@@ -170,7 +171,7 @@ proc preeval(self: Ident, project: Project, global: bool = false): Type =
         vars = project.env.lookupVar(name)
         types = project.env.lookupType(name)
         funcs = project.env.lookupFunc(name)
-        t = vars.mapIt(it.typ) & types.mapIt(it.typ) & funcs.mapIt(it.pty.inst(project.env))
+        t = vars.mapIt(it.typ.inst(project.env)) & types.mapIt(it.typ.inst(project.env)) & funcs.mapIt(it.typ.inst(project.env))
     result = case t.len
     of 0:
         let
@@ -216,6 +217,8 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         if self.typ.isSome:
             let
                 t = self.typ.get.eval(project, global)
+            debug self.typ
+            debug t
             self.typ.get.typ = t.typ
             project.env.coerce(tv == t)
     proc preevalVar(self: Ident, project: Project, global: bool = false): Type =
@@ -263,7 +266,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             e.preeval(project, global)
         let
             typ = self.typ.eval(project, global)
-        project.env.coerce(self.ident.typ.symbol.get.pval.rety == typ)
+        project.env.coerce(self.ident.typ.symbol.get.val.rety == typ)
     result = case self.kind
     of ExpressionKind.Literal:
         self.litval.typ
@@ -315,7 +318,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
     of ExpressionKind.ObjCons:
         let
             # obj = self.obj.preeval(project)
-            obj = self.obj.typ.symbol.get.pval
+            obj = self.obj.typ.symbol.get.val
             implicits = self.implicits.mapIt(it.eval(project))
         self.obj.typ = obj.typ
         for i, e in implicits.pairs:
@@ -386,7 +389,7 @@ proc posteval*(self: Expression, project: Project): Type =
     of ExpressionKind.Literal:
         self.litval.eval(project)
     of ExpressionKind.Ident:
-        self.typ.symbol.get.val
+        self.typ.symbol.get.val.inst(project.env)
     of ExpressionKind.Call:
         Type.Unit
     of ExpressionKind.Apply:
@@ -428,7 +431,7 @@ proc posteval*(self: Expression, project: Project): Type =
     of ExpressionKind.Seq:
         Type.Unit
     of ExpressionKind.Typeof:
-        Type.Unit
+        self.typ.base
     of ExpressionKind.Malloc:
         Type.Unit
     of ExpressionKind.Realloc:
@@ -443,4 +446,4 @@ proc eval*(self: Expression, project: Project, global: bool = false): Type =
     discard self.preeval(project, global)
     self.infer(project, global)
     discard self.check(project)
-    discard self.posteval(project)
+    self.posteval(project)
