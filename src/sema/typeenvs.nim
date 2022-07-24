@@ -9,8 +9,10 @@ import ir
 import errors
 import generators
 import ir/inst
+import ir/tos
 
 import ../orders
+import ../utils
 
 type
     Constraint* = (Type, Type)
@@ -142,6 +144,7 @@ proc Gen*(_: typedesc[Type], env: TypeEnv, ub: Type = Type.Unit, typ: Type = Typ
     Type.Gen(env.newGen(ub, typ))
 
 proc inst*(self: PiType, env: TypeEnv): Type =
+    debug self
     var subs = initTable[GenericType, Type]()
     for k in self.params:
         subs[k] = Type.Var(env)

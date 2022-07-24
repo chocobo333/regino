@@ -85,13 +85,13 @@ proc Link*(_: typedesc[Type], to: Type): Type =
     Type(kind: TypeKind.Link, to: to)
 
 proc NotDeclared*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.NotDeclared, ident: ident, typ: typ, global: global)
+    result = Symbol(kind: SymbolKind.NotDeclared, ident: ident, typ: typ.gen, global: global)
     typ.symbol = some result
 proc Var*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Var, ident: ident, typ: typ, global: global)
+    result = Symbol(kind: SymbolKind.Var, ident: ident, typ: typ.gen, global: global)
     typ.symbol = some result
 proc Let*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Let, ident: ident, typ: typ, global: global)
+    result = Symbol(kind: SymbolKind.Let, ident: ident, typ: typ.gen, global: global)
     typ.symbol = some result
 proc Const*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Const, ident: ident, typ: typ, global: global)
@@ -103,15 +103,15 @@ proc Param*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol 
 proc Typ*(_: typedesc[Symbol], ident: Ident, val: PiType, global: bool, loc: Location): Symbol =
     let typ = val.typ
     ident.typ = typ
-    result = Symbol(kind: SymbolKind.Type, ident: ident, pval: val, global: global)
+    result = Symbol(kind: SymbolKind.Type, ident: ident, typ: typ.gen, val: val, global: global)
     typ.symbol = some result
 proc GenParam*(_: typedesc[Symbol], ident: Ident, val: PiType): Symbol =
     let typ = val.typ
-    result = Symbol(kind: SymbolKind.GenParam, ident: ident, pval: val, global: false)
+    result = Symbol(kind: SymbolKind.GenParam, ident: ident, typ: typ.gen, val: val, global: false)
     typ.symbol = some result
-proc Func*(_: typedesc[Symbol], ident: Ident, pty: PiType, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Func, ident: ident, pty: pty, global: global)
-    pty.rety.symbol = some result
+proc Func*(_: typedesc[Symbol], ident: Ident, typ: PiType, global: bool): Symbol =
+    result = Symbol(kind: SymbolKind.Func, ident: ident, typ: typ, global: global)
+    typ.rety.symbol = some result
 proc Field*(_: typedesc[Symbol], ident: Ident, typ: Type, index: int,  global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Field, ident: ident, typ: typ, index: index, global: global)
     typ.symbol = some result

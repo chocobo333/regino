@@ -3,10 +3,13 @@ import strformat
 import strutils
 import sequtils
 import tables
+import options
 
 import ir
 
 
+proc `$`*(self: Ident): string =
+    self.name
 proc `$`*(self: Type): string =
     # TODO:
     case self.kind
@@ -51,7 +54,7 @@ proc `$`*(self: Type): string =
     of TypeKind.Trait:
         $self.kind
     of TypeKind.Var:
-        $self.kind
+        fmt"'{self.id}"
     of TypeKind.Select:
         $self.kind
     of TypeKind.RecursiveVar:
@@ -64,6 +67,15 @@ proc `$`*(self: Type): string =
         $self.kind
     of TypeKind.Link:
         fmt"~{self.to}"
+proc `$`*(self: PiType): string =
+    if self.ident.isSome:
+        $self.ident.get
+    else:
+        if self.params.len == 0:
+            $self.rety
+        else:
+            fmt"{self.params}{self.rety}"
+
 proc `$`*(self: Literal): string =
     case self.kind
     of LiteralKind.Unit:
@@ -96,6 +108,13 @@ proc `$`*(self: TypeExpression): string =
         $self.expression
     else:
         $self.kind
+proc `$`*(self: Pattern): string =
+    "Pattern"
+proc `$`*(self: IdentDef): string =
+    let
+        typ = self.typ.map(`$`).get("")
+        default = self.default.map(`$`).get("")
+    &"{self.pat}\n{typ}\n{default}"
 proc `$`*(self: TypeDef): string =
     # TODO: unit
     &"{self.ident.name}\n{self.typ}"
@@ -110,7 +129,7 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.Literal:
         "Lit " & $self.litval
     of ExpressionKind.Ident:
-        self.ident.name
+        fmt"{self.ident}: {self.typ}"
     of ExpressionKind.Call:
         let
             args = self.args.map(`$`).join(", ")
@@ -136,7 +155,8 @@ proc `$`*(self: Expression): string =
     of ExpressionKind.Import:
         ""
     of ExpressionKind.LetSection:
-        ""
+        let a = self.iddefs.map(`$`).join("\n").indent(2)
+        &"{self.kind2str}\n{a}"
     of ExpressionKind.VarSection:
         ""
     of ExpressionKind.ConsSection:
@@ -171,13 +191,7 @@ proc `$`*(self: Symbol): string =
         kind = $self.kind
         id = self.ident.name
         loc = self.ident.loc
-        typ = case self.kind
-        of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param:
-            $self.typ
-        of SymbolKind.Type, SymbolKind.GenParam:
-            $self.pval
-        of SymbolKind.Func, SymbolKind.Field:
-            $self.pty
+        typ = $self.typ
     fmt"{loc}: ({kind}){id}: {typ}"
 proc `$`*(self: Scope): string =
     @[$self.vars, $self.types, $self.funcs].join("\n")

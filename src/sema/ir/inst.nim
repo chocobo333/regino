@@ -12,7 +12,8 @@ import ../../utils
 
 
 proc inst*(self: Type, subs: Table[GenericType, Type]): Type =
-    case self.kind
+    let symbol = self.symbol
+    result = case self.kind
     of TypeKind.Bottom:
         Type.Bottom()
     of TypeKind.Unit:
@@ -69,6 +70,7 @@ proc inst*(self: Type, subs: Table[GenericType, Type]): Type =
         if self.gt in subs: subs[self.gt] else: Type.Gen(self.gt)
     of TypeKind.Link:
         Type.Link(self.to)
+    result.symbol = symbol
 
 proc inst*(self: PiType, p: seq[Type]): Type =
     assert self.params.len == p.len
@@ -77,3 +79,9 @@ proc inst*(self: PiType, p: seq[Type]): Type =
     for (a, b) in self.params.zip(p):
         subs[a] = b
     self.rety.inst(subs)
+
+proc gen*(self: Type): PiType =
+    # TODO:
+    PiType(
+        rety: self,
+    )

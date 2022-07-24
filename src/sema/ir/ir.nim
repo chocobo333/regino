@@ -25,13 +25,12 @@ type
         # loc*: Location
         ident*: Ident
         global*: bool
+        val*: PiType
+        typ*: PiType
         case kind*: SymbolKind
         of SymbolKind.Notdeclared, SymbolKind.Let, SymbolKind.Var, SymbolKind.Const, SymbolKind.Param:
-            val*: Type
-            typ*: Type
+            nil
         of SymbolKind.Type, SymbolKind.GenParam, SymbolKind.Func, SymbolKind.Field:
-            pval*: PiType # for Type, GenParam
-            pty*: PiType # for Func, Field
             definition*: Function # for Func
             instances*: Table[seq[Type], Symbol]
             index*: int # for Field
