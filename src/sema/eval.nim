@@ -391,10 +391,13 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             self.typedef.preeval(project, global)
         Type.Unit
     of ExpressionKind.Assign:
+        # TODO:
         Type.Unit
     of ExpressionKind.Funcdef:
+        # TODO:
         Type.Unit
     of ExpressionKind.ImportLL:
+        # TODO:
         Type.Unit
     of ExpressionKind.Loop:
         self.`block`.preeval(project, global)
