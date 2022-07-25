@@ -309,6 +309,23 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         debug self.ident.typ.symbol.get.val.rety
         debug typ
         project.env.coerce(self.ident.typ.symbol.get.val.rety == typ)
+    proc preeval(self: Pattern, project: Project, global: bool = false): Type =
+        result = case self.kind
+        of PatternKind.Literal:
+            self.litval.typ
+        of PatternKind.Ident:
+            self.ident.preeval(project, global)
+        of PatternKind.Tuple:
+            # TODO: tag
+            self.patterns.mapIt(it.preeval(project, global)).foldl(Type.Pair(a, b))
+        of PatternKind.Record:
+            # TODO: tag
+            var members = initTable[string, Type]()
+            for (k, v) in self.members:
+                discard k.preeval(project, global)
+                members[k.name] = v.preeval(project, global)
+            Type.Record(members)
+        self.typ = result
     result = case self.kind
     of ExpressionKind.Literal:
         self.litval.typ
@@ -391,7 +408,8 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             self.typedef.preeval(project, global)
         Type.Unit
     of ExpressionKind.Assign:
-        # TODO:
+        discard self.assign_lval.preeval(project, global)
+        discard self.assign_val.preeval(project, global)
         Type.Unit
     of ExpressionKind.Funcdef:
         # TODO:
