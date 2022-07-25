@@ -3,6 +3,7 @@ import sequtils
 import tables
 import options
 import sugar
+import algorithm
 
 from syntax/il import loc
 import syntax/projects as ilprojects
@@ -57,21 +58,27 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
         assert false, "notimplemented"
         unitExpression
     of il.ExpressionKind.If:
-        assert false, "notimplemented"
-        unitExpression
+        var els = if self.elseb.isSome: self.elseb.get.il2ir(scope) else: unitExpression
+        els.scope = scope
+        for eib in self.elifs.reversed:
+            els = ir.Expression.If(eib.cond.il2ir(scope), eib.suite.il2ir(scope), els, self.loc)
+            els.scope = scope
+        els
     of il.ExpressionKind.When:
         assert false, "notimplemented"
         unitExpression
     of il.ExpressionKind.Case:
         assert false, "notimplemented"
         unitExpression
-    of il.ExpressionKind.Call, il.ExpressionKind.Command, il.ExpressionKind.Bracket:
+    of il.ExpressionKind.Call, il.ExpressionKind.Command:
         ir.Expression.Call(self.callee.il2ir(scope), self.args.map(it => it.il2ir(scope)), self.loc)
+    of il.ExpressionKind.Bracket:
+        ir.Expression.Apply(self.callee.il2ir(scope), self.args.map(it => it.il2ir(scope)), self.loc)
     of il.ExpressionKind.Dot:
         ir.Expression.Call(self.rhs.il2ir(scope), self.lhs.il2ir(scope) & self.dotArgs.map(it => it.il2ir(scope)), self.loc)
     of il.ExpressionKind.Binary:
-        assert false, "notimplemented"
-        unitExpression
+        let callee = ir.Expression.Id(self.op.il2ir(scope), self.loc)
+        ir.Expression.Call(callee, @[self.lhs.il2ir(scope), self.rhs.il2ir(scope)], self.loc)
     of il.ExpressionKind.Prefix:
         assert false, "notimplemented"
         unitExpression
@@ -245,7 +252,7 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
     result.scope = scope
 
 proc il2ir*(self: il.Suite, scope: Scope): ir.Expression =
-    # let scope = newScope(scope)
+    let scope = newScope(scope)
     result = ir.Expression.Seq(self.stmts.filterIt(it.kind != il.StatementKind.Comments).map(it => it.il2ir(scope)), self.loc)
     result.scope = scope
 
@@ -274,5 +281,4 @@ when isMainModule:
         mainPath = "test/test05.rgn".absolutePath
         ilProject = buildProject(mainPath)
         irProject = ilProject.il2ir
-    debug irProject.programs
-    # irProject.sema
+    irProject.sema
