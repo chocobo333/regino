@@ -416,8 +416,8 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             members[k.name] = tv
         Type.Record(members)
     of ExpressionKind.ObjCons:
+        discard self.obj.preeval(project)
         let
-            # obj = self.obj.preeval(project)
             obj = self.obj.typ.symbol.get.val
             implicits = self.implicits.mapIt(it.eval(project))
         self.obj.typ = obj.typ
