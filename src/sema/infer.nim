@@ -63,7 +63,7 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.LetSection, ExpressionKind.VarSection:
         for iddef in self.iddefs:
             iddef.infer(project, global)
-    of ExpressionKind.ConsSection:
+    of ExpressionKind.ConstSection:
         discard
     of ExpressionKind.TypeSection:
         discard

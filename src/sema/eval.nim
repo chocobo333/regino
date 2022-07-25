@@ -125,7 +125,7 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.VarSection:
         for e in self.iddefs:
             e.predeclare(project, global)
-    of ExpressionKind.ConsSection:
+    of ExpressionKind.ConstSection:
         # TODO:
         discard
     of ExpressionKind.TypeSection:
@@ -339,7 +339,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         for e in self.iddefs:
             e.preevalVar(project, global)
         Type.Unit
-    of ExpressionKind.ConsSection:
+    of ExpressionKind.ConstSection:
         # TODO:
         Type.Unit
     of ExpressionKind.TypeSection:
@@ -411,7 +411,7 @@ proc posteval*(self: Expression, project: Project): Type =
         Type.Unit
     of ExpressionKind.VarSection:
         Type.Unit
-    of ExpressionKind.ConsSection:
+    of ExpressionKind.ConstSection:
         Type.Unit
     of ExpressionKind.TypeSection:
         Type.Unit
