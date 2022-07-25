@@ -85,14 +85,17 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.Typeof:
         self.typeof.infer(project, global)
     of ExpressionKind.Malloc:
-        # TODO:
-        discard
+        self.msize.infer(project, global)
+        project.env.coerce(self.msize.typ <= Type.Integer(64))
     of ExpressionKind.Realloc:
-        # TODO:
-        discard
+        self.rptr.infer(project, global)
+        self.msize.infer(project, global)
+        project.env.coerce(self.msize.typ <= Type.Integer(64))
     of ExpressionKind.PtrSet:
-        # TODO:
-        discard
+        self.`ptr`.infer(project, global)
+        self.index.infer(project, global)
+        self.val.infer(project, global)
     of ExpressionKind.PtrGet:
-        # TODO:
-        discard
+        self.`ptr`.infer(project, global)
+        self.index.infer(project, global)
+        project.env.coerce(self.`ptr`.typ == Type.Ptr(self.typ))

@@ -367,12 +367,10 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         Type.Singleton(self.`typeof`.preeval(project, global))
     of ExpressionKind.Malloc:
         discard self.msize.preeval(project, global)
-        discard self.mtype.preeval(project, global)
-        Type.Var(project.env)
+        Type.Ptr(self.mtype.eval(project, global))
     of ExpressionKind.Realloc:
         discard self.msize.preeval(project, global)
-        discard self.rptr.preeval(project, global)
-        Type.Var(project.env)
+        self.rptr.preeval(project, global)
     of ExpressionKind.PtrSet:
         discard self.`ptr`.preeval(project, global)
         discard self.index.preeval(project, global)
