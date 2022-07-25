@@ -359,7 +359,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         t
     proc preeval(self: FunctionSignature, project: Project, global: bool = false) =
         let
-            fnty = self.ident.typ.symbol.get.typ
+            fnty = self.ident.typ
             paramty = self.params.mapIt(it.preevalParam(project, global))
             rety = self.rety.eval(project, global)
         project.env.coerce(fnty.rety == Type.Arrow(paramty, rety))

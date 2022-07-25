@@ -111,6 +111,7 @@ proc GenParam*(_: typedesc[Symbol], ident: Ident, val: PiType): Symbol =
     typ.symbol = some result
 proc Func*(_: typedesc[Symbol], ident: Ident, typ: PiType, global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Func, ident: ident, typ: typ, global: global)
+    ident.typ = typ.rety
     typ.rety.symbol = some result
 proc Field*(_: typedesc[Symbol], ident: Ident, typ: Type, index: int,  global: bool): Symbol =
     result = Symbol(kind: SymbolKind.Field, ident: ident, typ: typ, index: index, global: global)

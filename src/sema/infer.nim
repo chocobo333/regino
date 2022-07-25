@@ -70,8 +70,8 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.Assign:
         project.env.coerce(self.assign_lval.typ <= self.assign_val.typ)
     of ExpressionKind.Funcdef:
-        # TODO:
-        discard
+        self.fn.body.infer(project, global)
+        project.env.coerce(self.fn.body.typ <= self.fn.signature.ident.typ)
     of ExpressionKind.ImportLL:
         # TODO:
         discard
