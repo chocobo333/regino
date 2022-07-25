@@ -63,7 +63,7 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
             implicits = self.params.mapIt(it.ident.typ.gt)
             pval = newPiType(tv, implicits, some self.ident)
         Symbol.Typ(self.ident, pval, global, self.loc)
-    proc predeclare(self: FunctionSignature, project: Project, global: bool = false) =
+    proc predeclare(self: FunctionSignature, project: Project, global: bool = false): Symbol =
         for e in self.implicits:
             e.predeclare(project, global)
         for e in self.params:
@@ -74,9 +74,9 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
             pty = newPiType(tv, implicits, some self.ident)
             symbol = Symbol.Func(self.ident, pty, global)
         project.addErr project.env.addSymbol(symbol)
-    proc predeclare(self: Function, project: Project, global: bool = false) =
+    proc predeclare(self: Function, project: Project, global: bool = false): Symbol =
         project.env.enter self.body.scope:
-            self.signature.predeclare(project, global)
+            result = self.signature.predeclare(project, global)
             self.body.predeclare(project, global)
     case self.kind
     of ExpressionKind.Literal:
@@ -137,10 +137,13 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.Assign:
         self.assign_val.predeclare(project, global)
     of ExpressionKind.Funcdef:
-        self.fn.predeclare(project, global)
+        let symbol = self.fn.predeclare(project, global)
+        project.addErr project.env.addSymbol(symbol)
     of ExpressionKind.ImportLL:
+        var symbol: Symbol
         project.env.enter self.scope:
-            self.signature.predeclare(project, global)
+            symbol = self.signature.predeclare(project, global)
+        project.addErr project.env.addSymbol(symbol)
     of ExpressionKind.Loop:
         project.env.enter self.`block`.scope:
             self.`block`.predeclare(project, global)
