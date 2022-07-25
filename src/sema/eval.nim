@@ -72,8 +72,7 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
             implicits = self.implicits.mapIt(it.ident.typ.gt)
             tv = Type.Arrow(self.params.mapIt(Type.Var(project.env)), Type.Var(project.env))
             pty = newPiType(tv, implicits, some self.ident)
-            symbol = Symbol.Func(self.ident, pty, global)
-        project.addErr project.env.addSymbol(symbol)
+        Symbol.Func(self.ident, pty, global)
     proc predeclare(self: Function, project: Project, global: bool = false): Symbol =
         project.env.enter self.body.scope:
             result = self.signature.predeclare(project, global)
@@ -326,6 +325,8 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
                 members[k.name] = v.preeval(project, global)
             Type.Record(members)
         self.typ = result
+    proc preeval(self: Function, project: Project, global: bool = false) =
+        discard
     result = case self.kind
     of ExpressionKind.Literal:
         self.litval.typ
@@ -412,7 +413,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         discard self.assign_val.preeval(project, global)
         Type.Unit
     of ExpressionKind.Funcdef:
-        # TODO:
+        self.fn.preeval(project, global)
         Type.Unit
     of ExpressionKind.ImportLL:
         # TODO:
