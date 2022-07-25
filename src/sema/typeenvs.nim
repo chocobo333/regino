@@ -144,8 +144,26 @@ proc Gen*(_: typedesc[Type], env: TypeEnv, ub: Type = Type.Unit, typ: Type = Typ
     Type.Gen(env.newGen(ub, typ))
 
 proc inst*(self: PiType, env: TypeEnv): Type =
-    debug self
     var subs = initTable[GenericType, Type]()
     for k in self.params:
         subs[k] = Type.Var(env)
     self.rety.inst(subs)
+
+template init_cons*(self: TypeEnv, body: untyped): untyped =
+    let
+        tmpCons = self.constraints
+        tmpOrder = self.order
+        tmpTvs = self.tvs
+        tmpSelects = self.selects
+    block:
+        defer:
+            self.constraints = tmpCons
+            self.order = tmpOrder
+            self.tvs = tmpTvs
+            self.selects = tmpSelects
+        self.constraints = @[]
+        self.order.primal.clear()
+        self.order.dual.clear()
+        self.tvs = initHashSet[Type]()
+        self.selects = initHashSet[Type]()
+        body

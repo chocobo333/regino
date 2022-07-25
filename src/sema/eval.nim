@@ -9,6 +9,7 @@ import typeenvs
 import infer
 import check
 import coerce
+import resolve
 
 import ../utils
 
@@ -253,6 +254,43 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
                 t = self.typ.get.eval(project, global)
             self.typ.get.typ = t.typ
             project.env.coerce(tv == t)
+    # proc preevalConst(self: Ident, project: Project, global: bool = false): Type =
+    #     let
+    #         tv = Type.Var(project.env)
+    #         symbol = Symbol.Var(self, tv, global)
+    #     project.addErr project.env.addSymbol(symbol)
+    #     tv
+    # proc preevalConst(self: Pattern, project: Project, global: bool = false): Type =
+    #     result = case self.kind
+    #     of PatternKind.Literal:
+    #         self.litval.typ
+    #     of PatternKind.Ident:
+    #         self.ident.preevalConst(project, global)
+    #     of PatternKind.Tuple:
+    #         # TODO: tag
+    #         self.patterns.mapIt(it.preevalConst(project, global)).foldl(Type.Pair(a, b))
+    #     of PatternKind.Record:
+    #         # TODO: tag
+    #         var members = initTable[string, Type]()
+    #         for (k, v) in self.members:
+    #             discard k.preevalConst(project, global)
+    #             members[k.name] = v.preevalConst(project, global)
+    #         Type.Record(members)
+    #     self.typ = result
+    proc preevalConst(self: IdentDef, project: Project, global: bool = false) =
+        # let
+        #     tv = self.pat.preevalConst(project, global)
+        # if self.default.isSome:
+        #     let
+        #         t = self.default.get.eval(project, global)
+        #     project.env.coerce(t.typ <= tv)
+        # if self.typ.isSome:
+        #     let
+        #         t = self.typ.get.eval(project, global)
+        #     self.typ.get.typ = t.typ
+        #     project.env.coerce(tv == t)
+        debug self.default.get.eval(project, global)
+        assert false, "notimplemented"
     proc preeval(self: GenTypeDef, project: Project, global: bool = false) =
         if self.ub.isSome:
             let ub = self.ub.get.eval(project, global)
@@ -265,6 +303,8 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             e.preeval(project, global)
         let
             typ = self.typ.eval(project, global)
+        debug self.ident.typ.symbol.get.val.rety
+        debug typ
         project.env.coerce(self.ident.typ.symbol.get.val.rety == typ)
     result = case self.kind
     of ExpressionKind.Literal:
@@ -340,7 +380,8 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             e.preevalVar(project, global)
         Type.Unit
     of ExpressionKind.ConstSection:
-        # TODO:
+        for e in self.iddefs:
+            e.preevalConst(project, global)
         Type.Unit
     of ExpressionKind.TypeSection:
         project.env.enter self.scope:
@@ -396,7 +437,7 @@ proc posteval*(self: Expression, project: Project): Type =
     of ExpressionKind.Case:
         Type.Unit
     of ExpressionKind.Pair:
-        Type.Unit
+        Type.Pair(self.first.posteval(project), self.second.posteval(project))
     of ExpressionKind.Array:
         Type.Unit
     of ExpressionKind.Record:
@@ -439,8 +480,11 @@ proc posteval*(self: Expression, project: Project): Type =
         Type.Unit
 
 proc eval*(self: Expression, project: Project, global: bool = false): Type =
-    self.predeclare(project, global)
-    discard self.preeval(project, global)
-    self.infer(project, global)
-    discard self.check(project)
+    project.env.init_cons:
+        self.predeclare(project, global)
+        discard self.preeval(project, global)
+        project.env.resolveEq
+        self.infer(project, global)
+        project.env.resolve
+        discard self.check(project)
     self.posteval(project)
