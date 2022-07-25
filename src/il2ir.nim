@@ -246,13 +246,13 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
 
 proc il2ir*(self: il.Suite, scope: Scope): ir.Expression =
     # let scope = newScope(scope)
-    result = ir.Expression.Seq(self.stmts.map(it => it.il2ir(scope)), self.loc)
+    result = ir.Expression.Seq(self.stmts.filterIt(it.kind != il.StatementKind.Comments).map(it => it.il2ir(scope)), self.loc)
     result.scope = scope
 
 proc il2ir*(self: il.Program): ir.Expression =
     let scope = newScope()
     result = ir.Expression.Seq(
-        self.stmts.map(it => it.il2ir(scope)),
+        self.stmts.filterIt(it.kind != il.StatementKind.Comments).map(it => it.il2ir(scope)),
         # TODO:
         # calculate location from stmts or
         # change definition of Program to have location and revise parser of Program
