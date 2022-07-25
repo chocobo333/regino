@@ -30,7 +30,6 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
         project.env.coerce(self.callee.typ <= Type.Arrow(self.args.mapIt(it.typ), self.typ))
         project.env.coerce(Type.Arrow(self.args.mapIt(Type.Unit), self.typ) <= self.callee.typ)
     of ExpressionKind.Apply:
-        # TODO:
         discard
     of ExpressionKind.If:
         self.cond.infer(project, global)
@@ -73,7 +72,6 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
         self.fn.body.infer(project, global)
         project.env.coerce(self.fn.body.typ <= self.fn.signature.ident.typ)
     of ExpressionKind.ImportLL:
-        # TODO:
         discard
     of ExpressionKind.Loop:
         self.`block`.infer(project, global)
