@@ -305,8 +305,6 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             e.preeval(project, global)
         let
             typ = self.typ.eval(project, global)
-        debug self.ident.typ.symbol.get.val.rety
-        debug typ
         project.env.coerce(self.ident.typ.symbol.get.val.rety == typ)
     proc preeval(self: Pattern, project: Project, global: bool = false): Type =
         result = case self.kind
@@ -325,8 +323,50 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
                 members[k.name] = v.preeval(project, global)
             Type.Record(members)
         self.typ = result
+    proc preevalParam(self: Ident, project: Project, global: bool = false): Type =
+        let
+            tv = Type.Var(project.env)
+            symbol = Symbol.Param(self, tv, global)
+        project.addErr project.env.addSymbol(symbol)
+        tv
+    proc preevalParam(self: Pattern, project: Project, global: bool = false): Type =
+        result = case self.kind
+        of PatternKind.Literal:
+            self.litval.typ
+        of PatternKind.Ident:
+            self.ident.preevalParam(project, global)
+        of PatternKind.Tuple:
+            # TODO: tag
+            self.patterns.mapIt(it.preevalParam(project, global)).foldl(Type.Pair(a, b))
+        of PatternKind.Record:
+            # TODO: tag
+            var members = initTable[string, Type]()
+            for (k, v) in self.members:
+                discard k.preevalParam(project, global)
+                members[k.name] = v.preevalParam(project, global)
+            Type.Record(members)
+        self.typ = result
+    proc preevalParam(self: IdentDef, project: Project, global: bool = false): Type =
+        let
+            tv = self.pat.preevalParam(project, global)
+        if self.default.isSome:
+            discard self.default.get.preeval(project, global)
+        assert self.typ.isSome
+        let
+            t = self.typ.get.eval(project, global)
+        self.typ.get.typ = t.typ
+        project.env.coerce(tv == t)
+        t
+    proc preeval(self: FunctionSignature, project: Project, global: bool = false) =
+        let
+            fnty = self.ident.typ.symbol.get.typ
+            paramty = self.params.mapIt(it.preevalParam(project, global))
+            rety = self.rety.eval(project, global)
+        project.env.coerce(fnty.rety == Type.Arrow(paramty, rety))
     proc preeval(self: Function, project: Project, global: bool = false) =
-        discard
+        project.env.enter self.body.scope:
+            self.signature.preeval(project, global)
+            discard self.body.preeval(project, global)
     result = case self.kind
     of ExpressionKind.Literal:
         self.litval.typ

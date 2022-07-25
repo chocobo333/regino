@@ -97,7 +97,7 @@ proc Const*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol 
     result = Symbol(kind: SymbolKind.Const, ident: ident, typ: typ, global: global)
     typ.symbol = some result
 proc Param*(_: typedesc[Symbol], ident: Ident, typ: Type, global: bool): Symbol =
-    result = Symbol(kind: SymbolKind.Param, ident: ident, typ: typ, global: global)
+    result = Symbol(kind: SymbolKind.Param, ident: ident, typ: typ.gen, global: global)
     ident.typ = typ
     typ.symbol = some result
 proc Typ*(_: typedesc[Symbol], ident: Ident, val: PiType, global: bool, loc: Location): Symbol =
