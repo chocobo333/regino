@@ -65,18 +65,10 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     of il.ExpressionKind.Case:
         assert false, "notimplemented"
         dummyExpression
-    of il.ExpressionKind.Call:
-        assert false, "notimplemented"
-        dummyExpression
-    of il.ExpressionKind.Command:
-        assert false, "notimplemented"
-        dummyExpression
+    of il.ExpressionKind.Call, il.ExpressionKind.Command, il.ExpressionKind.Bracket:
+        ir.Expression.Call(self.callee.il2ir(scope), self.args.map(it => it.il2ir(scope)), self.loc)
     of il.ExpressionKind.Dot:
-        assert false, "notimplemented"
-        dummyExpression
-    of il.ExpressionKind.Bracket:
-        assert false, "notimplemented"
-        dummyExpression
+        ir.Expression.Call(self.rhs.il2ir(scope), self.lhs.il2ir(scope) & self.dotArgs.map(it => it.il2ir(scope)), self.loc)
     of il.ExpressionKind.Binary:
         assert false, "notimplemented"
         dummyExpression
