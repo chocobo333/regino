@@ -18,9 +18,9 @@ proc sema*(self: Project) =
     self.env = newTypeEnv(main.scope)
     main.predeclare(self, global=true)
     discard main.preeval(self, global=true)
+    debug self.env.constraints
     self.env.resolveEq
     main.infer(self, global=true)
-    debug self.env.constraints
     self.env.resolve
     discard main.check(self, global=true)
     debug main

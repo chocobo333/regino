@@ -30,7 +30,6 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
         project.env.coerce(self.callee.typ <= Type.Arrow(self.args.mapIt(it.typ), self.typ))
         project.env.coerce(Type.Arrow(self.args.mapIt(Type.Unit), self.typ) <= self.callee.typ)
     of ExpressionKind.Apply:
-        # TODO:
         discard
     of ExpressionKind.If:
         self.cond.infer(project, global)
@@ -63,17 +62,16 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.LetSection, ExpressionKind.VarSection:
         for iddef in self.iddefs:
             iddef.infer(project, global)
-    of ExpressionKind.ConsSection:
+    of ExpressionKind.ConstSection:
         discard
     of ExpressionKind.TypeSection:
         discard
     of ExpressionKind.Assign:
         project.env.coerce(self.assign_lval.typ <= self.assign_val.typ)
     of ExpressionKind.Funcdef:
-        # TODO:
-        discard
+        self.fn.body.infer(project, global)
+        project.env.coerce(self.fn.body.typ <= self.fn.signature.ident.typ)
     of ExpressionKind.ImportLL:
-        # TODO:
         discard
     of ExpressionKind.Loop:
         self.`block`.infer(project, global)
@@ -85,14 +83,17 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.Typeof:
         self.typeof.infer(project, global)
     of ExpressionKind.Malloc:
-        # TODO:
-        discard
+        self.msize.infer(project, global)
+        project.env.coerce(self.msize.typ <= Type.Integer(64))
     of ExpressionKind.Realloc:
-        # TODO:
-        discard
+        self.rptr.infer(project, global)
+        self.msize.infer(project, global)
+        project.env.coerce(self.msize.typ <= Type.Integer(64))
     of ExpressionKind.PtrSet:
-        # TODO:
-        discard
+        self.`ptr`.infer(project, global)
+        self.index.infer(project, global)
+        self.val.infer(project, global)
     of ExpressionKind.PtrGet:
-        # TODO:
-        discard
+        self.`ptr`.infer(project, global)
+        self.index.infer(project, global)
+        project.env.coerce(self.`ptr`.typ == Type.Ptr(self.typ))

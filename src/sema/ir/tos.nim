@@ -167,7 +167,7 @@ proc `$`*(self: Expression): string =
         &"{self.kind2str}\n{a}"
     of ExpressionKind.VarSection:
         ""
-    of ExpressionKind.ConsSection:
+    of ExpressionKind.ConstSection:
         ""
     of ExpressionKind.TypeSection:
         self.kind2str & "\n" & ($self.typedef).indent(2)

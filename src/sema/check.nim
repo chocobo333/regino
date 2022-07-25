@@ -61,7 +61,7 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         false
     of ExpressionKind.VarSection:
         false
-    of ExpressionKind.ConsSection:
+    of ExpressionKind.ConstSection:
         false
     of ExpressionKind.TypeSection:
         false

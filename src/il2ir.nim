@@ -215,7 +215,7 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
     of il.StatementKind.VarSection:
         ir.Expression.VarSection(self.iddefSection.il2ir(scope), self.loc)
     of il.StatementKind.ConstSection:
-        ir.Expression.ConsSection(self.iddefSection.il2ir(scope), self.loc)
+        ir.Expression.ConstSection(self.iddefSection.il2ir(scope), self.loc)
     of il.StatementKind.TypeSection:
         let typeDefs = self.typedefSection.il2ir(scope)
         ir.Expression.Seq(typeDefs, self.loc)

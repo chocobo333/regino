@@ -244,7 +244,7 @@ type
         Import
         LetSection
         VarSection
-        ConsSection
+        ConstSection
         TypeSection
         Assign
         Funcdef
@@ -317,7 +317,7 @@ type
             to*: Expression
         of ExpressionKind.Import:
             module*: Ident
-        of ExpressionKind.LetSection, ExpressionKind.VarSection, ExpressionKind.ConsSection:
+        of ExpressionKind.LetSection, ExpressionKind.VarSection, ExpressionKind.ConstSection:
             iddefs*: seq[IdentDef]
         of ExpressionKind.TypeSection:
             typedef*: TypeDef
