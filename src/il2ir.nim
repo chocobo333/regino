@@ -13,8 +13,8 @@ import sema/typeenvs
 import lineinfos
 
 let
-    dummyExpression = ir.Expression.Lit(ir.Literal.Unit, newLocation())
-    dummyTypeExpression = ir.TypeExpression.Expr(dummyExpression)
+    unitExpression = ir.Expression.Lit(ir.Literal.Unit, newLocation())
+    unitTypeExpression = ir.TypeExpression.Expr(unitExpression)
 
 proc il2ir*(self: il.Suite, scope: Scope): ir.Expression
 
@@ -47,43 +47,43 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
         ir.Expression.Id(self.ident.il2ir(scope), self.loc)
     of il.ExpressionKind.Tuple:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Array:
         ir.Expression.Array(self.exprs.map(it => it.il2ir(scope)), self.loc)
     of il.ExpressionKind.Record:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.ObjCons:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.If:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.When:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Case:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Call, il.ExpressionKind.Command, il.ExpressionKind.Bracket:
         ir.Expression.Call(self.callee.il2ir(scope), self.args.map(it => it.il2ir(scope)), self.loc)
     of il.ExpressionKind.Dot:
         ir.Expression.Call(self.rhs.il2ir(scope), self.lhs.il2ir(scope) & self.dotArgs.map(it => it.il2ir(scope)), self.loc)
     of il.ExpressionKind.Binary:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Prefix:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Postfix:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Block:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Lambda:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Malloc:
         ir.Expression.Malloc(self.mtype.il2ir(scope), self.msize.il2ir(scope), self.loc)
     of il.ExpressionKind.Realloc:
@@ -98,13 +98,13 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
         ir.Expression.Ref(self.`ref`.il2ir(scope), self.loc)
     of il.ExpressionKind.FnType:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.IntCast:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.ExpressionKind.Fail:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
 
     result.scope = scope
 
@@ -113,16 +113,16 @@ proc il2ir*(self: il.TypeExpression, scope: Scope): ir.TypeExpression =
     result = case self.kind:
     of il.TypeExpressionKind.Object:
         assert false, "notimplemented"
-        dummyTypeExpression
+        unitTypeExpression
     of il.TypeExpressionKind.Sum:
         assert false, "notimplemented"
-        dummyTypeExpression
+        unitTypeExpression
     of il.TypeExpressionKind.Distinct:
         assert false, "notimplemented"
-        dummyTypeExpression
+        unitTypeExpression
     of il.TypeExpressionKind.Trait:
         assert false, "notimplemented"
-        dummyTypeExpression
+        unitTypeExpression
     of il.TypeExpressionKind.Expression:
         ir.TypeExpression.Expr(self.expression.il2ir(scope))
 
@@ -186,9 +186,9 @@ proc il2ir*(self: il.Function, scope: Scope): Function =
             implicits: self.param.implicit.map(it => it.il2ir(scope)),
             params: self.param.params.map(it => it.il2ir(scope)),
             # TODO: when rety is none
-            rety: if self.param.rety.isSome: self.param.rety.get.il2ir(scope) else: dummyExpression
+            rety: if self.param.rety.isSome: self.param.rety.get.il2ir(scope) else: unitExpression
         )
-        body = if self.suite.isSome: self.suite.get.il2ir(scope) else: dummyExpression
+        body = if self.suite.isSome: self.suite.get.il2ir(scope) else: unitExpression
 
     Function(
         signature: signature,
@@ -200,16 +200,16 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
     result = case self.kind:
     of il.StatementKind.Import:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.StatementKind.For:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.StatementKind.While:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.StatementKind.Loop:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.StatementKind.LetSection:
         ir.Expression.LetSection(self.iddefSection.il2ir(scope), self.loc)
     of il.StatementKind.VarSection:
@@ -221,26 +221,26 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
         ir.Expression.Seq(typeDefs, self.loc)
     of il.StatementKind.Asign:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.StatementKind.IndexAssign:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.StatementKind.Funcdef:
         ir.Expression.Funcdef(self.fn.il2ir(scope), self.loc)
     of il.StatementKind.Meta:
-        assert false, "notimplemented"
-        dummyExpression
+        # assert false, "notimplemented"
+        unitExpression
     of il.StatementKind.Discard:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
     of il.StatementKind.Comments:
         assert false, "il.Comment cannnot be translated to ir"
-        dummyExpression
+        unitExpression
     of il.StatementKind.Expression:
         self.expression.il2ir(scope)
     of il.StatementKind.Fail:
         assert false, "notimplemented"
-        dummyExpression
+        unitExpression
 
     result.scope = scope
 
@@ -271,7 +271,8 @@ when isMainModule:
     import sema/sema
     import utils
     let
-        mainPath = "test/unit.rgn".absolutePath
+        mainPath = "test/test05.rgn".absolutePath
         ilProject = buildProject(mainPath)
         irProject = ilProject.il2ir
-    irProject.sema
+    debug irProject.programs
+    # irProject.sema
