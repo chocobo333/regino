@@ -456,7 +456,8 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         self.fn.preeval(project, global)
         Type.Unit
     of ExpressionKind.ImportLL:
-        # TODO:
+        project.env.enter self.scope:
+            self.signature.preeval(project, global)
         Type.Unit
     of ExpressionKind.Loop:
         self.`block`.preeval(project, global)
