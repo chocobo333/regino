@@ -165,6 +165,8 @@ proc Ref*(_: typedesc[Expression], to: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Ref, to: to, loc: loc)
 proc Import*(_: typedesc[Expression], module: Ident, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Import, module: module, loc: loc)
+proc Link*(_: typedesc[Expression], link: Expression, loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.Link, link: link, loc: loc)
 proc LetSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.LetSection, iddefs: iddefs, loc: loc)
 proc VarSection*(_: typedesc[Expression], iddefs: seq[IdentDef], loc: Location): Expression =

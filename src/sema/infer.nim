@@ -54,6 +54,9 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.Import:
         # TODO:
         discard
+    of ExpressionKind.Link:
+        # TODO:
+        discard
     of ExpressionKind.LetSection, ExpressionKind.VarSection:
         for iddef in self.iddefs:
             iddef.infer(project, global)

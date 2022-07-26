@@ -124,6 +124,8 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
     of ExpressionKind.Import:
         # TODO:
         discard
+    of ExpressionKind.Link:
+        discard
     of ExpressionKind.LetSection:
         for e in self.iddefs:
             e.predeclare(project, global)
@@ -437,6 +439,9 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
     of ExpressionKind.Import:
         # TODO:
         Type.Unit
+    of ExpressionKind.Link:
+        # TODO:
+        Type.Unit
     of ExpressionKind.LetSection:
         for e in self.iddefs:
             e.preevalLet(project, global)
@@ -518,6 +523,8 @@ proc posteval*(self: Expression, project: Project): Type =
     of ExpressionKind.Ref:
         Type.Unit
     of ExpressionKind.Import:
+        Type.Unit
+    of ExpressionKind.Link:
         Type.Unit
     of ExpressionKind.LetSection:
         Type.Unit

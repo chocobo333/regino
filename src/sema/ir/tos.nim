@@ -164,6 +164,8 @@ proc `$`*(self: Expression): string =
         ""
     of ExpressionKind.Import:
         ""
+    of ExpressionKind.Link:
+        ""
     of ExpressionKind.LetSection:
         let a = self.iddefs.map(`$`).join("\n").indent(2)
         &"{self.kind2str}\n{a}"

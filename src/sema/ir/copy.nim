@@ -223,6 +223,8 @@ proc copy*(self: Expression): Expression =
         ir.Expression.Ref(self.to.copy, self.loc)
     of ExpressionKind.Import:
         ir.Expression.Import(self.ident, self.loc)
+    of ExpressionKind.Link:
+        ir.Expression.Link(self.link.copy, self.loc)
     of ExpressionKind.LetSection:
         ir.Expression.LetSection(self.iddefs.map(copy), self.loc)
     of ExpressionKind.VarSection:

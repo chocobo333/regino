@@ -267,8 +267,13 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
         else:
             ir.Expression.Funcdef(self.fn.il2ir(scope), self.loc)
     of il.StatementKind.Meta:
-        # assert false, "notimplemented"
-        unitExpression
+        case self.meta.kind:
+        of il.MetadataKind.Link:
+            assert self.meta.params.len == 1
+            ir.Expression.Link(self.meta.params[0].il2ir(scope), self.loc)
+        else:
+            assert false, "notimplemented"
+            unitExpression
     of il.StatementKind.Discard:
         assert false, "notimplemented"
         unitExpression

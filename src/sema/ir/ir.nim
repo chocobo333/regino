@@ -242,6 +242,7 @@ type
         Ref
 
         Import
+        Link
         LetSection
         VarSection
         ConstSection
@@ -317,6 +318,8 @@ type
             to*: Expression
         of ExpressionKind.Import:
             module*: Ident
+        of ExpressionKind.Link:
+            link*: Expression
         of ExpressionKind.LetSection, ExpressionKind.VarSection, ExpressionKind.ConstSection:
             iddefs*: seq[IdentDef]
         of ExpressionKind.TypeSection:

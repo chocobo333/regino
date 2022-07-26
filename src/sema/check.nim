@@ -57,6 +57,8 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         false
     of ExpressionKind.Import:
         false
+    of ExpressionKind.Link:
+        false
     of ExpressionKind.LetSection:
         false
     of ExpressionKind.VarSection:
