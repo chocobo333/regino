@@ -21,7 +21,7 @@ type
         GenParam
         Func
         Field
-    Symbol* = object
+    Symbol* = ref object
         # loc*: Location
         ident*: Ident
         global*: bool

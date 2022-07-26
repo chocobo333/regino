@@ -36,9 +36,14 @@ proc eval*(self: TypeExpression, project: Project, global: bool = false): Type =
     # TODO
     case self.kind
     of TypeExpressionKind.Ref:
-        Type.Unit
+        Type.Ptr(self.to.eval(project, global))
     of TypeExpressionKind.Object:
-        Type.Unit
+        var members = initTable[string, Type]()
+        for k, v in self.members.pairs:
+            let t = v.eval(project, global)
+            members[k.name] = t
+            k.typ = t
+        Type.Record(members)
     of TypeExpressionKind.Variant:
         Type.Unit
     of TypeExpressionKind.Trait:
