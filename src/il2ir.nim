@@ -67,13 +67,13 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
                 if self.elseb.isSome:
                     self.elseb.get.il2ir(scope)
                 else:
-                    let 
+                    let
                         nScope = newScope(scope)
                         elseb = ir.Expression.Seq(@[unit(nScope)], self.loc)
                     elseb.scope = nScope
                     elseb
             else:
-                let 
+                let
                     head = elifs[0]
                     tail = elifs[1..^1]
 

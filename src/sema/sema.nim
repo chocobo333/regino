@@ -20,6 +20,7 @@ proc sema*(self: Project) =
     discard main.preeval(self, global=true)
     self.env.resolveEq
     main.infer(self, global=true)
+    debug self.env.constraints
     self.env.resolve
     discard main.check(self, global=true)
     debug main

@@ -367,7 +367,7 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
             fnty = self.ident.typ
             paramty = self.params.mapIt(it.preevalParam(project, global))
             rety = self.rety.eval(project, global)
-        project.env.coerce(fnty.rety == Type.Arrow(paramty, rety))
+        project.env.coerce(fnty == Type.Arrow(paramty, rety))
     proc preeval(self: Function, project: Project, global: bool = false) =
         project.env.enter self.body.scope:
             self.signature.preeval(project, global)
