@@ -186,15 +186,18 @@ proc il2ir*(self: il.IdentDefSection, scope: Scope): seq[ir.IdentDef] =
 proc il2ir*(self: il.TypeDefSection, scope: Scope): seq[ir.Expression] =
     result = self.typedefs.map(it => it.il2ir(scope))
 
+proc f2fs*(self: il.Function, scope: Scope): FunctionSignature =
+    FunctionSignature(
+        ident: self.id.il2ir(scope),
+        implicits: self.param.implicit.map(it => it.il2ir(scope)),
+        params: self.param.params.map(it => it.il2ir(scope)),
+        # TODO: when rety is none
+        rety: if self.param.rety.isSome: self.param.rety.get.il2ir(scope) else: unitExpression
+    )
+
 proc il2ir*(self: il.Function, scope: Scope): Function =
     let
-        signature = FunctionSignature(
-            ident: self.id.il2ir(scope),
-            implicits: self.param.implicit.map(it => it.il2ir(scope)),
-            params: self.param.params.map(it => it.il2ir(scope)),
-            # TODO: when rety is none
-            rety: if self.param.rety.isSome: self.param.rety.get.il2ir(scope) else: unitExpression
-        )
+        signature = f2fs(self, scope)
         body = if self.suite.isSome: self.suite.get.il2ir(scope) else: unitExpression
 
     Function(
@@ -204,6 +207,7 @@ proc il2ir*(self: il.Function, scope: Scope): Function =
 
 proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
     # TODO:
+    var nScope = scope
     result = case self.kind:
     of il.StatementKind.Import:
         assert false, "notimplemented"
@@ -233,7 +237,12 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
         assert false, "notimplemented"
         unitExpression
     of il.StatementKind.Funcdef:
-        ir.Expression.Funcdef(self.fn.il2ir(scope), self.loc)
+        let f = self.fn
+        if f.metadata.isSome and f.metadata.get.kind == il.MetadataKind.ImportLL:
+            nScope = newScope(scope)
+            ir.Expression.ImportLL(self.fn.f2fs(nScope), self.loc)
+        else:
+            ir.Expression.Funcdef(self.fn.il2ir(scope), self.loc)
     of il.StatementKind.Meta:
         # assert false, "notimplemented"
         unitExpression
@@ -249,7 +258,7 @@ proc il2ir*(self: il.Statement, scope: Scope): ir.Expression =
         assert false, "notimplemented"
         unitExpression
 
-    result.scope = scope
+    result.scope = nScope
 
 proc il2ir*(self: il.Suite, scope: Scope): ir.Expression =
     let scope = newScope(scope)
