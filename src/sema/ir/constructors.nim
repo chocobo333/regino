@@ -163,6 +163,8 @@ proc ObjCons*(_: typedesc[Expression], obj: Ident, implicits: seq[Expression], m
     ir.Expression(kind: ExpressionKind.ObjCons, obj: obj, implicits: implicits, members: members, loc: loc)
 proc Ref*(_: typedesc[Expression], to: Expression, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Ref, to: to, loc: loc)
+proc FnType*(_: typedesc[Expression], callee: Expression, args: seq[Expression], rety: Expression, loc: Location): Expression =
+    ir.Expression(kind: ExpressionKind.FnType, callee: callee, args: args, rety: rety, loc: loc)
 proc Import*(_: typedesc[Expression], module: Ident, loc: Location): Expression =
     ir.Expression(kind: ExpressionKind.Import, module: module, loc: loc)
 proc Link*(_: typedesc[Expression], link: Expression, loc: Location): Expression =

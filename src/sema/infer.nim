@@ -51,6 +51,9 @@ proc infer*(self: Expression, project: Project, global: bool = false) =
         discard
     of ExpressionKind.Ref:
         self.to.infer(project, global)
+    of ExpressionKind.FnType:
+        # TODO:
+        discard
     of ExpressionKind.Import:
         # TODO:
         discard

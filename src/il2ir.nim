@@ -127,8 +127,7 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
     of il.ExpressionKind.Ref:
         ir.Expression.Ref(self.`ref`.il2ir(scope), self.loc)
     of il.ExpressionKind.FnType:
-        assert false, "notimplemented"
-        unitExpression
+        ir.Expression.FnType(self.callee.il2ir(scope), self.args.map(it => it.il2ir(scope)), self.rety.il2ir(scope), self.loc)
     of il.ExpressionKind.IntCast:
         assert false, "notimplemented"
         unitExpression

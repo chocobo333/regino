@@ -221,6 +221,8 @@ proc copy*(self: Expression): Expression =
         ir.Expression.ObjCons(self.obj.copy, self.implicits.map(copy), self.members.map(copy), self.loc)
     of ExpressionKind.Ref:
         ir.Expression.Ref(self.to.copy, self.loc)
+    of ExpressionKind.FnType:
+        ir.Expression.FnType(self.callee.copy, self.args.map(copy), self.rety.copy, self.loc)
     of ExpressionKind.Import:
         ir.Expression.Import(self.ident, self.loc)
     of ExpressionKind.Link:

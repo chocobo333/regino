@@ -121,6 +121,9 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
             v.predeclare(project, global)
     of ExpressionKind.Ref:
         self.to.predeclare(project, global)
+    of ExpressionKind.FnType:
+        # TODO:
+        discard
     of ExpressionKind.Import:
         # TODO:
         discard
@@ -436,6 +439,9 @@ proc preeval*(self: Expression, project: Project, global: bool = false): Type =
         obj.inst(implicits)
     of ExpressionKind.Ref:
         Type.Ptr(self.to.preeval(project, global))
+    of ExpressionKind.FnType:
+        # TODO:
+        Type.Unit
     of ExpressionKind.Import:
         # TODO:
         Type.Unit
@@ -521,6 +527,8 @@ proc posteval*(self: Expression, project: Project): Type =
     of ExpressionKind.ObjCons:
         Type.Unit
     of ExpressionKind.Ref:
+        Type.Unit
+    of ExpressionKind.FnType:
         Type.Unit
     of ExpressionKind.Import:
         Type.Unit

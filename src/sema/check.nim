@@ -55,6 +55,8 @@ proc check*(self: Expression, project: Project, global: bool = false): bool =
         false
     of ExpressionKind.Ref:
         false
+    of ExpressionKind.FnType:
+        false
     of ExpressionKind.Import:
         false
     of ExpressionKind.Link:

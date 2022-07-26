@@ -162,6 +162,8 @@ proc `$`*(self: Expression): string =
         ""
     of ExpressionKind.Ref:
         ""
+    of ExpressionKind.FnType:
+        ""
     of ExpressionKind.Import:
         ""
     of ExpressionKind.Link:

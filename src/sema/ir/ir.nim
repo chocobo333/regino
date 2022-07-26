@@ -240,6 +240,7 @@ type
         Record
         ObjCons
         Ref
+        FnType
 
         Import
         Link
@@ -296,9 +297,10 @@ type
             litval*: Literal
         of ExpressionKind.Ident:
             ident*: Ident
-        of ExpressionKind.Call, ExpressionKind.Apply:
+        of ExpressionKind.Call, ExpressionKind.Apply, ExpressionKind.FnType:
             callee*: Expression
             args*: seq[Expression]
+            rety*: Expression # for FnType
         of ExpressionKind.If:
             cond*: Expression
             then*: Expression
