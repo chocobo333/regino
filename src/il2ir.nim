@@ -17,6 +17,10 @@ let
     unitExpression = ir.Expression.Lit(ir.Literal.Unit, newLocation())
     unitTypeExpression = ir.TypeExpression.Expr(unitExpression)
 
+proc unit(scope: Scope): ir.Expression =
+    result = ir.Expression.Lit(ir.Literal.Unit, newLocation())
+    result.scope = scope
+
 proc il2ir*(self: il.Suite, scope: Scope): ir.Expression
 
 proc il2ir*(self: il.Ident, scope: Scope): ir.Ident =
@@ -58,12 +62,31 @@ proc il2ir*(self: il.Expression, scope: Scope): ir.Expression =
         assert false, "notimplemented"
         unitExpression
     of il.ExpressionKind.If:
-        var els = if self.elseb.isSome: self.elseb.get.il2ir(scope) else: unitExpression
-        els.scope = scope
-        for eib in self.elifs.reversed:
-            els = ir.Expression.If(eib.cond.il2ir(scope), eib.suite.il2ir(scope), els, self.loc)
-            els.scope = scope
-        els
+        proc makeIf(elifs: seq[il.ElifBranch], scope: Scope): ir.Expression =
+            if elifs.len == 0:
+                if self.elseb.isSome:
+                    self.elseb.get.il2ir(scope)
+                else:
+                    let 
+                        nScope = newScope(scope)
+                        elseb = ir.Expression.Seq(@[unit(nScope)], self.loc)
+                    elseb.scope = nScope
+                    elseb
+            else:
+                let 
+                    head = elifs[0]
+                    tail = elifs[1..^1]
+
+                let
+                    nScope = newScope(scope)
+                    els = ir.Expression.Seq(@[makeIf(tail, nScope)], self.loc)
+                els.scope = nScope
+
+                let ret = ir.Expression.If(head.cond.il2ir(scope), head.suite.il2ir(scope), els, self.loc)
+                ret.scope = scope
+                ret
+
+        makeIf(self.elifs, scope)
     of il.ExpressionKind.When:
         assert false, "notimplemented"
         unitExpression
