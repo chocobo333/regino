@@ -3,4 +3,7 @@ type
     bool = typeof(false)
 let a: int = 3
 let b = false
-a
+func id[T](a: T) -> T:
+    ## identity function
+    a
+id a

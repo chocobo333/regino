@@ -66,7 +66,7 @@ proc `$`*(self: Type): string =
     of TypeKind.Union:
         $self.kind
     of TypeKind.Gen:
-        $self.kind
+        fmt"g'{self.gt.id}"
     of TypeKind.Link:
         fmt"~{self.to}"
 proc `$`*(self: PiType): string =

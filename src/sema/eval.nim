@@ -76,7 +76,7 @@ proc predeclare*(self: Expression, project: Project, global: bool = false) =
         let
             implicits = self.implicits.mapIt(it.ident.typ.gt)
             tv = Type.Arrow(self.params.mapIt(Type.Var(project.env)), Type.Var(project.env))
-            pty = newPiType(tv, implicits, some self.ident)
+            pty = newPiType(tv, implicits, none Ident)
         Symbol.Func(self.ident, pty, global)
     proc predeclare(self: Function, project: Project, global: bool = false): Symbol =
         project.env.enter self.body.scope:
@@ -180,6 +180,9 @@ proc preeval(self: Ident, project: Project, global: bool = false): Type =
         types = project.env.lookupType(name)
         funcs = project.env.lookupFunc(name)
         t = vars.mapIt(it.typ.inst(project.env)) & types.mapIt(it.typ.inst(project.env)) & funcs.mapIt(it.typ.inst(project.env))
+    debug self
+    debug funcs
+    debug t
     result = case t.len
     of 0:
         let
@@ -192,6 +195,7 @@ proc preeval(self: Ident, project: Project, global: bool = false): Type =
     else:
         Type.Select(t, project.env)
     self.typ = result
+    debug self.typ
 proc preeval*(self: Expression, project: Project, global: bool = false): Type =
     # compile-time evaluation
     # returns self's type

@@ -310,7 +310,7 @@ when isMainModule:
     import sema/sema
     import utils
     let
-        mainPath = "test/test05.rgn".absolutePath
+        mainPath = "test/unit.rgn".absolutePath
         ilProject = buildProject(mainPath)
         irProject = ilProject.il2ir
     irProject.sema

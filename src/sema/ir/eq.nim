@@ -4,6 +4,9 @@ import tables
 import ir
 
 
+proc `==`*(self, other: GenericType): bool =
+    self.id == other.id
+
 proc `==`*(self, other: Value): bool =
     # TODO:
     if self.kind == other.kind:

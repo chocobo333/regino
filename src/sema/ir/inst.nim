@@ -7,6 +7,7 @@ import sugar
 import ir
 import constructors
 import hash
+import tos
 
 import ../../utils
 
@@ -67,6 +68,7 @@ proc inst*(self: Type, subs: Table[GenericType, Type]): Type =
             types.incl e.inst(subs)
         Type.Union(types)
     of TypeKind.Gen:
+        debug subs
         if self.gt in subs: subs[self.gt] else: Type.Gen(self.gt)
     of TypeKind.Link:
         Type.Link(self.to)
