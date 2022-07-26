@@ -4,18 +4,14 @@ import ir
 
 
 import sequtils
-import sets
 import tables
 import strformat
 
 # import resolveRelations
 
 import typeenvs
-import ../orders
 
 import macros
-
-import ../utils
 
 
 proc coerceRelation*(self: TypeEnv, t1, t2: Type) =

@@ -3,13 +3,11 @@ import sets
 import tables
 import options
 import sequtils
-import algorithm
 
 import ir
 import errors
 import generators
 import ir/inst
-import ir/tos
 
 import ../orders
 import ../utils

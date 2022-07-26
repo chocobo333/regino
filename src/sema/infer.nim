@@ -1,16 +1,11 @@
 
-import sets
 import tables
 import sequtils
 import options
-import sugar
 
 import ir
 import projects
-import typeenvs
 import coerce
-
-import ../utils
 
 
 proc infer*(self: Expression, project: Project, global: bool = false) =
