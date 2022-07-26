@@ -8,7 +8,6 @@ import coerce
 
 import ir
 import typeenvs
-import errors
 import ../orders
 import ../dots
 import ../utils
