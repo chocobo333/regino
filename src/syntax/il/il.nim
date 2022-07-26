@@ -171,7 +171,7 @@ type
         of ExpressionKind.Call, ExpressionKind.Command, ExpressionKind.Bracket, ExpressionKind.FnType:
             callee*: Expression
             args*: seq[Expression]
-            rety*: Expression
+            rety*: Expression # for FnType
             get_exp*: Option[Expression]
         of ExpressionKind.Dot, ExpressionKind.Binary, ExpressionKind.Prefix, ExpressionKind.Postfix:
             lhs*: Expression

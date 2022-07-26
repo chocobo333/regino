@@ -40,7 +40,9 @@ proc `$`*(self: Type): string =
     of TypeKind.Object:
         $self.kind
     of TypeKind.Arrow:
-        $self.kind
+        let
+            params = self.params.join(", ")
+        fmt"({params}) -> {self.rety}"
     of TypeKind.Cons:
         $self.kind
     of TypeKind.Distinct:
